@@ -1,0 +1,8 @@
+**/bin/
+**/obj/
+**/node_modules/
+**/dist/
+**/.env
+**/*.db
+**/wwwroot/uploads/notas-fiscais/*
+!**/wwwroot/uploads/notas-fiscais/.gitkeep

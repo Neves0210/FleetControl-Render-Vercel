@@ -1,0 +1,23 @@
+services:
+  - type: web
+    name: fleetcontrolrh-api
+    runtime: dotnet
+    rootDir: backend/FleetControlRH.Api
+    buildCommand: dotnet restore && dotnet publish -c Release -o out
+    startCommand: dotnet out/FleetControlRH.Api.dll
+    envVars:
+      - key: ASPNETCORE_ENVIRONMENT
+        value: Production
+      - key: JWT_KEY
+        generateValue: true
+      - key: AllowedOrigins
+        value: https://SEU-FRONTEND.vercel.app
+      - key: DATABASE_URL
+        fromDatabase:
+          name: fleetcontrolrh-db
+          property: connectionString
+
+databases:
+  - name: fleetcontrolrh-db
+    databaseName: fleetcontrolrh
+    user: fleetcontrolrh_user

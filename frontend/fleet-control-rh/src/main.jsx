@@ -1,0 +1,156 @@
+import React, { useEffect, useMemo, useState } from 'react';
+import { createRoot } from 'react-dom/client';
+import { BrowserRouter, NavLink, Navigate, Route, Routes, useNavigate } from 'react-router-dom';
+import axios from 'axios';
+import 'bootstrap/dist/css/bootstrap.min.css';
+import { ToastContainer, toast } from 'react-toastify';
+import 'react-toastify/dist/ReactToastify.css';
+import { BarChart3, Car, Fuel, LayoutDashboard, LogOut, Users, UserCog } from 'lucide-react';
+import './style.css';
+
+const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+const STATIC_BASE_URL = API_BASE_URL.replace('/api', '');
+const api = axios.create({ baseURL: API_BASE_URL });
+api.interceptors.request.use(config => {
+  const token = localStorage.getItem('token');
+  if (token) config.headers.Authorization = `Bearer ${token}`;
+  return config;
+});
+api.interceptors.response.use(r => r, err => {
+  if (err.response?.status === 401) { localStorage.clear(); window.location.href = '/login'; }
+  return Promise.reject(err);
+});
+
+const emptyAbastecimento = () => ({
+  veiculoId:'', motoristaId:'', dataAbastecimento:new Date().toISOString().slice(0,16), kmAtual:'', litros:'', valorTotal:'', posto:'', observacao:''
+});
+
+function toNumber(value) {
+  if (value === null || value === undefined || value === '') return 0;
+  if (typeof value === 'number') return value;
+  const text = String(value).replace('R$', '').replace(/\s/g, '');
+  if (text.includes(',') && text.includes('.')) return Number(text.replace(/\./g, '').replace(',', '.'));
+  if (text.includes(',')) return Number(text.replace(',', '.'));
+  return Number(text);
+}
+function money(v) { return toNumber(v).toLocaleString('pt-BR', { style:'currency', currency:'BRL' }); }
+function number(v) { return toNumber(v).toLocaleString('pt-BR'); }
+function litros(v) { return toNumber(v).toLocaleString('pt-BR', { minimumFractionDigits: 3, maximumFractionDigits: 3 }); }
+function getUser(){ try { return JSON.parse(localStorage.getItem('user') || '{}'); } catch { return {}; }}
+
+function Layout({ children }) {
+  const navigate = useNavigate();
+  const user = getUser();
+  function logout() { localStorage.clear(); navigate('/login'); }
+  return <div className="app-shell">
+    <aside className="sidebar">
+      <div className="brand">FleetControlRH</div>
+      <NavItem to="/" icon={<LayoutDashboard size={18}/>} label="Dashboard" />
+      <NavItem to="/veiculos" icon={<Car size={18}/>} label="Veículos" />
+      <NavItem to="/motoristas" icon={<Users size={18}/>} label="Motoristas" />
+      <NavItem to="/abastecimentos" icon={<Fuel size={18}/>} label="Abastecimentos" />
+      <NavItem to="/relatorios" icon={<BarChart3 size={18}/>} label="Relatórios" />
+      {user?.perfil === 1 && <NavItem to="/usuarios" icon={<UserCog size={18}/>} label="Usuários" />}
+    </aside>
+    <section className="content">
+      <div className="topbar">
+        <div><strong>{user?.nome}</strong><div className="text-muted small">{user?.email}</div></div>
+        <button className="btn btn-outline-danger btn-sm" onClick={logout}><LogOut size={16}/> Sair</button>
+      </div>
+      {children}
+    </section>
+    <ToastContainer position="top-right" autoClose={2500} />
+  </div>;
+}
+function NavItem({to, icon, label}) { return <NavLink to={to} end>{icon}<span>{label}</span></NavLink>; }
+function PrivateRoute({ children }) { return localStorage.getItem('token') ? <Layout>{children}</Layout> : <Navigate to="/login" />; }
+
+function Login() {
+  const [email, setEmail] = useState('admin@fleet.local');
+  const [senha, setSenha] = useState('123456');
+  const [loading, setLoading] = useState(false);
+  const navigate = useNavigate();
+  async function submit(e) {
+    e.preventDefault(); setLoading(true);
+    try {
+      const { data } = await api.post('/auth/login', { email, senha });
+      localStorage.setItem('token', data.token);
+      localStorage.setItem('user', JSON.stringify(data));
+      navigate('/');
+    } catch { toast.error('E-mail ou senha inválidos.'); }
+    finally { setLoading(false); }
+  }
+  return <div className="login-page"><form className="card p-4 login-card" onSubmit={submit}>
+    <h3 className="mb-1">FleetControlRH</h3><p className="text-muted">Controle de abastecimentos</p>
+    <label>E-mail</label><input className="form-control mb-3" value={email} onChange={e=>setEmail(e.target.value)} />
+    <label>Senha</label><input className="form-control mb-3" type="password" value={senha} onChange={e=>setSenha(e.target.value)} />
+    <button className="btn btn-primary" disabled={loading}>{loading?'Entrando...':'Entrar'}</button>
+    <small className="text-muted mt-3">Admin padrão: admin@fleet.local / 123456</small>
+    <ToastContainer position="top-right" autoClose={2500} />
+  </form></div>;
+}
+
+function Dashboard(){
+  const [data,setData]=useState(null); const [abastecimentos,setAbastecimentos]=useState([]);
+  useEffect(()=>{ api.get('/dashboard').then(r=>setData(r.data)); api.get('/abastecimentos').then(r=>setAbastecimentos(r.data.slice(0,5))); },[]);
+  if(!data) return <p>Carregando...</p>;
+  return <><h2 className="mb-3">Dashboard RH</h2><div className="row g-3 mb-4">
+    <Metric title="Veículos ativos" value={data.veiculos}/><Metric title="Motoristas ativos" value={data.motoristas}/><Metric title="Abastecimentos" value={data.abastecimentos}/><Metric title="Litros totais" value={number(data.totalLitros)}/><Metric title="Gasto total" value={money(data.totalValor)}/>
+  </div><div className="card card-soft table-card"><div className="card-body"><h5>Últimos abastecimentos</h5></div><AbastecimentosTabela items={abastecimentos}/></div></>;
+}
+function Metric({title,value}){return <div className="col-md-3"><div className="card-soft metric"><small>{title}</small><h3>{value}</h3></div></div>}
+
+function Veiculos(){
+  const [items,setItems]=useState([]); const [busca,setBusca]=useState(''); const [form,setForm]=useState({modelo:'',placa:'',kmAtual:0,tipoCombustivel:2,ativo:true}); const [edit,setEdit]=useState(null);
+  const filtered=useMemo(()=>items.filter(x=>(x.modelo+x.placa).toLowerCase().includes(busca.toLowerCase())),[items,busca]);
+  const load=()=>api.get('/veiculos').then(r=>setItems(r.data)); useEffect(load,[]);
+  async function save(e){e.preventDefault(); try{ if(edit) await api.put(`/veiculos/${edit}`,form); else await api.post('/veiculos',form); toast.success('Veículo salvo.'); setForm({modelo:'',placa:'',kmAtual:0,tipoCombustivel:2,ativo:true}); setEdit(null); load(); }catch(err){toast.error(err.response?.data?.mensagem||'Erro ao salvar.')}}
+  async function del(id){ if(confirm('Remover veículo?')){ await api.delete(`/veiculos/${id}`); toast.success('Veículo removido.'); load(); }}
+  return <><Header title="Veículos" subtitle="Cadastro e manutenção da frota"/><FormVeiculo form={form} setForm={setForm} save={save} edit={edit}/><Search value={busca} setValue={setBusca}/><div className="card card-soft table-card"><table className="table table-hover"><thead><tr><th>Modelo</th><th>Placa</th><th>KM atual</th><th>Combustível</th><th width="180"></th></tr></thead><tbody>{filtered.map(x=><tr key={x.id}><td>{x.modelo}</td><td><span className="badge-soft">{x.placa}</span></td><td>{number(x.kmAtual)}</td><td>{combustivel(x.tipoCombustivel)}</td><td><button className="btn btn-sm btn-warning me-2" onClick={()=>{setEdit(x.id);setForm(x)}}>Editar</button><button className="btn btn-sm btn-danger" onClick={()=>del(x.id)}>Remover</button></td></tr>)}</tbody></table></div></>;
+}
+function combustivel(v){ return ({1:'Gasolina',2:'Etanol',3:'Diesel',4:'Flex'})[v] || v; }
+function FormVeiculo({form,setForm,save,edit}){return <form className="card card-soft p-3 mb-3" onSubmit={save}><div className="row"><Input label="Modelo" value={form.modelo} onChange={v=>setForm({...form,modelo:v})}/><Input label="Placa" value={form.placa} onChange={v=>setForm({...form,placa:v})}/><Input label="KM" type="number" value={form.kmAtual} onChange={v=>setForm({...form,kmAtual:+v})}/><div className="col-md-2 mb-3"><label>Combustível</label><select className="form-select" value={form.tipoCombustivel} onChange={e=>setForm({...form,tipoCombustivel:+e.target.value})}><option value="1">Gasolina</option><option value="2">Etanol</option><option value="3">Diesel</option><option value="4">Flex</option></select></div><div className="col-md-2 mb-3 d-flex align-items-end"><button className="btn btn-success w-100">{edit?'Atualizar':'Cadastrar'}</button></div></div></form>}
+
+function Motoristas(){
+  const [items,setItems]=useState([]); const [busca,setBusca]=useState(''); const [form,setForm]=useState({nome:'',documento:'',telefone:'',cargo:'Técnico',ativo:true}); const [edit,setEdit]=useState(null);
+  const filtered=items.filter(x=>(x.nome+x.cargo).toLowerCase().includes(busca.toLowerCase()));
+  const load=()=>api.get('/motoristas').then(r=>setItems(r.data)); useEffect(load,[]);
+  async function save(e){e.preventDefault(); try{ if(edit) await api.put(`/motoristas/${edit}`,form); else await api.post('/motoristas',form); toast.success('Motorista salvo.'); setForm({nome:'',documento:'',telefone:'',cargo:'Técnico',ativo:true}); setEdit(null); load(); }catch{toast.error('Erro ao salvar.')}}
+  async function del(id){ if(confirm('Remover motorista?')){ await api.delete(`/motoristas/${id}`); toast.success('Motorista removido.'); load(); }}
+  return <><Header title="Motoristas/Técnicos" subtitle="Equipe vinculada aos abastecimentos"/><form className="card card-soft p-3 mb-3" onSubmit={save}><div className="row"><Input label="Nome" value={form.nome} onChange={v=>setForm({...form,nome:v})}/><Input label="Documento" value={form.documento||''} onChange={v=>setForm({...form,documento:v})}/><Input label="Telefone" value={form.telefone||''} onChange={v=>setForm({...form,telefone:v})}/><Input label="Cargo" value={form.cargo||''} onChange={v=>setForm({...form,cargo:v})}/><div className="col-md-2 mb-3 d-flex align-items-end"><button className="btn btn-success w-100">Salvar</button></div></div></form><Search value={busca} setValue={setBusca}/><div className="card card-soft table-card"><table className="table table-hover"><thead><tr><th>Nome</th><th>Documento</th><th>Telefone</th><th>Cargo</th><th></th></tr></thead><tbody>{filtered.map(x=><tr key={x.id}><td>{x.nome}</td><td>{x.documento}</td><td>{x.telefone}</td><td>{x.cargo}</td><td><button className="btn btn-sm btn-warning me-2" onClick={()=>{setEdit(x.id);setForm(x)}}>Editar</button><button className="btn btn-sm btn-danger" onClick={()=>del(x.id)}>Remover</button></td></tr>)}</tbody></table></div></>;
+}
+
+function Abastecimentos(){
+ const [items,setItems]=useState([]),[veiculos,setVeiculos]=useState([]),[motoristas,setMotoristas]=useState([]),[foto,setFoto]=useState(null),[preview,setPreview]=useState(''),[urlConsulta,setUrlConsulta]=useState(''),[filtro,setFiltro]=useState({veiculoId:'',motoristaId:''});
+ const [form,setForm]=useState(emptyAbastecimento());
+ const load=()=>{api.get('/abastecimentos',{params:filtro}).then(r=>setItems(r.data)); api.get('/veiculos').then(r=>setVeiculos(r.data)); api.get('/motoristas').then(r=>setMotoristas(r.data));}; useEffect(load,[]);
+ async function analisar(){ if(!foto && !urlConsulta.trim()) return toast.warning('Selecione a foto ou cole a URL da NFC-e.'); const fd=new FormData(); if(foto) fd.append('fotoNotaFiscal',foto); if(urlConsulta.trim()) fd.append('urlConsulta',urlConsulta.trim()); try{ const {data}=await api.post('/abastecimentos/analisar-nota',fd); if(!data.sucesso){ toast.warning(data.mensagem || 'Não foi possível analisar a nota.'); return; } setForm(f=>({...f, veiculoId:data.veiculoId||f.veiculoId, motoristaId:data.motoristaId||f.motoristaId, kmAtual:data.kmAtual||f.kmAtual, litros:data.litros||f.litros, valorTotal:data.valorTotal||f.valorTotal, posto:data.posto||f.posto, dataAbastecimento:data.dataAbastecimento?data.dataAbastecimento.substring(0,16):f.dataAbastecimento, observacao:[data.urlConsulta?`URL NFC-e: ${data.urlConsulta}`:'', data.combustivel?`Combustível: ${data.combustivel}`:'', data.placa?`Placa: ${data.placa}`:'', data.motorista?`Motorista: ${data.motorista}`:''].filter(Boolean).join('\n') || data.textoExtraido || f.observacao })); toast.success(data.mensagem || 'Nota analisada.'); }catch(err){toast.error(err.response?.data?.mensagem || 'Erro ao analisar nota.');}}
+ async function save(e){e.preventDefault(); const fd=new FormData(); Object.entries(form).forEach(([k,v])=>fd.append(k,v)); if(foto) fd.append('fotoNotaFiscal',foto); try{await api.post('/abastecimentos',fd); toast.success('Abastecimento salvo.'); setForm(emptyAbastecimento()); setFoto(null); setPreview(''); load();}catch(err){toast.error(err.response?.data?.mensagem||'Erro ao salvar.')}}
+ function fileChange(file){ setFoto(file); setPreview(file ? URL.createObjectURL(file) : ''); }
+ return <><Header title="Abastecimentos" subtitle="Registre abastecimentos e anexe a nota fiscal"/><form className="card card-soft p-3 mb-4" onSubmit={save}><div className="row"><div className="col-md-12 mb-3"><label>Foto da nota fiscal</label><input className="form-control" type="file" accept="image/*" onChange={e=>fileChange(e.target.files[0])}/>{preview&&<img src={preview} className="preview-img"/>}<label className="mt-3">URL da NFC-e / QR Code</label><input className="form-control" placeholder="Cole aqui a URL da NFC-e caso o QR Code da foto não seja lido" value={urlConsulta} onChange={e=>setUrlConsulta(e.target.value)}/><small className="text-muted">A URL da NFC-e é mais confiável que OCR da imagem.</small><br/><button type="button" className="btn btn-outline-primary mt-2" onClick={analisar}>Analisar Nota</button></div><Select label="Veículo" value={form.veiculoId} onChange={v=>setForm({...form,veiculoId:v})} items={veiculos} text={x=>`${x.modelo} - ${x.placa}`}/><Select label="Motorista/Técnico" value={form.motoristaId} onChange={v=>setForm({...form,motoristaId:v})} items={motoristas} text={x=>x.nome}/><Input label="Data" type="datetime-local" value={form.dataAbastecimento} onChange={v=>setForm({...form,dataAbastecimento:v})}/><Input label="KM atual" type="number" value={form.kmAtual} onChange={v=>setForm({...form,kmAtual:v})}/><Input label="Litros" value={form.litros} onChange={v=>setForm({...form,litros:v})}/><Input label="Valor total" value={form.valorTotal} onChange={v=>setForm({...form,valorTotal:v})}/><Input label="Posto" value={form.posto} onChange={v=>setForm({...form,posto:v})}/></div><label>Observação</label><textarea className="form-control mb-3" rows="3" value={form.observacao} onChange={e=>setForm({...form,observacao:e.target.value})}/><button className="btn btn-success">Salvar Abastecimento</button></form><div className="card card-soft p-3 mb-3"><div className="row"><Select label="Filtrar veículo" value={filtro.veiculoId} onChange={v=>setFiltro({...filtro,veiculoId:v})} items={veiculos} text={x=>`${x.modelo} - ${x.placa}`}/><Select label="Filtrar motorista" value={filtro.motoristaId} onChange={v=>setFiltro({...filtro,motoristaId:v})} items={motoristas} text={x=>x.nome}/><div className="col-md-2 d-flex align-items-end mb-3"><button className="btn btn-primary w-100" onClick={load}>Filtrar</button></div></div></div><div className="card card-soft table-card"><AbastecimentosTabela items={items}/></div></>;
+}
+function AbastecimentosTabela({items}){return <table className="table table-hover"><thead><tr><th>Data</th><th>Veículo</th><th>Motorista</th><th>KM</th><th>Litros</th><th>Valor</th><th>Nota</th></tr></thead><tbody>{items.map(x=><tr key={x.id}><td>{new Date(x.dataAbastecimento).toLocaleString('pt-BR')}</td><td>{x.veiculo?.placa}</td><td>{x.motorista?.nome}</td><td>{number(x.kmAtual)}</td><td>{litros(x.litros)}</td><td>{money(x.valorTotal)}</td><td>{x.fotoNotaFiscalPath && <a href={`${STATIC_BASE_URL}${x.fotoNotaFiscalPath}`} target="_blank">Ver</a>}</td></tr>)}</tbody></table>}
+
+function Usuarios(){
+ const [items,setItems]=useState([]); const [form,setForm]=useState({nome:'',email:'',senha:'123456',perfil:3,ativo:true}); const [edit,setEdit]=useState(null); const user=getUser();
+ const load=()=>api.get('/usuarios').then(r=>setItems(r.data)).catch(()=>toast.error('Apenas Master acessa usuários.')); useEffect(load,[]);
+ async function save(e){e.preventDefault(); try{ if(edit) await api.put(`/usuarios/${edit}`,form); else await api.post('/usuarios',form); toast.success('Usuário salvo.'); setForm({nome:'',email:'',senha:'123456',perfil:3,ativo:true}); setEdit(null); load();}catch(err){toast.error(err.response?.data?.mensagem||'Erro ao salvar usuário.')}}
+ if(user?.perfil !== 1) return <p>Apenas Master pode acessar esta tela.</p>;
+ return <><Header title="Usuários" subtitle="Controle de acesso e perfis"/><form className="card card-soft p-3 mb-3" onSubmit={save}><div className="row"><Input label="Nome" value={form.nome} onChange={v=>setForm({...form,nome:v})}/><Input label="E-mail" value={form.email} onChange={v=>setForm({...form,email:v})}/><Input label="Senha" value={form.senha||''} onChange={v=>setForm({...form,senha:v})}/><div className="col-md-2 mb-3"><label>Perfil</label><select className="form-select" value={form.perfil} onChange={e=>setForm({...form,perfil:+e.target.value})}><option value="1">Master</option><option value="2">RH</option><option value="3">Técnico</option></select></div><div className="col-md-2 d-flex align-items-end mb-3"><button className="btn btn-success w-100">Salvar</button></div></div></form><div className="card card-soft table-card"><table className="table table-hover"><thead><tr><th>Nome</th><th>E-mail</th><th>Perfil</th><th>Status</th><th></th></tr></thead><tbody>{items.map(x=><tr key={x.id}><td>{x.nome}</td><td>{x.email}</td><td>{perfil(x.perfil)}</td><td>{x.ativo?'Ativo':'Inativo'}</td><td><button className="btn btn-sm btn-warning" onClick={()=>{setEdit(x.id);setForm({...x,senha:''})}}>Editar</button></td></tr>)}</tbody></table></div></>;
+}
+function perfil(p){ return ({1:'Master',2:'RH',3:'Técnico'})[p] || p; }
+
+function Relatorios(){
+ const [items,setItems]=useState([]); useEffect(()=>{api.get('/abastecimentos').then(r=>setItems(r.data));},[]);
+ const porVeiculo = Object.values(items.reduce((acc,x)=>{const k=x.veiculo?.placa||'Sem placa'; acc[k]??={nome:k,litros:0,valor:0,qtd:0}; acc[k].litros+=Number(x.litros||0); acc[k].valor+=Number(x.valorTotal||0); acc[k].qtd++; return acc;},{}));
+ return <><Header title="Relatórios RH" subtitle="Consolidação por veículo"/><div className="card card-soft table-card"><table className="table table-hover"><thead><tr><th>Veículo</th><th>Qtd.</th><th>Litros</th><th>Total</th></tr></thead><tbody>{porVeiculo.map(x=><tr key={x.nome}><td>{x.nome}</td><td>{x.qtd}</td><td>{number(x.litros)}</td><td>{money(x.valor)}</td></tr>)}</tbody></table></div></>;
+}
+
+function Header({title,subtitle}){return <div className="mb-3"><h2>{title}</h2><p className="text-muted mb-0">{subtitle}</p></div>}
+function Search({value,setValue}){return <input className="form-control mb-3" placeholder="Pesquisar..." value={value} onChange={e=>setValue(e.target.value)} />}
+function Input({label,value,onChange,type='text'}){return <div className="col-md-2 mb-3"><label>{label}</label><input type={type} className="form-control" value={value ?? ''} onChange={e=>onChange(e.target.value)}/></div>}
+function Select({label,value,onChange,items,text}){return <div className="col-md-4 mb-3"><label>{label}</label><select className="form-select" value={value ?? ''} onChange={e=>onChange(e.target.value)}><option value="">Selecione</option>{items.map(x=><option key={x.id} value={x.id}>{text(x)}</option>)}</select></div>}
+
+function App(){return <BrowserRouter><Routes><Route path="/login" element={<Login/>}/><Route path="/" element={<PrivateRoute><Dashboard/></PrivateRoute>}/><Route path="/veiculos" element={<PrivateRoute><Veiculos/></PrivateRoute>}/><Route path="/motoristas" element={<PrivateRoute><Motoristas/></PrivateRoute>}/><Route path="/abastecimentos" element={<PrivateRoute><Abastecimentos/></PrivateRoute>}/><Route path="/usuarios" element={<PrivateRoute><Usuarios/></PrivateRoute>}/><Route path="/relatorios" element={<PrivateRoute><Relatorios/></PrivateRoute>}/></Routes></BrowserRouter>}
+
+createRoot(document.getElementById('root')).render(<App/>);

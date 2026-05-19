@@ -1,0 +1,22 @@
+:root { --bg:#f4f6f9; --sidebar:#111827; --primary:#2563eb; }
+body { margin:0; background:var(--bg); font-family: Inter, system-ui, Arial, sans-serif; }
+.login-page { min-height:100vh; display:flex; align-items:center; justify-content:center; background:linear-gradient(135deg,#111827,#2563eb); }
+.login-card { width:380px; border:0; border-radius:18px; box-shadow:0 20px 70px rgba(0,0,0,.35); }
+.app-shell { display:flex; min-height:100vh; }
+.sidebar { width:260px; background:var(--sidebar); color:#fff; padding:22px; position:sticky; top:0; height:100vh; }
+.brand { font-size:22px; font-weight:800; margin-bottom:24px; }
+.sidebar a { display:flex; align-items:center; gap:10px; color:#cbd5e1; text-decoration:none; padding:11px 12px; border-radius:12px; margin-bottom:6px; }
+.sidebar a:hover, .sidebar a.active { background:#1f2937; color:#fff; }
+.content { flex:1; padding:28px; }
+.topbar { background:#fff; border-radius:18px; padding:16px 20px; display:flex; justify-content:space-between; align-items:center; box-shadow:0 8px 28px rgba(15,23,42,.06); margin-bottom:22px; }
+.card-soft { background:#fff; border:0; border-radius:18px; box-shadow:0 8px 28px rgba(15,23,42,.06); }
+.metric { padding:20px; }
+.metric small { color:#64748b; font-weight:600; }
+.metric h3 { margin:8px 0 0; font-weight:800; }
+.table-card { overflow:hidden; }
+.table { margin:0; }
+.btn { border-radius:10px; }
+.form-control, .form-select { border-radius:10px; }
+.badge-soft { background:#e0ecff; color:#1d4ed8; padding:6px 10px; border-radius:999px; }
+.preview-img { max-width:280px; max-height:180px; border-radius:12px; margin-top:10px; }
+@media (max-width: 900px) { .app-shell { flex-direction:column; } .sidebar { width:100%; height:auto; position:relative; } }
