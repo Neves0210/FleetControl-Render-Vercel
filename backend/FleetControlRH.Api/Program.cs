@@ -27,18 +27,9 @@ var sqliteConnection = builder.Configuration.GetConnectionString("DefaultConnect
 
 builder.Services.AddDbContext<AppDbContext>(options =>
 {
-    if (!string.IsNullOrWhiteSpace(databaseUrl))
-    {
-        options.UseNpgsql(ConvertDatabaseUrl(databaseUrl));
-    }
-    else if (!string.IsNullOrWhiteSpace(postgresConnection))
-    {
-        options.UseNpgsql(postgresConnection);
-    }
-    else
-    {
-        options.UseSqlite(sqliteConnection);
-    }
+    options.UseNpgsql(
+        builder.Configuration.GetConnectionString("DefaultConnection")
+    );
 });
 
 builder.Services.AddScoped<TokenService>();
@@ -46,24 +37,14 @@ builder.Services.AddHttpClient<NotaFiscalService>();
 
 builder.Services.AddCors(options =>
 {
-    options.AddPolicy("Frontend", policy =>
+    options.AddPolicy("ReactApp", policy =>
     {
-        var allowedOrigins = builder.Configuration["AllowedOrigins"];
+        var origins = (Environment.GetEnvironmentVariable("AllowedOrigins") ?? "http://localhost:5173")
+            .Split(",", StringSplitOptions.RemoveEmptyEntries);
 
-        if (!string.IsNullOrWhiteSpace(allowedOrigins))
-        {
-            policy.WithOrigins(
-                    allowedOrigins
-                        .Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries))
-                .AllowAnyHeader()
-                .AllowAnyMethod();
-        }
-        else
-        {
-            policy.WithOrigins("http://localhost:5173", "https://localhost:5173")
-                .AllowAnyHeader()
-                .AllowAnyMethod();
-        }
+        policy.WithOrigins(origins)
+              .AllowAnyHeader()
+              .AllowAnyMethod();
     });
 });
 
@@ -107,6 +88,7 @@ if (app.Environment.IsDevelopment())
 
 app.UseStaticFiles();
 app.UseCors("Frontend");
+app.UseCors("ReactApp");
 app.UseAuthentication();
 app.UseAuthorization();
 app.MapControllers();
