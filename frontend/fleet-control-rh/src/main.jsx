@@ -589,7 +589,6 @@ function Abastecimentos() {
   const [urlConsulta, setUrlConsulta] = useState('');
   const [scannerAberto, setScannerAberto] = useState(false);
   const [qrReader, setQrReader] = useState(null);
-  const [qrControls, setQrControls] = useState(null);
   const [filtro, setFiltro] = useState({
     veiculoId: '',
     motoristaId: ''
@@ -637,12 +636,6 @@ function Abastecimentos() {
       setScannerAberto(false);
     }
   }
-
-  function fecharLeitorQrCode() {
-  qrControls?.stop?.();
-  setQrControls(null);
-  setScannerAberto(false);
-}
   
   async function analisarPorUrl(url) {
     if (!url?.trim()) {
