@@ -251,17 +251,16 @@ public class NotaFiscalService
     {
         var patterns = new[]
         {
-            // Padrão comum NFC-e SP: ETANOL COMUM 44,251 L X 3,790 167,71
-            @"(?i)(ETANOL|GASOLINA|DIESEL|FLEX|ALCOOL|ÁLCOOL).*?(\d{1,4}[,.]\d{3})\s*(L|LT|LITROS)",
+            // Padrão real da NFC-e SP:
+            // Qtde.:44,251 UN: L
+            @"(?i)Qtde\.?\s*:\s*(\d{1,5}[,.]\d{1,3})\s*UN\s*:\s*L",
 
-            // Quando aparece como Qtde
-            @"(?i)(QTDE|QTD|QUANTIDADE)\s*[:\-]?\s*(\d{1,4}[,.]\d{3})",
+            // Produto + quantidade
+            // ETANOL COMUM ... Qtde.:44,251 UN: L
+            @"(?i)(ETANOL|GASOLINA|DIESEL|ALCOOL|ÁLCOOL).*?Qtde\.?\s*:\s*(\d{1,5}[,.]\d{1,3})",
 
-            // Quando vem em tabela: quantidade / unidade / valor unitário / total
-            @"(?i)\b(\d{1,4}[,.]\d{3})\s*(L|LT)\s+\d{1,3}[,.]\d{2,3}\s+\d{1,6}[,.]\d{2}",
-
-            // Fallback: qualquer decimal com 3 casas perto de L
-            @"(?i)\b(\d{1,4}[,.]\d{3})\s*(L|LT|LITROS)\b"
+            // Fallback
+            @"(?i)\b(\d{1,5}[,.]\d{3})\b\s*UN\s*:\s*L"
         };
 
         foreach (var pattern in patterns)
@@ -275,7 +274,7 @@ public class NotaFiscalService
             {
                 var valor = group.Value.Trim();
 
-                if (Regex.IsMatch(valor, @"^\d{1,4}[,.]\d{3}$") &&
+                if (Regex.IsMatch(valor, @"^\d{1,5}[,.]\d{1,3}$") &&
                     TryParseDecimalBr(valor, out var litros))
                 {
                     return litros;
@@ -357,9 +356,23 @@ public class NotaFiscalService
     private static bool TryParseDecimalBr(string? valor, out decimal resultado)
     {
         resultado = 0;
-        if (string.IsNullOrWhiteSpace(valor)) return false;
-        valor = valor.Replace(".", "").Replace(",", ".");
-        return decimal.TryParse(valor, NumberStyles.Any, CultureInfo.InvariantCulture, out resultado);
+
+        if (string.IsNullOrWhiteSpace(valor))
+            return false;
+
+        valor = valor.Trim();
+
+        if (valor.Contains(','))
+        {
+            valor = valor.Replace(".", "").Replace(",", ".");
+        }
+
+        return decimal.TryParse(
+            valor,
+            NumberStyles.Any,
+            CultureInfo.InvariantCulture,
+            out resultado
+        );
     }
 
     private static string Limpar(string valor)
