@@ -251,17 +251,36 @@ public class NotaFiscalService
     {
         var patterns = new[]
         {
-            @"(?i)(?:ETANOL|GASOLINA|DIESEL).*?(\d{1,4}[,.]\d{3})\s*(?:L|LT|LITROS)?\s+\d{1,3}[,.]\d{2,3}\s+\d{1,6}[,.]\d{2}",
-            @"(?i)Qtde\.?\s*total\s*de\s*itens.*?(\d{1,4}[,.]\d{3})",
-            @"(?i)\b(\d{1,4}[,.]\d{3})\s*(?:L|LT|LITROS)\b",
-            @"(?i)\b(\d{1,4}[,.]\d{3})\b\s+L\b"
+            // Padrão comum NFC-e SP: ETANOL COMUM 44,251 L X 3,790 167,71
+            @"(?i)(ETANOL|GASOLINA|DIESEL|FLEX|ALCOOL|ÁLCOOL).*?(\d{1,4}[,.]\d{3})\s*(L|LT|LITROS)",
+
+            // Quando aparece como Qtde
+            @"(?i)(QTDE|QTD|QUANTIDADE)\s*[:\-]?\s*(\d{1,4}[,.]\d{3})",
+
+            // Quando vem em tabela: quantidade / unidade / valor unitário / total
+            @"(?i)\b(\d{1,4}[,.]\d{3})\s*(L|LT)\s+\d{1,3}[,.]\d{2,3}\s+\d{1,6}[,.]\d{2}",
+
+            // Fallback: qualquer decimal com 3 casas perto de L
+            @"(?i)\b(\d{1,4}[,.]\d{3})\s*(L|LT|LITROS)\b"
         };
 
         foreach (var pattern in patterns)
         {
             var match = Regex.Match(texto, pattern, RegexOptions.Singleline);
-            if (match.Success && TryParseDecimalBr(match.Groups[1].Value, out var value))
-                return value;
+
+            if (!match.Success)
+                continue;
+
+            foreach (Group group in match.Groups)
+            {
+                var valor = group.Value.Trim();
+
+                if (Regex.IsMatch(valor, @"^\d{1,4}[,.]\d{3}$") &&
+                    TryParseDecimalBr(valor, out var litros))
+                {
+                    return litros;
+                }
+            }
         }
 
         return null;

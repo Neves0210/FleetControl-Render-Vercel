@@ -589,6 +589,7 @@ function Abastecimentos() {
   const [urlConsulta, setUrlConsulta] = useState('');
   const [scannerAberto, setScannerAberto] = useState(false);
   const [qrReader, setQrReader] = useState(null);
+  const [qrControls, setQrControls] = useState(null);
   const [filtro, setFiltro] = useState({
     veiculoId: '',
     motoristaId: ''
@@ -613,6 +614,7 @@ function Abastecimentos() {
     try {
       const reader = new BrowserQRCodeReader();
       setQrReader(reader);
+      setQrControls(controls);
 
       const videoElement = document.getElementById('qr-video');
 
@@ -774,9 +776,12 @@ function Abastecimentos() {
     setFoto(file);
     setPreview(file ? URL.createObjectURL(file) : '');
   }
-
+  
   function fecharLeitorQrCode() {
-    qrControls?.stop?.();
+    if (qrControls) {
+      qrControls.stop();
+    }
+
     setQrControls(null);
     setScannerAberto(false);
   }
