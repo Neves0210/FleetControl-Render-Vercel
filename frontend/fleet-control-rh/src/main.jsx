@@ -589,6 +589,7 @@ function Abastecimentos() {
   const [urlConsulta, setUrlConsulta] = useState('');
   const [scannerAberto, setScannerAberto] = useState(false);
   const [qrReader, setQrReader] = useState(null);
+  const [qrControls, setQrControls] = useState(null);
   const [filtro, setFiltro] = useState({
     veiculoId: '',
     motoristaId: ''
@@ -610,32 +611,72 @@ function Abastecimentos() {
   async function abrirLeitorQrCode() {
     setScannerAberto(true);
 
-    try {
-      const reader = new BrowserQRCodeReader();
-      setQrReader(reader);
-      setQrControls(controls);
+    setTimeout(async () => {
+      try {
+        const videoElement = document.getElementById('qr-video');
 
-      const videoElement = document.getElementById('qr-video');
-
-      await reader.decodeFromVideoDevice(null, videoElement, async (result, error, controls) => {
-        if (result) {
-          const link = result.getText();
-
-          setUrlConsulta(link);
-
-          controls.stop();
+        if (!videoElement) {
+          toast.error('Elemento de vídeo não encontrado.');
           setScannerAberto(false);
-
-          toast.success('QR Code lido com sucesso.');
-
-          await analisarPorUrl(link);
+          return;
         }
-      });
-    } catch {
-      toast.error('Não foi possível acessar a câmera.');
-      setScannerAberto(false);
-    }
+
+        const devices = await BrowserQRCodeReader.listVideoInputDevices();
+
+        if (!devices || devices.length === 0) {
+          toast.error('Nenhuma câmera foi encontrada neste dispositivo.');
+          setScannerAberto(false);
+          return;
+        }
+
+        const cameraTraseira =
+          devices.find(d => d.label.toLowerCase().includes('back')) ||
+          devices.find(d => d.label.toLowerCase().includes('traseira')) ||
+          devices[0];
+
+        const reader = new BrowserQRCodeReader();
+
+        const controls = await reader.decodeFromVideoDevice(
+          cameraTraseira.deviceId,
+          videoElement,
+          async (result) => {
+            if (result) {
+              const link = result.getText();
+
+              setUrlConsulta(link);
+
+              controls.stop();
+              setQrControls(null);
+              setScannerAberto(false);
+
+              toast.success('QR Code lido com sucesso.');
+
+              await analisarPorUrl(link);
+            }
+          }
+        );
+
+        setQrControls(controls);
+      } catch (error) {
+        console.error(error);
+
+        toast.error(
+          'Não foi possível abrir a câmera. Verifique a permissão do navegador e se o site está em HTTPS.'
+        );
+
+        setScannerAberto(false);
+      }
+    }, 500);
   }
+
+  function fecharLeitorQrCode() {
+  if (qrControls) {
+    qrControls.stop();
+  }
+
+  setQrControls(null);
+  setScannerAberto(false);
+}
   
   async function analisarPorUrl(url) {
     if (!url?.trim()) {
