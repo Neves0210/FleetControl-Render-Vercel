@@ -775,6 +775,12 @@ function Abastecimentos() {
     setPreview(file ? URL.createObjectURL(file) : '');
   }
 
+  function fecharLeitorQrCode() {
+    qrControls?.stop?.();
+    setQrControls(null);
+    setScannerAberto(false);
+  }
+
   return (
     <>
       <Header title="Abastecimentos" subtitle="Registre abastecimentos e anexe a nota fiscal" />
