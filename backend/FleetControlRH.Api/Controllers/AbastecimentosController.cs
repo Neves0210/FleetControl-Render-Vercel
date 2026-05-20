@@ -100,7 +100,7 @@ public class AbastecimentosController : ControllerBase
         var pasta = Path.Combine(Directory.GetCurrentDirectory(), "wwwroot", "uploads", "notas-fiscais");
         Directory.CreateDirectory(pasta);
         var extensao = Path.GetExtension(arquivo.FileName).ToLowerInvariant();
-        var nome = $"nota-{DateTime.Now:yyyyMMddHHmmss}-{Guid.NewGuid():N}{extensao}";
+        var nome = $"nota-{DateTime.UtcNow:yyyyMMddHHmmss}-{Guid.NewGuid():N}{extensao}";
         var caminho = Path.Combine(pasta, nome);
         await using var stream = new FileStream(caminho, FileMode.Create);
         await arquivo.CopyToAsync(stream);

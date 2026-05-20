@@ -10,5 +10,5 @@ public class Usuario
     [Required] public string SenhaHash { get; set; } = string.Empty;
     public PerfilUsuario Perfil { get; set; } = PerfilUsuario.Tecnico;
     public bool Ativo { get; set; } = true;
-    public DateTime CriadoEm { get; set; } = DateTime.Now;
+    public DateTime CriadoEm { get; set; } = DateTime.UtcNow;
 }

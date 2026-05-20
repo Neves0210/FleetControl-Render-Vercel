@@ -25,6 +25,7 @@ var databaseUrl = Environment.GetEnvironmentVariable("DATABASE_URL");
 var postgresConnection = builder.Configuration.GetConnectionString("PostgresConnection");
 var sqliteConnection = builder.Configuration.GetConnectionString("DefaultConnection");
 
+AppContext.SetSwitch("Npgsql.EnableLegacyTimestampBehavior", true);
 builder.Services.AddDbContext<AppDbContext>(options =>
 {
     options.UseNpgsql(
