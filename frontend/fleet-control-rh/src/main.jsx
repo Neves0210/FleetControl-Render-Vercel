@@ -637,6 +637,12 @@ function Abastecimentos() {
       setScannerAberto(false);
     }
   }
+
+  function fecharLeitorQrCode() {
+  qrControls?.stop?.();
+  setQrControls(null);
+  setScannerAberto(false);
+}
   
   async function analisarPorUrl(url) {
     if (!url?.trim()) {
@@ -775,15 +781,6 @@ function Abastecimentos() {
   function fileChange(file) {
     setFoto(file);
     setPreview(file ? URL.createObjectURL(file) : '');
-  }
-  
-  function fecharLeitorQrCode() {
-    if (qrControls) {
-      qrControls.stop();
-    }
-
-    setQrControls(null);
-    setScannerAberto(false);
   }
 
   return (
