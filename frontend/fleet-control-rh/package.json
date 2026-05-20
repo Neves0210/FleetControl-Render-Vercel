@@ -7,16 +7,16 @@
   },
   "dependencies": {
     "@vitejs/plugin-react": "latest",
-    "vite": "latest",
+    "@zxing/browser": "^0.2.0",
+    "axios": "latest",
+    "bootstrap": "latest",
+    "lucide-react": "latest",
     "react": "latest",
     "react-dom": "latest",
-    "axios": "latest",
     "react-router-dom": "latest",
-    "bootstrap": "latest",
     "react-toastify": "latest",
-    "lucide-react": "latest"
+    "vite": "latest"
   },
-  "devDependencies": {},
   "engines": {
     "node": "22.x"
   }
