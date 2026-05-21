@@ -15,7 +15,8 @@
     "react-dom": "latest",
     "react-router-dom": "latest",
     "react-toastify": "latest",
-    "vite": "latest"
+    "vite": "latest",
+    "vite-plugin-pwa": "^1.3.0"
   },
   "engines": {
     "node": "22.x"
