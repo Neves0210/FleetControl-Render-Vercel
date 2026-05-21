@@ -23,4 +23,5 @@ public class Usuario
     public bool Ativo { get; set; } = true;
 
     public DateTime CriadoEm { get; set; } = DateTime.UtcNow;
+    public List<UsuarioPermissao> Permissoes { get; set; } = new();
 }

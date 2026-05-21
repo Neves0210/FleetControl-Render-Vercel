@@ -24,6 +24,7 @@ public class AuthController : ControllerBase
     {
         var usuario = await _db.Usuarios
             .Include(x => x.Motorista)
+            .Include(x => x.Permissoes)
             .FirstOrDefaultAsync(x => x.Email == request.Email && x.Ativo);
 
         if (usuario == null || !BCrypt.Net.BCrypt.Verify(request.Senha, usuario.SenhaHash))
@@ -43,7 +44,8 @@ public class AuthController : ControllerBase
             email = usuario.Email,
             perfil = usuario.Perfil,
             motoristaId = usuario.MotoristaId,
-            motorista = usuario.Motorista?.Nome
+            motorista = usuario.Motorista?.Nome,
+            permissoes = usuario.Permissoes.Select(x => x.Permissao).ToList()
         });
     }
 }

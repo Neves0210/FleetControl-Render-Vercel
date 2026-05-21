@@ -44,6 +44,11 @@ public class TokenService
             claims.Add(new Claim("MotoristaId", usuario.MotoristaId.Value.ToString()));
         }
 
+        foreach (var permissao in usuario.Permissoes)
+        {
+            claims.Add(new Claim("Permissao", permissao.Permissao));
+        }
+
         var key = new SymmetricSecurityKey(
             Encoding.UTF8.GetBytes(jwtKey)
         );

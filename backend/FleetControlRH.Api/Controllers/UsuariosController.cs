@@ -24,6 +24,7 @@ public class UsuariosController : ControllerBase
     {
         var usuarios = await _db.Usuarios
             .Include(x => x.Motorista)
+            .Include(x => x.Permissoes)
             .OrderBy(x => x.Nome)
             .Select(x => new
             {
@@ -34,7 +35,8 @@ public class UsuariosController : ControllerBase
                 x.MotoristaId,
                 Motorista = x.Motorista != null ? x.Motorista.Nome : null,
                 x.Ativo,
-                x.CriadoEm
+                x.CriadoEm,
+                Permissoes = x.Permissoes.Select(p => p.Permissao).ToList()
             })
             .ToListAsync();
 
@@ -58,6 +60,16 @@ public class UsuariosController : ControllerBase
         };
 
         _db.Usuarios.Add(usuario);
+        await _db.SaveChangesAsync();
+
+        foreach (var permissao in dto.Permissoes.Distinct())
+        {
+            _db.UsuarioPermissoes.Add(new UsuarioPermissao
+            {
+                UsuarioId = usuario.Id,
+                Permissao = permissao
+            });
+        }
 
         await _db.SaveChangesAsync();
 
@@ -75,13 +87,22 @@ public class UsuariosController : ControllerBase
     [HttpPut("{id:int}")]
     public async Task<IActionResult> Update(int id, UsuarioUpdateDto dto)
     {
-        var usuario = await _db.Usuarios.FindAsync(id);
+        var usuario = await _db.Usuarios
+            .Include(x => x.Permissoes)
+            .FirstOrDefaultAsync(x => x.Id == id);
 
         if (usuario == null)
             return NotFound();
 
-        if (await _db.Usuarios.AnyAsync(x => x.Email == dto.Email && x.Id != id))
-            return BadRequest(new { mensagem = "E-mail já cadastrado." });
+        if (await _db.Usuarios.AnyAsync(x =>
+            x.Email == dto.Email &&
+            x.Id != id))
+        {
+            return BadRequest(new
+            {
+                mensagem = "E-mail já cadastrado."
+            });
+        }
 
         usuario.Nome = dto.Nome;
         usuario.Email = dto.Email;
@@ -90,7 +111,28 @@ public class UsuariosController : ControllerBase
         usuario.Ativo = dto.Ativo;
 
         if (!string.IsNullOrWhiteSpace(dto.Senha))
-            usuario.SenhaHash = BCrypt.Net.BCrypt.HashPassword(dto.Senha);
+        {
+            usuario.SenhaHash =
+                BCrypt.Net.BCrypt.HashPassword(dto.Senha);
+        }
+
+        // REMOVE TODAS AS PERMISSÕES ANTIGAS
+
+        _db.UsuarioPermissoes.RemoveRange(
+            usuario.Permissoes
+        );
+
+        // RECRIA AS NOVAS
+
+        foreach (var permissao in dto.Permissoes.Distinct())
+        {
+            _db.UsuarioPermissoes.Add(
+                new UsuarioPermissao
+                {
+                    UsuarioId = usuario.Id,
+                    Permissao = permissao
+                });
+        }
 
         await _db.SaveChangesAsync();
 
@@ -101,7 +143,9 @@ public class UsuariosController : ControllerBase
             usuario.Email,
             usuario.Perfil,
             usuario.MotoristaId,
-            usuario.Ativo
+            usuario.Ativo,
+            Permissoes =
+                dto.Permissoes
         });
     }
 }

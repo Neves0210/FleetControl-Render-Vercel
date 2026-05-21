@@ -7,7 +7,8 @@ public record UsuarioCreateDto(
     string Email,
     string Senha,
     PerfilUsuario Perfil,
-    int? MotoristaId
+    int? MotoristaId,
+    List<string> Permissoes
 );
 
 public record UsuarioUpdateDto(
@@ -16,5 +17,6 @@ public record UsuarioUpdateDto(
     string? Senha,
     PerfilUsuario Perfil,
     int? MotoristaId,
-    bool Ativo
+    bool Ativo,
+    List<string> Permissoes
 );

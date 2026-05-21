@@ -6,6 +6,7 @@ using FleetControlRH.Api.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using FleetControlRH.Api.Extensions;
 
 namespace FleetControlRH.Api.Controllers;
 
@@ -91,9 +92,11 @@ public class AbastecimentosController : ControllerBase
     }
 
     [HttpPut("{id:int}")]
-    [Authorize(Roles = "Master,RH")]
     public async Task<IActionResult> Update(int id, [FromForm] Abastecimento model, IFormFile? fotoNotaFiscal)
     {
+        if (!User.TemPermissao("Abastecimentos.Editar"))
+            return Forbid();
+            
         var abastecimento = await _db.Abastecimentos.FindAsync(id);
 
         if (abastecimento == null)
