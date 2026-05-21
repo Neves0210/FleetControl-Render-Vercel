@@ -20,3 +20,88 @@ body { margin:0; background:var(--bg); font-family: Inter, system-ui, Arial, san
 .badge-soft { background:#e0ecff; color:#1d4ed8; padding:6px 10px; border-radius:999px; }
 .preview-img { max-width:280px; max-height:180px; border-radius:12px; margin-top:10px; }
 @media (max-width: 900px) { .app-shell { flex-direction:column; } .sidebar { width:100%; height:auto; position:relative; } }
+
+/* ===== MOBILE RESPONSIVO ===== */
+
+@media (max-width: 768px) {
+  .app-shell {
+    display: block;
+  }
+
+  .sidebar {
+    position: relative;
+    width: 100%;
+    min-height: auto;
+    display: flex;
+    overflow-x: auto;
+    white-space: nowrap;
+    padding: 10px;
+    gap: 8px;
+  }
+
+  .sidebar .brand {
+    display: none;
+  }
+
+  .sidebar a {
+    flex: 0 0 auto;
+    padding: 10px 12px;
+    border-radius: 12px;
+    font-size: 14px;
+  }
+
+  .sidebar a span {
+    display: inline;
+  }
+
+  .content {
+    margin-left: 0;
+    padding: 12px;
+  }
+
+  .topbar {
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 10px;
+  }
+
+  h2 {
+    font-size: 22px;
+  }
+
+  .metric {
+    margin-bottom: 10px;
+  }
+
+  .card-soft {
+    border-radius: 14px;
+  }
+
+  .row > [class*="col-md-"] {
+    width: 100%;
+  }
+
+  .form-control,
+  .form-select,
+  .btn {
+    font-size: 16px;
+  }
+
+  .table-card {
+    overflow-x: auto;
+  }
+
+  .table {
+    min-width: 850px;
+    font-size: 14px;
+  }
+
+  .preview-img {
+    max-width: 100%;
+    height: auto;
+  }
+
+  #qr-video {
+    max-width: 100% !important;
+  }
+}
