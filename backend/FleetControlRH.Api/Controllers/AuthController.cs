@@ -22,11 +22,28 @@ public class AuthController : ControllerBase
     [HttpPost("login")]
     public async Task<ActionResult<LoginResponse>> Login(LoginRequest request)
     {
-        var usuario = await _db.Usuarios.FirstOrDefaultAsync(x => x.Email == request.Email && x.Ativo);
+        var usuario = await _db.Usuarios
+            .Include(x => x.Motorista)
+            .FirstOrDefaultAsync(x => x.Email == request.Email && x.Ativo);
+
         if (usuario == null || !BCrypt.Net.BCrypt.Verify(request.Senha, usuario.SenhaHash))
-            return Unauthorized(new { mensagem = "E-mail ou senha inválidos." });
+        {
+            return Unauthorized(new
+            {
+                mensagem = "E-mail ou senha inválidos."
+            });
+        }
 
         var token = _tokenService.GerarToken(usuario);
-        return Ok(new LoginResponse(token, usuario.Nome, usuario.Email, usuario.Perfil));
+
+        return Ok(new
+        {
+            token,
+            nome = usuario.Nome,
+            email = usuario.Email,
+            perfil = usuario.Perfil,
+            motoristaId = usuario.MotoristaId,
+            motorista = usuario.Motorista?.Nome
+        });
     }
 }
