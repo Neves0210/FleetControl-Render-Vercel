@@ -88,6 +88,19 @@ function getUser() {
   }
 }
 
+function getPermissoes() {
+  const user = getUser();
+  return user?.permissoes || [];
+}
+
+function temPermissao(permissao) {
+  return getPermissoes().includes(permissao);
+}
+
+function podeVerTela(permissao) {
+  return temPermissao(permissao);
+}
+
 function Layout({ children }) {
   const navigate = useNavigate();
   const user = getUser();
@@ -102,13 +115,31 @@ function Layout({ children }) {
       <aside className="sidebar">
         <div className="brand">FleetControlRH</div>
 
-        <NavItem to="/" icon={<LayoutDashboard size={18} />} label="Dashboard" />
-        <NavItem to="/veiculos" icon={<Car size={18} />} label="Veículos" />
-        <NavItem to="/motoristas" icon={<Users size={18} />} label="Motoristas" />
-        <NavItem to="/abastecimentos" icon={<Fuel size={18} />} label="Abastecimentos" />
-        <NavItem to="/relatorios" icon={<BarChart3 size={18} />} label="Relatórios" />
+        {podeVerTela('Dashboard.Visualizar') && (
+          <NavItem to="/" icon={<LayoutDashboard size={18} />} label="Dashboard" />
+        )}
 
-        {user?.perfil === 1 && (
+        {podeVerTela('Veiculos.Visualizar') && (
+          <NavItem to="/veiculos" icon={<Car size={18} />} label="Veículos" />
+        )}
+
+        {podeVerTela('Motoristas.Visualizar') && (
+          <NavItem to="/motoristas" icon={<Users size={18} />} label="Motoristas" />
+        )}
+
+        {podeVerTela('Abastecimentos.Visualizar') && (
+          <NavItem to="/abastecimentos" icon={<Fuel size={18} />} label="Abastecimentos" />
+        )}
+
+        {podeVerTela('Relatorios.Visualizar') && (
+          <NavItem to="/relatorios" icon={<BarChart3 size={18} />} label="Relatórios" />
+        )}
+
+        {podeVerTela('Usuarios.Visualizar') && (
+          <NavItem to="/usuarios" icon={<UserCog size={18} />} label="Usuários" />
+        )}
+
+        {podeVerTela('Usuarios.Visualizar') && user?.perfil === 1 && (
           <NavItem to="/usuarios" icon={<UserCog size={18} />} label="Usuários" />
         )}
       </aside>
@@ -140,6 +171,24 @@ function NavItem({ to, icon, label }) {
       <span>{label}</span>
     </NavLink>
   );
+}
+
+function PermissionRoute({ permissao, children }) {
+  if (!localStorage.getItem('token')) {
+    return <Navigate to="/login" />;
+  }
+
+  if (!temPermissao(permissao)) {
+    return (
+      <Layout>
+        <div className="alert alert-danger">
+          Você não tem permissão para acessar esta tela.
+        </div>
+      </Layout>
+    );
+  }
+
+  return <Layout>{children}</Layout>;
 }
 
 function PrivateRoute({ children }) {
@@ -939,9 +988,15 @@ function Abastecimentos() {
 }
 
 function AbastecimentosTabela({ items }) {
+
+  const podeEditar =
+    temPermissao('Abastecimentos.Editar');
+
   return (
     <table className="table table-hover">
+
       <thead>
+
         <tr>
           <th>Data</th>
           <th>Veículo</th>
@@ -950,31 +1005,96 @@ function AbastecimentosTabela({ items }) {
           <th>Litros</th>
           <th>Valor</th>
           <th>Nota</th>
+
+          {podeEditar &&
+            <th>Ações</th>
+          }
+
         </tr>
+
       </thead>
 
       <tbody>
+
         {items.map(x => (
+
           <tr key={x.id}>
-            <td>{new Date(x.dataAbastecimento).toLocaleString('pt-BR')}</td>
-            <td>{x.veiculo?.placa}</td>
-            <td>{x.motorista?.nome}</td>
-            <td>{number(x.kmAtual)}</td>
-            <td>{litros(x.litros)}</td>
-            <td>{money(x.valorTotal)}</td>
+
             <td>
-              {x.fotoNotaFiscalPath && (
-                <a href={`${STATIC_BASE_URL}${x.fotoNotaFiscalPath}`} target="_blank" rel="noreferrer">
+              {new Date(
+                x.dataAbastecimento
+              ).toLocaleString('pt-BR')}
+            </td>
+
+            <td>
+              {x.veiculo?.placa}
+            </td>
+
+            <td>
+              {x.motorista?.nome}
+            </td>
+
+            <td>
+              {number(x.kmAtual)}
+            </td>
+
+            <td>
+              {litros(x.litros)}
+            </td>
+
+            <td>
+              {money(x.valorTotal)}
+            </td>
+
+            <td>
+
+              {x.fotoNotaFiscalPath &&
+                <a
+                  href={`${STATIC_BASE_URL}${x.fotoNotaFiscalPath}`}
+                  target="_blank"
+                >
                   Ver
                 </a>
-              )}
+              }
+
             </td>
+
+            {podeEditar &&
+
+              <td>
+
+                <button
+                  className="btn btn-warning btn-sm"
+                >
+                  Editar
+                </button>
+
+              </td>
+
+            }
+
           </tr>
+
         ))}
+
       </tbody>
+
     </table>
   );
 }
+
+const TODAS_PERMISSOES = [
+  'Dashboard.Visualizar',
+  'Veiculos.Visualizar',
+  'Motoristas.Visualizar',
+  'Abastecimentos.Visualizar',
+  'Abastecimentos.Criar',
+  'Abastecimentos.Editar',
+  'Relatorios.Visualizar',
+  'Relatorios.Exportar',
+  'Usuarios.Visualizar',
+  'Usuarios.Gerenciar'
+];
 
 function Usuarios() {
   const [items, setItems] = useState([]);
@@ -983,10 +1103,12 @@ function Usuarios() {
     email: '',
     senha: '123456',
     perfil: 3,
-    ativo: true
+    motoristaId: '',
+    ativo: true,
+    permissoes: []
   });
+
   const [edit, setEdit] = useState(null);
-  const user = getUser();
 
   async function load() {
     const r = await api.get('/usuarios');
@@ -1001,7 +1123,7 @@ function Usuarios() {
         if (!cancelled) setItems(r.data);
       })
       .catch(() => {
-        if (!cancelled) toast.error('Apenas Master acessa usuários.');
+        if (!cancelled) toast.error('Você não tem permissão para acessar usuários.');
       });
 
     return () => {
@@ -1012,11 +1134,18 @@ function Usuarios() {
   async function save(e) {
     e.preventDefault();
 
+    const payload = {
+      ...form,
+      motoristaId: form.motoristaId ? Number(form.motoristaId) : null,
+      perfil: Number(form.perfil),
+      permissoes: form.permissoes || []
+    };
+
     try {
       if (edit) {
-        await api.put(`/usuarios/${edit}`, form);
+        await api.put(`/usuarios/${edit}`, payload);
       } else {
-        await api.post('/usuarios', form);
+        await api.post('/usuarios', payload);
       }
 
       toast.success('Usuário salvo.');
@@ -1026,7 +1155,9 @@ function Usuarios() {
         email: '',
         senha: '123456',
         perfil: 3,
-        ativo: true
+        motoristaId: '',
+        ativo: true,
+        permissoes: []
       });
 
       setEdit(null);
@@ -1036,31 +1167,135 @@ function Usuarios() {
     }
   }
 
-  if (user?.perfil !== 1) {
-    return <p>Apenas Master pode acessar esta tela.</p>;
+  function togglePermissao(permissao, checked) {
+    const permissoes = checked
+      ? [...form.permissoes, permissao]
+      : form.permissoes.filter(x => x !== permissao);
+
+    setForm({
+      ...form,
+      permissoes
+    });
+  }
+
+  function aplicarPermissoesPadrao(perfilSelecionado) {
+    const perfilNumero = Number(perfilSelecionado);
+
+    let permissoesPadrao = [];
+
+    if (perfilNumero === 1) {
+      permissoesPadrao = TODAS_PERMISSOES;
+    }
+
+    if (perfilNumero === 2) {
+      permissoesPadrao = [
+        'Dashboard.Visualizar',
+        'Veiculos.Visualizar',
+        'Motoristas.Visualizar',
+        'Abastecimentos.Visualizar',
+        'Abastecimentos.Criar',
+        'Abastecimentos.Editar',
+        'Relatorios.Visualizar',
+        'Relatorios.Exportar'
+      ];
+    }
+
+    if (perfilNumero === 3) {
+      permissoesPadrao = [
+        'Dashboard.Visualizar',
+        'Abastecimentos.Visualizar',
+        'Abastecimentos.Criar'
+      ];
+    }
+
+    setForm({
+      ...form,
+      perfil: perfilNumero,
+      permissoes: permissoesPadrao
+    });
   }
 
   return (
     <>
-      <Header title="Usuários" subtitle="Controle de acesso e perfis" />
+      <Header title="Usuários" subtitle="Controle de acesso, perfis e permissões" />
 
       <form className="card card-soft p-3 mb-3" onSubmit={save}>
         <div className="row">
-          <Input label="Nome" value={form.nome} onChange={v => setForm({ ...form, nome: v })} />
-          <Input label="E-mail" value={form.email} onChange={v => setForm({ ...form, email: v })} />
-          <Input label="Senha" value={form.senha || ''} onChange={v => setForm({ ...form, senha: v })} />
+          <Input
+            label="Nome"
+            value={form.nome}
+            onChange={v => setForm({ ...form, nome: v })}
+          />
+
+          <Input
+            label="E-mail"
+            value={form.email}
+            onChange={v => setForm({ ...form, email: v })}
+          />
+
+          <Input
+            label="Senha"
+            value={form.senha || ''}
+            onChange={v => setForm({ ...form, senha: v })}
+          />
 
           <div className="col-md-2 mb-3">
             <label>Perfil</label>
-            <select className="form-select" value={form.perfil} onChange={e => setForm({ ...form, perfil: +e.target.value })}>
+            <select
+              className="form-select"
+              value={form.perfil}
+              onChange={e => aplicarPermissoesPadrao(e.target.value)}
+            >
               <option value="1">Master</option>
               <option value="2">RH</option>
               <option value="3">Técnico</option>
             </select>
           </div>
 
+          <Input
+            label="MotoristaId"
+            type="number"
+            value={form.motoristaId}
+            onChange={v => setForm({ ...form, motoristaId: v })}
+          />
+
+          <div className="col-md-12 mb-3">
+            <label className="fw-bold">Permissões de acesso</label>
+
+            <div className="row mt-2">
+              {TODAS_PERMISSOES.map(p => (
+                <div className="col-md-4 mb-2" key={p}>
+                  <label className="form-check">
+                    <input
+                      type="checkbox"
+                      className="form-check-input"
+                      checked={form.permissoes.includes(p)}
+                      onChange={e => togglePermissao(p, e.target.checked)}
+                    />
+
+                    <span className="form-check-label">{p}</span>
+                  </label>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <div className="col-md-2 mb-3">
+            <label>Status</label>
+            <select
+              className="form-select"
+              value={form.ativo ? 'true' : 'false'}
+              onChange={e => setForm({ ...form, ativo: e.target.value === 'true' })}
+            >
+              <option value="true">Ativo</option>
+              <option value="false">Inativo</option>
+            </select>
+          </div>
+
           <div className="col-md-2 d-flex align-items-end mb-3">
-            <button className="btn btn-success w-100">Salvar</button>
+            <button className="btn btn-success w-100">
+              {edit ? 'Atualizar' : 'Salvar'}
+            </button>
           </div>
         </div>
       </form>
@@ -1072,7 +1307,9 @@ function Usuarios() {
               <th>Nome</th>
               <th>E-mail</th>
               <th>Perfil</th>
+              <th>MotoristaId</th>
               <th>Status</th>
+              <th>Permissões</th>
               <th></th>
             </tr>
           </thead>
@@ -1083,13 +1320,24 @@ function Usuarios() {
                 <td>{x.nome}</td>
                 <td>{x.email}</td>
                 <td>{perfil(x.perfil)}</td>
+                <td>{x.motoristaId || '-'}</td>
                 <td>{x.ativo ? 'Ativo' : 'Inativo'}</td>
+                <td>{x.permissoes?.length || 0}</td>
                 <td>
                   <button
                     className="btn btn-sm btn-warning"
                     onClick={() => {
                       setEdit(x.id);
-                      setForm({ ...x, senha: '' });
+
+                      setForm({
+                        nome: x.nome || '',
+                        email: x.email || '',
+                        senha: '',
+                        perfil: x.perfil,
+                        motoristaId: x.motoristaId || '',
+                        ativo: x.ativo,
+                        permissoes: x.permissoes || []
+                      });
                     }}
                   >
                     Editar
@@ -1240,12 +1488,61 @@ function App() {
       <Routes>
         <Route path="/login" element={<Login />} />
 
-        <Route path="/" element={<PrivateRoute><Dashboard /></PrivateRoute>} />
-        <Route path="/veiculos" element={<PrivateRoute><Veiculos /></PrivateRoute>} />
-        <Route path="/motoristas" element={<PrivateRoute><Motoristas /></PrivateRoute>} />
-        <Route path="/abastecimentos" element={<PrivateRoute><Abastecimentos /></PrivateRoute>} />
-        <Route path="/usuarios" element={<PrivateRoute><Usuarios /></PrivateRoute>} />
-        <Route path="/relatorios" element={<PrivateRoute><Relatorios /></PrivateRoute>} />
+    <Route path="/login" element={<Login />} />
+
+    <Route
+      path="/"
+      element={
+        <PermissionRoute permissao="Dashboard.Visualizar">
+          <Dashboard />
+        </PermissionRoute>
+      }
+    />
+
+    <Route
+      path="/veiculos"
+      element={
+        <PermissionRoute permissao="Veiculos.Visualizar">
+          <Veiculos />
+        </PermissionRoute>
+      }
+    />
+
+    <Route
+      path="/motoristas"
+      element={
+        <PermissionRoute permissao="Motoristas.Visualizar">
+          <Motoristas />
+        </PermissionRoute>
+      }
+    />
+
+    <Route
+      path="/abastecimentos"
+      element={
+        <PermissionRoute permissao="Abastecimentos.Visualizar">
+          <Abastecimentos />
+        </PermissionRoute>
+      }
+    />
+
+    <Route
+      path="/usuarios"
+      element={
+        <PermissionRoute permissao="Usuarios.Visualizar">
+          <Usuarios />
+        </PermissionRoute>
+      }
+    />
+
+    <Route
+      path="/relatorios"
+      element={
+        <PermissionRoute permissao="Relatorios.Visualizar">
+          <Relatorios />
+        </PermissionRoute>
+      }
+    />
       </Routes>
     </BrowserRouter>
   );
