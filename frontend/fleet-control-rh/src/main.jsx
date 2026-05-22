@@ -9,6 +9,7 @@ import { BarChart3, Car, Fuel, LayoutDashboard, LogOut, Users, UserCog } from 'l
 import './style.css';
 import { BrowserQRCodeReader } from '@zxing/browser';
 
+
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
 const STATIC_BASE_URL = API_BASE_URL.replace('/api', '');
 
@@ -621,31 +622,68 @@ function Abastecimentos() {
           return;
         }
 
-        const devices = await BrowserQRCodeReader.listVideoInputDevices();
+        const stream = await navigator.mediaDevices.getUserMedia({
+          video: {
+            facingMode: { ideal: 'environment' },
+            width: { ideal: 1920 },
+            height: { ideal: 1080 }
+          }
+        });
 
-        if (!devices || devices.length === 0) {
-          toast.error('Nenhuma câmera foi encontrada neste dispositivo.');
-          setScannerAberto(false);
+        videoElement.srcObject = stream;
+        videoElement.setAttribute('playsinline', true);
+        await videoElement.play();
+
+        if ('BarcodeDetector' in window) {
+          const detector = new window.BarcodeDetector({
+            formats: ['qr_code']
+          });
+
+          const intervalId = setInterval(async () => {
+            try {
+              const codes = await detector.detect(videoElement);
+
+              if (codes.length > 0) {
+                const link = codes[0].rawValue;
+
+                clearInterval(intervalId);
+                stream.getTracks().forEach(track => track.stop());
+
+                setUrlConsulta(link);
+                setQrControls(null);
+                setScannerAberto(false);
+
+                toast.success('QR Code lido com sucesso.');
+
+                await analisarPorUrl(link);
+              }
+            } catch {
+              // Continua tentando ler.
+            }
+          }, 300);
+
+          setQrControls({
+            stop: () => {
+              clearInterval(intervalId);
+              stream.getTracks().forEach(track => track.stop());
+            }
+          });
+
           return;
         }
-
-        const cameraTraseira =
-          devices.find(d => d.label.toLowerCase().includes('back')) ||
-          devices.find(d => d.label.toLowerCase().includes('traseira')) ||
-          devices[0];
 
         const reader = new BrowserQRCodeReader();
 
         const controls = await reader.decodeFromVideoDevice(
-          cameraTraseira.deviceId,
+          null,
           videoElement,
           async (result) => {
             if (result) {
               const link = result.getText();
 
-              setUrlConsulta(link);
-
               controls.stop();
+
+              setUrlConsulta(link);
               setQrControls(null);
               setScannerAberto(false);
 
@@ -661,7 +699,7 @@ function Abastecimentos() {
         console.error(error);
 
         toast.error(
-          'Não foi possível abrir a câmera. Verifique a permissão do navegador e se o site está em HTTPS.'
+          'Não foi possível abrir a câmera. Verifique a permissão do navegador e se está usando HTTPS.'
         );
 
         setScannerAberto(false);
@@ -669,7 +707,7 @@ function Abastecimentos() {
     }, 500);
   }
 
-  function fecharLeitorQrCode() {
+function fecharLeitorQrCode() {
   if (qrControls) {
     qrControls.stop();
   }
