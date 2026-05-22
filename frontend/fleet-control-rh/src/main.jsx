@@ -640,6 +640,7 @@ function Abastecimentos() {
   const [scannerAberto, setScannerAberto] = useState(false);
   const [qrReader, setQrReader] = useState(null);
   const [qrControls, setQrControls] = useState(null);
+  const [qrStream, setQrStream] = useState(null);
   const [filtro, setFiltro] = useState({
     veiculoId: '',
     motoristaId: ''
@@ -660,6 +661,8 @@ function Abastecimentos() {
   }
 
   async function abrirLeitorQrCode() {
+    limparCameraQrCode();
+
     setScannerAberto(true);
 
     setTimeout(async () => {
@@ -673,12 +676,14 @@ function Abastecimentos() {
         }
 
         const stream = await navigator.mediaDevices.getUserMedia({
-          video: {
-            facingMode: { ideal: 'environment' },
-            width: { ideal: 1920 },
-            height: { ideal: 1080 }
+          video:{
+            facingMode:{ ideal:'environment' },
+            width:{ ideal:1920 },
+            height:{ ideal:1080 }
           }
         });
+
+        setQrStream(stream);
 
         videoElement.srcObject = stream;
         videoElement.setAttribute('playsinline', true);
@@ -693,20 +698,19 @@ function Abastecimentos() {
             try {
               const codes = await detector.detect(videoElement);
 
-              if (codes.length > 0) {
-                const link = codes[0].rawValue;
+            if(codes.length > 0){
 
-                clearInterval(intervalId);
-                stream.getTracks().forEach(track => track.stop());
+              const link = codes[0].rawValue;
 
-                setUrlConsulta(link);
-                setQrControls(null);
-                setScannerAberto(false);
+              limparCameraQrCode();
 
-                toast.success('QR Code lido com sucesso.');
+              setUrlConsulta(link);
 
-                await analisarPorUrl(link);
-              }
+              toast.success('QR Code lido');
+
+              await analisarPorUrl(link);
+
+            }
             } catch {
               // Continua tentando ler.
             }
@@ -757,14 +761,9 @@ function Abastecimentos() {
     }, 500);
   }
 
-function fecharLeitorQrCode() {
-  if (qrControls) {
-    qrControls.stop();
+  function fecharLeitorQrCode() {
+    limparCameraQrCode();
   }
-
-  setQrControls(null);
-  setScannerAberto(false);
-}
 
 async function analisarImagemQrCode(file) {
   if (!file) return;
@@ -938,6 +937,27 @@ async function analisarImagemQrCode(file) {
     setUrlConsulta(url);
 
     await analisarPorUrl(url);
+    }
+
+    function limparCameraQrCode() {
+    if (qrControls) {
+      qrControls.stop();
+    }
+
+    if (qrStream) {
+      qrStream.getTracks().forEach(track => track.stop());
+    }
+
+    const videoElement = document.getElementById('qr-video');
+
+    if (videoElement) {
+      videoElement.pause();
+      videoElement.srcObject = null;
+    }
+
+    setQrControls(null);
+    setQrStream(null);
+    setScannerAberto(false);
   }
 
   return (
