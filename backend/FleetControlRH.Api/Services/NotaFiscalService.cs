@@ -376,7 +376,13 @@ public class NotaFiscalService
     }
 
     private static string Limpar(string valor)
-    {
-        return Regex.Replace(valor, @"\s+", " ").Trim();
-    }
+        {
+            return Regex.Replace(valor, @"\s+", " ").Trim();
+        }
+    public async Task<string?> LerQrCodeDaImagemAsync(Stream imagemStream)
+        {
+            await Task.CompletedTask;
+
+            return LerQrCode(imagemStream);
+        }
 }

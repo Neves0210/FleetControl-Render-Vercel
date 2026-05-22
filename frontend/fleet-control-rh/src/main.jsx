@@ -764,6 +764,30 @@ function fecharLeitorQrCode() {
   setQrControls(null);
   setScannerAberto(false);
 }
+
+async function analisarImagemQrCode(file) {
+  if (!file) return;
+
+  const fd = new FormData();
+  fd.append('imagemQrCode', file);
+
+  try {
+    const { data } = await api.post('/abastecimentos/ler-qrcode-imagem', fd);
+
+    if (!data.sucesso) {
+      toast.warning(data.mensagem || 'Não foi possível ler o QR Code da imagem.');
+      return;
+    }
+
+    setUrlConsulta(data.url);
+
+    toast.success('QR Code lido pela imagem.');
+
+    await analisarPorUrl(data.url);
+  } catch (err) {
+    toast.error(err.response?.data?.mensagem || 'Erro ao ler QR Code da imagem.');
+  }
+}
   
   async function analisarPorUrl(url) {
     if (!url?.trim()) {
@@ -979,7 +1003,22 @@ function fecharLeitorQrCode() {
                   >
                     Fechar leitor
                   </button>
+                    <div className="mt-3">
+                      <label>Enviar foto somente do QR Code</label>
+
+                      <input
+                        className="form-control"
+                        type="file"
+                        accept="image/*"
+                        onChange={e => analisarImagemQrCode(e.target.files[0])}
+                      />
+
+                      <small className="text-muted">
+                        Tire uma foto aproximada somente do QR Code para melhorar a leitura.
+                      </small>
+                    </div>
                 </div>
+
               )}
 
           </div>

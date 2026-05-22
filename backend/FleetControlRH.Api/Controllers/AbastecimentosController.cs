@@ -205,4 +205,37 @@ public class AbastecimentosController : ControllerBase
 
         return $"/uploads/notas-fiscais/{nome}";
     }
+
+    [HttpPost("ler-qrcode-imagem")]
+    public async Task<IActionResult> LerQrCodeImagem(IFormFile imagemQrCode)
+    {
+        if (imagemQrCode == null || imagemQrCode.Length == 0)
+        {
+            return BadRequest(new
+            {
+                sucesso = false,
+                mensagem = "Envie a imagem do QR Code."
+            });
+        }
+
+        using var stream = imagemQrCode.OpenReadStream();
+
+        var url = await _notaFiscalService.LerQrCodeDaImagemAsync(stream);
+
+        if (string.IsNullOrWhiteSpace(url))
+        {
+            return Ok(new
+            {
+                sucesso = false,
+                mensagem = "Não foi possível encontrar um QR Code válido na imagem."
+            });
+        }
+
+        return Ok(new
+        {
+            sucesso = true,
+            mensagem = "QR Code lido com sucesso.",
+            url
+        });
+    }
 }
