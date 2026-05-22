@@ -645,6 +645,7 @@ function Abastecimentos() {
     motoristaId: ''
   });
   const [form, setForm] = useState(emptyAbastecimento());
+  const [chaveAcesso, setChaveAcesso] = useState('');
 
   async function load() {
     const [abastecimentosRes, veiculosRes, motoristasRes] = await Promise.all([
@@ -928,6 +929,18 @@ async function analisarImagemQrCode(file) {
     setPreview(file ? URL.createObjectURL(file) : '');
   }
 
+  async function analisarPorChave(chave) {
+    if (!chave || chave.length !== 44) {
+      return toast.warning('Informe uma chave de acesso válida com 44 números.');
+    }
+
+    const url = `https://www.nfce.fazenda.sp.gov.br/NFCeConsultaPublica/Paginas/ConsultaQRCode.aspx?p=${chave}|2|1|1`;
+
+    setUrlConsulta(url);
+
+    await analisarPorUrl(url);
+  }
+
   return (
     <>
       <Header title="Abastecimentos" subtitle="Registre abastecimentos e anexe a nota fiscal" />
@@ -1003,24 +1016,26 @@ async function analisarImagemQrCode(file) {
                   >
                     Fechar leitor
                   </button>
-                    <div className="mt-3">
-                      <label>Enviar foto somente do QR Code</label>
-
-                      <input
-                        className="form-control"
-                        type="file"
-                        accept="image/*"
-                        onChange={e => analisarImagemQrCode(e.target.files[0])}
-                      />
-
-                      <small className="text-muted">
-                        Tire uma foto aproximada somente do QR Code para melhorar a leitura.
-                      </small>
-                    </div>
                 </div>
-
               )}
+              <label className="mt-3">Chave de acesso da NFC-e</label>
+                <div className="input-group">
+                  <input
+                    className="form-control"
+                    placeholder="Digite os 44 números da chave de acesso"
+                    value={chaveAcesso}
+                    maxLength={44}
+                    onChange={e => setChaveAcesso(e.target.value.replace(/\D/g, ''))}
+                  />
 
+                  <button
+                    type="button"
+                    className="btn btn-outline-primary"
+                    onClick={() => analisarPorChave(chaveAcesso)}
+                  >
+                    Analisar pela chave
+                  </button>
+                </div>
           </div>
 
           <Select label="Veículo" value={form.veiculoId} onChange={v => setForm({ ...form, veiculoId: v })} items={veiculos} text={x => `${x.modelo} - ${x.placa}`} />
