@@ -9,24 +9,58 @@ namespace FleetControlRH.Api.Services;
 public class TokenService
 {
     private readonly IConfiguration _configuration;
-    public TokenService(IConfiguration configuration) => _configuration = configuration;
+
+    public TokenService(IConfiguration configuration)
+    {
+        _configuration = configuration;
+    }
 
     public string GerarToken(Usuario usuario)
     {
-        var claims = new[]
+        var jwtKey =
+            _configuration["Jwt:Key"]
+            ?? Environment.GetEnvironmentVariable("JWT__Key")
+            ?? "FleetControlRH_JWT_SECRET_LOCAL_DEVELOPMENT_KEY";
+
+        var jwtIssuer =
+            _configuration["Jwt:Issuer"]
+            ?? "FleetControlRH";
+
+        var jwtAudience =
+            _configuration["Jwt:Audience"]
+            ?? "FleetControlRH";
+
+        var claims = new List<Claim>
         {
             new Claim(ClaimTypes.NameIdentifier, usuario.Id.ToString()),
             new Claim(ClaimTypes.Name, usuario.Nome),
             new Claim(ClaimTypes.Email, usuario.Email),
-            new Claim(ClaimTypes.Role, usuario.Perfil.ToString())
+            new Claim(ClaimTypes.Role, usuario.Perfil.ToString()),
+            new Claim("Perfil", ((int)usuario.Perfil).ToString())
         };
 
-        var key = new SymmetricSecurityKey(Encoding.UTF8.GetBytes(_configuration["Jwt:Key"]!));
-        var credentials = new SigningCredentials(key, SecurityAlgorithms.HmacSha256);
+        if (usuario.MotoristaId.HasValue)
+        {
+            claims.Add(new Claim("MotoristaId", usuario.MotoristaId.Value.ToString()));
+        }
+
+        foreach (var permissao in usuario.Permissoes)
+        {
+            claims.Add(new Claim("Permissao", permissao.Permissao));
+        }
+
+        var key = new SymmetricSecurityKey(
+            Encoding.UTF8.GetBytes(jwtKey)
+        );
+
+        var credentials = new SigningCredentials(
+            key,
+            SecurityAlgorithms.HmacSha256
+        );
 
         var token = new JwtSecurityToken(
-            issuer: _configuration["Jwt:Issuer"],
-            audience: _configuration["Jwt:Audience"],
+            issuer: jwtIssuer,
+            audience: jwtAudience,
             claims: claims,
             expires: DateTime.UtcNow.AddHours(8),
             signingCredentials: credentials

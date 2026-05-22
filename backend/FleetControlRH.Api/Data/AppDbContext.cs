@@ -11,12 +11,33 @@ public class AppDbContext : DbContext
     public DbSet<Veiculo> Veiculos => Set<Veiculo>();
     public DbSet<Motorista> Motoristas => Set<Motorista>();
     public DbSet<Abastecimento> Abastecimentos => Set<Abastecimento>();
+    public DbSet<UsuarioPermissao> UsuarioPermissoes => Set<UsuarioPermissao>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
-        modelBuilder.Entity<Usuario>().HasIndex(x => x.Email).IsUnique();
-        modelBuilder.Entity<Veiculo>().HasIndex(x => x.Placa).IsUnique();
-        modelBuilder.Entity<Abastecimento>().Property(x => x.Litros).HasColumnType("decimal(10,3)");
-        modelBuilder.Entity<Abastecimento>().Property(x => x.ValorTotal).HasColumnType("decimal(10,2)");
+        modelBuilder.Entity<Usuario>()
+            .HasIndex(x => x.Email)
+            .IsUnique();
+            
+        modelBuilder.Entity<Veiculo>() 
+            .HasIndex(x => x.Placa)
+            .IsUnique();
+
+        modelBuilder.Entity<Abastecimento>()
+            .Property(x => x.Litros)
+            .HasColumnType("decimal(10,3)");
+
+        modelBuilder.Entity<Abastecimento>()
+            .Property(x => x.ValorTotal)   
+            .HasColumnType("decimal(10,2)");
+
+        modelBuilder.Entity<UsuarioPermissao>()
+            .HasIndex(x => new { x.UsuarioId, x.Permissao })
+            .IsUnique();
+
+        modelBuilder.Entity<UsuarioPermissao>()
+            .HasOne(x => x.Usuario)
+            .WithMany(x => x.Permissoes)
+            .HasForeignKey(x => x.UsuarioId);
     }
 }
