@@ -923,7 +923,6 @@ async function analisarImagemQrCode(file) {
       toast.error(err.response?.data?.mensagem || 'Erro ao salvar.');
     }
   }
-
   function fileChange(file) {
     setFoto(file);
     setPreview(file ? URL.createObjectURL(file) : '');
