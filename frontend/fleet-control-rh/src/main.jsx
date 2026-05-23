@@ -7,7 +7,7 @@ import { ToastContainer, toast } from 'react-toastify';
 import 'react-toastify/dist/ReactToastify.css';
 import { BarChart3, Car, Fuel, LayoutDashboard, LogOut, Users, UserCog } from 'lucide-react';
 import './style.css';
-import { BrowserQRCodeReader } from '@zxing/browser';
+import { Html5QrcodeScanner } from 'html5-qrcode';
 
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
@@ -639,8 +639,6 @@ function Abastecimentos() {
   const [urlConsulta, setUrlConsulta] = useState('');
   const [scannerAberto, setScannerAberto] = useState(false);
   const [qrReader, setQrReader] = useState(null);
-  const [qrControls, setQrControls] = useState(null);
-  const [qrStream, setQrStream] = useState(null);
   const [filtro, setFiltro] = useState({
     veiculoId: '',
     motoristaId: ''
@@ -660,109 +658,74 @@ function Abastecimentos() {
     setMotoristas(motoristasRes.data);
   }
 
-  async function abrirLeitorQrCode() {
-    limparCameraQrCode();
+  function abrirLeitorQrCode() {
 
     setScannerAberto(true);
 
-    setTimeout(async () => {
-      try {
-        const videoElement = document.getElementById('qr-video');
+    setTimeout(() => {
 
-        if (!videoElement) {
-          toast.error('Elemento de vídeo não encontrado.');
+      const scanner = new Html5QrcodeScanner(
+        "reader",
+        {
+          fps: 10,
+          qrbox: {
+            width: 280,
+            height: 280
+          },
+
+          aspectRatio: 1,
+
+          supportedScanTypes: [0],
+
+          rememberLastUsedCamera: true,
+
+          videoConstraints: {
+            facingMode: "environment"
+          }
+        },
+        false
+      );
+
+      scanner.render(
+        async (textoQr) => {
+
+          try {
+
+            await scanner.clear();
+
+          } catch {}
+
           setScannerAberto(false);
-          return;
+
+          setUrlConsulta(textoQr);
+
+          toast.success("QR Code lido.");
+
+          await analisarPorUrl(textoQr);
+
+        },
+
+        () => {
+          // ignora erros de tentativa
         }
+      );
 
-        const stream = await navigator.mediaDevices.getUserMedia({
-          video:{
-            facingMode:{ ideal:'environment' },
-            width:{ ideal:1920 },
-            height:{ ideal:1080 }
-          }
-        });
+    },200);
 
-        setQrStream(stream);
-
-        videoElement.srcObject = stream;
-        videoElement.setAttribute('playsinline', true);
-        await videoElement.play();
-
-        if ('BarcodeDetector' in window) {
-          const detector = new window.BarcodeDetector({
-            formats: ['qr_code']
-          });
-
-          const intervalId = setInterval(async () => {
-            try {
-              const codes = await detector.detect(videoElement);
-
-            if(codes.length > 0){
-
-              const link = codes[0].rawValue;
-
-              limparCameraQrCode();
-
-              setUrlConsulta(link);
-
-              toast.success('QR Code lido');
-
-              await analisarPorUrl(link);
-
-            }
-            } catch {
-              // Continua tentando ler.
-            }
-          }, 300);
-
-          setQrControls({
-            stop: () => {
-              clearInterval(intervalId);
-              stream.getTracks().forEach(track => track.stop());
-            }
-          });
-
-          return;
-        }
-
-        const reader = new BrowserQRCodeReader();
-
-        const controls = await reader.decodeFromVideoDevice(
-          null,
-          videoElement,
-          async (result) => {
-            if (result) {
-              const link = result.getText();
-
-              controls.stop();
-
-              setUrlConsulta(link);
-              setQrControls(null);
-              setScannerAberto(false);
-
-              toast.success('QR Code lido com sucesso.');
-
-              await analisarPorUrl(link);
-            }
-          }
-        );
-
-        setQrControls(controls);
-      } catch (error) {
-        console.error(error);
-
-        toast.error(
-          'Não foi possível abrir a câmera. Verifique a permissão do navegador e se está usando HTTPS.'
-        );
-
-        setScannerAberto(false);
-      }
-    }, 500);
   }
 
-  function fecharLeitorQrCode() {
-    limparCameraQrCode();
+  function fecharLeitorQrCode(){
+
+    const elemento =
+      document.getElementById("reader");
+
+    if(elemento){
+
+      elemento.innerHTML="";
+    }
+
+    setScannerAberto(false);
+
   }
 
 async function analisarImagemQrCode(file) {
@@ -1011,32 +974,33 @@ async function analisarImagemQrCode(file) {
               </button>
 
               {scannerAberto && (
-                <div className="card p-3 mt-3">
-                  <h5>Leitor de QR Code</h5>
 
-                  <video
-                    id="qr-video"
-                    style={{
-                      width: '100%',
-                      maxWidth: '420px',
-                      borderRadius: '12px',
-                      border: '2px solid #333'
-                    }}
-                  />
+                <div
+                className="card p-3 mt-3"
+                >
 
-                  <small className="text-muted mt-2">
-                    Aponte a câmera para o QR Code da nota fiscal.
-                  </small>
+                <h5>Leitor QR Code NFC-e</h5>
 
-                  <button
-                    type="button"
-                    className="btn btn-secondary mt-3"
-                    onClick={fecharLeitorQrCode}
-                  >
-                    Fechar leitor
-                  </button>
+                <div
+                id="reader"
+                style={{
+                  width:'100%'
+                }}
+                />
+
+                <button
+                type="button"
+                className="btn btn-secondary mt-3"
+                onClick={fecharLeitorQrCode}
+                >
+
+                Fechar leitor
+
+                </button>
+
                 </div>
-              )}
+
+                )}
               <label className="mt-3">Chave de acesso da NFC-e</label>
                 <div className="input-group">
                   <input

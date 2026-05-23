@@ -7,9 +7,9 @@
   },
   "dependencies": {
     "@vitejs/plugin-react": "latest",
-    "@zxing/browser": "^0.2.0",
     "axios": "latest",
     "bootstrap": "latest",
+    "html5-qrcode": "^2.3.8",
     "lucide-react": "latest",
     "react": "latest",
     "react-dom": "latest",
