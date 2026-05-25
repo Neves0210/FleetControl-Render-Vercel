@@ -35,8 +35,8 @@ export function Motoristas() {
       setForm(initialForm);
       setEdit(null);
       await load();
-    } catch {
-      toast.error('Erro ao salvar.');
+    } catch (err) {
+      toast.error(err.response?.data?.mensagem || 'Erro ao salvar.');
     }
   }
 
@@ -58,7 +58,7 @@ export function Motoristas() {
 
       <form className="card card-soft p-3 mb-3" onSubmit={save}>
         <div className="row">
-          <Input label="Nome" value={form.nome} onChange={v => setForm({ ...form, nome: v })} />
+          <Input label="Nome" required value={form.nome} onChange={v => setForm({ ...form, nome: v })} />
           <Input label="Documento" value={form.documento || ''} onChange={v => setForm({ ...form, documento: v })} />
           <Input label="Telefone" value={form.telefone || ''} onChange={v => setForm({ ...form, telefone: v })} />
           <Input label="Cargo" value={form.cargo || ''} onChange={v => setForm({ ...form, cargo: v })} />

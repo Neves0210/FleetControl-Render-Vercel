@@ -84,13 +84,13 @@ export function Usuarios() {
 
       <form className="card card-soft p-3 mb-3" onSubmit={save}>
         <div className="row">
-          <Input label="Nome" value={form.nome} onChange={v => setForm({ ...form, nome: v })} />
-          <Input label="E-mail" value={form.email} onChange={v => setForm({ ...form, email: v })} />
-          <Input label="Senha" value={form.senha || ''} onChange={v => setForm({ ...form, senha: v })} />
+          <Input label="Nome" required value={form.nome} onChange={v => setForm({ ...form, nome: v })} />
+          <Input label="E-mail" required type="email" value={form.email} onChange={v => setForm({ ...form, email: v })} />
+          <Input label="Senha" required={!edit} minLength={4} value={form.senha || ''} onChange={v => setForm({ ...form, senha: v })} />
 
           <div className="col-md-2 mb-3">
             <label>Perfil</label>
-            <select className="form-select" value={form.perfil} onChange={e => aplicarPermissoesPadrao(e.target.value)}>
+            <select className="form-select" required value={form.perfil} onChange={e => aplicarPermissoesPadrao(e.target.value)}>
               <option value="1">Master</option>
               <option value="2">RH</option>
               <option value="3">Técnico</option>

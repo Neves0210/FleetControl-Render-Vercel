@@ -1,12 +1,11 @@
-using System.Security.Claims;
 using FleetControlRH.Api.Data;
 using FleetControlRH.Api.DTOs;
+using FleetControlRH.Api.Extensions;
 using FleetControlRH.Api.Models;
 using FleetControlRH.Api.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
-using FleetControlRH.Api.Extensions;
 
 namespace FleetControlRH.Api.Controllers;
 
@@ -50,7 +49,11 @@ public class AbastecimentosController : ControllerBase
         if (veiculoId.HasValue)
             query = query.Where(x => x.VeiculoId == veiculoId.Value);
 
-        return Ok(await query.OrderByDescending(x => x.DataAbastecimento).ToListAsync());
+        var abastecimentos = await query
+            .OrderByDescending(x => x.DataAbastecimento)
+            .ToListAsync();
+
+        return Ok(abastecimentos);
     }
 
     [HttpPost]
@@ -66,23 +69,18 @@ public class AbastecimentosController : ControllerBase
             model.MotoristaId = motoristaLogadoId.Value;
         }
 
+        var erro = await ValidarAbastecimentoAsync(model, fotoNotaFiscal, exigirFoto: true, abastecimentoIdIgnorado: null);
+
+        if (!string.IsNullOrWhiteSpace(erro))
+            return BadRequest(new { mensagem = erro });
+
         var veiculo = await _db.Veiculos.FindAsync(model.VeiculoId);
-
-        if (veiculo == null || !veiculo.Ativo)
-            return BadRequest(new { mensagem = "Veículo inválido." });
-
-        if (model.KmAtual < veiculo.KmAtual)
-        {
-            return BadRequest(new
-            {
-                mensagem = $"Alerta: o KM atual informado ({model.KmAtual}) está menor que o KM anterior registrado para este veículo ({veiculo.KmAtual})."
-            });
-        }
 
         if (fotoNotaFiscal is { Length: > 0 })
             model.FotoNotaFiscalPath = await SalvarFotoAsync(fotoNotaFiscal);
 
-        veiculo.KmAtual = model.KmAtual;
+        veiculo!.KmAtual = model.KmAtual;
+        model.CriadoEm = DateTime.UtcNow;
 
         _db.Abastecimentos.Add(model);
 
@@ -96,16 +94,20 @@ public class AbastecimentosController : ControllerBase
     {
         if (!User.TemPermissao("Abastecimentos.Editar"))
             return Forbid();
-            
+
         var abastecimento = await _db.Abastecimentos.FindAsync(id);
 
         if (abastecimento == null)
             return NotFound();
 
-        var veiculo = await _db.Veiculos.FindAsync(model.VeiculoId);
+        var exigirFoto = string.IsNullOrWhiteSpace(abastecimento.FotoNotaFiscalPath);
 
-        if (veiculo == null || !veiculo.Ativo)
-            return BadRequest(new { mensagem = "Veículo inválido." });
+        var erro = await ValidarAbastecimentoAsync(model, fotoNotaFiscal, exigirFoto, id);
+
+        if (!string.IsNullOrWhiteSpace(erro))
+            return BadRequest(new { mensagem = erro });
+
+        var veiculo = await _db.Veiculos.FindAsync(model.VeiculoId);
 
         abastecimento.VeiculoId = model.VeiculoId;
         abastecimento.MotoristaId = model.MotoristaId;
@@ -113,11 +115,14 @@ public class AbastecimentosController : ControllerBase
         abastecimento.KmAtual = model.KmAtual;
         abastecimento.Litros = model.Litros;
         abastecimento.ValorTotal = model.ValorTotal;
-        abastecimento.Posto = model.Posto;
+        abastecimento.Posto = model.Posto?.Trim();
         abastecimento.Observacao = model.Observacao;
 
         if (fotoNotaFiscal is { Length: > 0 })
             abastecimento.FotoNotaFiscalPath = await SalvarFotoAsync(fotoNotaFiscal);
+
+        if (veiculo != null && model.KmAtual > veiculo.KmAtual)
+            veiculo.KmAtual = model.KmAtual;
 
         await _db.SaveChangesAsync();
 
@@ -141,6 +146,118 @@ public class AbastecimentosController : ControllerBase
         await VincularVeiculoMotoristaAsync(resultado);
 
         return Ok(resultado);
+    }
+
+    [HttpPost("ler-qrcode-imagem")]
+    public async Task<IActionResult> LerQrCodeImagem(IFormFile imagemQrCode)
+    {
+        if (imagemQrCode == null || imagemQrCode.Length == 0)
+        {
+            return BadRequest(new
+            {
+                sucesso = false,
+                mensagem = "Envie a imagem do QR Code."
+            });
+        }
+
+        using var stream = imagemQrCode.OpenReadStream();
+
+        var url = await _notaFiscalService.LerQrCodeDaImagemAsync(stream);
+
+        if (string.IsNullOrWhiteSpace(url))
+        {
+            return Ok(new
+            {
+                sucesso = false,
+                mensagem = "Não foi possível encontrar um QR Code válido na imagem."
+            });
+        }
+
+        return Ok(new
+        {
+            sucesso = true,
+            mensagem = "QR Code lido com sucesso.",
+            url
+        });
+    }
+
+    private async Task<string?> ValidarAbastecimentoAsync(
+        Abastecimento model,
+        IFormFile? fotoNotaFiscal,
+        bool exigirFoto,
+        int? abastecimentoIdIgnorado)
+    {
+        if (model.VeiculoId <= 0)
+            return "Selecione um veículo.";
+
+        if (model.MotoristaId <= 0)
+            return "Selecione um motorista/técnico.";
+
+        if (model.Litros <= 0)
+            return "A quantidade de litros deve ser maior que zero.";
+
+        if (model.ValorTotal <= 0)
+            return "O valor total deve ser maior que zero.";
+
+        if (model.KmAtual <= 0)
+            return "O KM atual deve ser maior que zero.";
+
+        if (model.DataAbastecimento > DateTime.Now.AddMinutes(5))
+            return "A data do abastecimento não pode ser futura.";
+
+        var veiculo = await _db.Veiculos.FindAsync(model.VeiculoId);
+
+        if (veiculo == null || !veiculo.Ativo)
+            return "Veículo inválido.";
+
+        var motorista = await _db.Motoristas.FindAsync(model.MotoristaId);
+
+        if (motorista == null || !motorista.Ativo)
+            return "Motorista/técnico inválido.";
+
+        var ultimoKm = await _db.Abastecimentos
+            .Where(x => x.VeiculoId == model.VeiculoId && (!abastecimentoIdIgnorado.HasValue || x.Id != abastecimentoIdIgnorado.Value))
+            .OrderByDescending(x => x.DataAbastecimento)
+            .ThenByDescending(x => x.Id)
+            .Select(x => (int?)x.KmAtual)
+            .FirstOrDefaultAsync();
+
+        var kmReferencia = ultimoKm ?? veiculo.KmAtual;
+
+        if (model.KmAtual <= kmReferencia)
+        {
+            return $"O KM atual informado ({model.KmAtual}) deve ser maior que o KM anterior do veículo ({kmReferencia}).";
+        }
+
+        if (exigirFoto && (fotoNotaFiscal == null || fotoNotaFiscal.Length == 0))
+            return "A foto da nota fiscal é obrigatória.";
+
+        if (fotoNotaFiscal is { Length: > 0 })
+        {
+            var erroArquivo = ValidarFotoNotaFiscal(fotoNotaFiscal);
+
+            if (!string.IsNullOrWhiteSpace(erroArquivo))
+                return erroArquivo;
+        }
+
+        return null;
+    }
+
+    private static string? ValidarFotoNotaFiscal(IFormFile arquivo)
+    {
+        var extensao = Path.GetExtension(arquivo.FileName).ToLowerInvariant();
+
+        var extensoesPermitidas = new[] { ".jpg", ".jpeg", ".png", ".webp" };
+
+        if (!extensoesPermitidas.Contains(extensao))
+            return "A foto da nota fiscal deve estar nos formatos JPG, JPEG, PNG ou WEBP.";
+
+        const long tamanhoMaximo = 5 * 1024 * 1024;
+
+        if (arquivo.Length > tamanhoMaximo)
+            return "A foto da nota fiscal deve ter no máximo 5 MB.";
+
+        return null;
     }
 
     private async Task VincularVeiculoMotoristaAsync(NotaFiscalAnaliseDto resultado)
@@ -204,38 +321,5 @@ public class AbastecimentosController : ControllerBase
         await arquivo.CopyToAsync(stream);
 
         return $"/uploads/notas-fiscais/{nome}";
-    }
-
-    [HttpPost("ler-qrcode-imagem")]
-    public async Task<IActionResult> LerQrCodeImagem(IFormFile imagemQrCode)
-    {
-        if (imagemQrCode == null || imagemQrCode.Length == 0)
-        {
-            return BadRequest(new
-            {
-                sucesso = false,
-                mensagem = "Envie a imagem do QR Code."
-            });
-        }
-
-        using var stream = imagemQrCode.OpenReadStream();
-
-        var url = await _notaFiscalService.LerQrCodeDaImagemAsync(stream);
-
-        if (string.IsNullOrWhiteSpace(url))
-        {
-            return Ok(new
-            {
-                sucesso = false,
-                mensagem = "Não foi possível encontrar um QR Code válido na imagem."
-            });
-        }
-
-        return Ok(new
-        {
-            sucesso = true,
-            mensagem = "QR Code lido com sucesso.",
-            url
-        });
     }
 }

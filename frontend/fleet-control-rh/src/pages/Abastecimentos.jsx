@@ -110,6 +110,14 @@ export function Abastecimentos() {
   async function save(e) {
     e.preventDefault();
 
+    if (!foto) return toast.warning('A foto da nota fiscal é obrigatória.');
+    if (!form.veiculoId) return toast.warning('Selecione um veículo.');
+    if (!form.motoristaId) return toast.warning('Selecione um motorista/técnico.');
+    if (Number(form.kmAtual) <= 0) return toast.warning('O KM atual deve ser maior que zero.');
+    if (Number(form.litros) <= 0) return toast.warning('A quantidade de litros deve ser maior que zero.');
+    if (Number(form.valorTotal) <= 0) return toast.warning('O valor total deve ser maior que zero.');
+    if (new Date(form.dataAbastecimento) > new Date()) return toast.warning('A data do abastecimento não pode ser futura.');
+
     const fd = new FormData();
     Object.entries(form).forEach(([key, value]) => fd.append(key, value));
     if (foto) fd.append('fotoNotaFiscal', foto);
@@ -141,7 +149,7 @@ export function Abastecimentos() {
         <div className="row">
           <div className="col-md-12 mb-3">
             <label>Foto da nota fiscal para armazenamento</label>
-            <input className="form-control" type="file" accept="image/*" onChange={e => fileChange(e.target.files[0])} />
+            <input className="form-control" type="file" accept="image/*" required={!foto} onChange={e => fileChange(e.target.files[0])} />
             {preview && <img src={preview} className="preview-img" />}
 
             <label className="mt-3">
@@ -179,12 +187,12 @@ export function Abastecimentos() {
             </div>
           </div>
 
-          <Select label="Veículo" value={form.veiculoId} onChange={v => setForm({ ...form, veiculoId: v })} items={veiculos} text={x => `${x.modelo} - ${x.placa}`} />
-          <Select label="Motorista/Técnico" value={form.motoristaId} onChange={v => setForm({ ...form, motoristaId: v })} items={motoristas} text={x => x.nome} />
-          <Input label="Data" type="datetime-local" value={form.dataAbastecimento} onChange={v => setForm({ ...form, dataAbastecimento: v })} />
-          <Input label="KM atual" type="number" value={form.kmAtual} onChange={v => setForm({ ...form, kmAtual: v })} />
-          <Input label="Litros" value={form.litros} onChange={v => setForm({ ...form, litros: v })} />
-          <Input label="Valor total" value={form.valorTotal} onChange={v => setForm({ ...form, valorTotal: v })} />
+          <Select label="Veículo" required value={form.veiculoId} onChange={v => setForm({ ...form, veiculoId: v })} items={veiculos} text={x => `${x.modelo} - ${x.placa}`} />
+          <Select label="Motorista/Técnico" required value={form.motoristaId} onChange={v => setForm({ ...form, motoristaId: v })} items={motoristas} text={x => x.nome} />
+          <Input label="Data" required type="datetime-local" value={form.dataAbastecimento} onChange={v => setForm({ ...form, dataAbastecimento: v })} />
+          <Input label="KM atual" required type="number" min="1" value={form.kmAtual} onChange={v => setForm({ ...form, kmAtual: v })} />
+          <Input label="Litros" required type="number" min="0.001" step="0.001" value={form.litros} onChange={v => setForm({ ...form, litros: v })} />
+          <Input label="Valor total" required type="number" min="0.01" step="0.01" value={form.valorTotal} onChange={v => setForm({ ...form, valorTotal: v })} />
           <Input label="Posto" value={form.posto} onChange={v => setForm({ ...form, posto: v })} />
         </div>
 

@@ -46,13 +46,28 @@ public class UsuariosController : ControllerBase
     [HttpPost]
     public async Task<IActionResult> Create(UsuarioCreateDto dto)
     {
-        if (await _db.Usuarios.AnyAsync(x => x.Email == dto.Email))
+        var erro = ValidarUsuarioCreate(dto);
+
+        if (!string.IsNullOrWhiteSpace(erro))
+            return BadRequest(new { mensagem = erro });
+
+        var email = dto.Email.Trim().ToLowerInvariant();
+
+        if (await _db.Usuarios.AnyAsync(x => x.Email.ToLower() == email))
             return BadRequest(new { mensagem = "E-mail já cadastrado." });
+
+        if (dto.MotoristaId.HasValue)
+        {
+            var motoristaExiste = await _db.Motoristas.AnyAsync(x => x.Id == dto.MotoristaId.Value && x.Ativo);
+
+            if (!motoristaExiste)
+                return BadRequest(new { mensagem = "Motorista/técnico vinculado ao usuário é inválido." });
+        }
 
         var usuario = new Usuario
         {
-            Nome = dto.Nome,
-            Email = dto.Email,
+            Nome = dto.Nome.Trim(),
+            Email = email,
             SenhaHash = BCrypt.Net.BCrypt.HashPassword(dto.Senha),
             Perfil = dto.Perfil,
             MotoristaId = dto.MotoristaId,
@@ -62,7 +77,7 @@ public class UsuariosController : ControllerBase
         _db.Usuarios.Add(usuario);
         await _db.SaveChangesAsync();
 
-        foreach (var permissao in dto.Permissoes.Distinct())
+        foreach (var permissao in (dto.Permissoes ?? new List<string>()).Where(x => !string.IsNullOrWhiteSpace(x)).Distinct())
         {
             _db.UsuarioPermissoes.Add(new UsuarioPermissao
             {
@@ -94,18 +109,26 @@ public class UsuariosController : ControllerBase
         if (usuario == null)
             return NotFound();
 
-        if (await _db.Usuarios.AnyAsync(x =>
-            x.Email == dto.Email &&
-            x.Id != id))
+        var erro = ValidarUsuarioUpdate(dto);
+
+        if (!string.IsNullOrWhiteSpace(erro))
+            return BadRequest(new { mensagem = erro });
+
+        var email = dto.Email.Trim().ToLowerInvariant();
+
+        if (await _db.Usuarios.AnyAsync(x => x.Email.ToLower() == email && x.Id != id))
+            return BadRequest(new { mensagem = "E-mail já cadastrado." });
+
+        if (dto.MotoristaId.HasValue)
         {
-            return BadRequest(new
-            {
-                mensagem = "E-mail já cadastrado."
-            });
+            var motoristaExiste = await _db.Motoristas.AnyAsync(x => x.Id == dto.MotoristaId.Value && x.Ativo);
+
+            if (!motoristaExiste)
+                return BadRequest(new { mensagem = "Motorista/técnico vinculado ao usuário é inválido." });
         }
 
-        usuario.Nome = dto.Nome;
-        usuario.Email = dto.Email;
+        usuario.Nome = dto.Nome.Trim();
+        usuario.Email = email;
         usuario.Perfil = dto.Perfil;
         usuario.MotoristaId = dto.MotoristaId;
         usuario.Ativo = dto.Ativo;
@@ -116,15 +139,9 @@ public class UsuariosController : ControllerBase
                 BCrypt.Net.BCrypt.HashPassword(dto.Senha);
         }
 
-        // REMOVE TODAS AS PERMISSÕES ANTIGAS
+        _db.UsuarioPermissoes.RemoveRange(usuario.Permissoes);
 
-        _db.UsuarioPermissoes.RemoveRange(
-            usuario.Permissoes
-        );
-
-        // RECRIA AS NOVAS
-
-        foreach (var permissao in dto.Permissoes.Distinct())
+        foreach (var permissao in (dto.Permissoes ?? new List<string>()).Where(x => !string.IsNullOrWhiteSpace(x)).Distinct())
         {
             _db.UsuarioPermissoes.Add(
                 new UsuarioPermissao
@@ -144,8 +161,47 @@ public class UsuariosController : ControllerBase
             usuario.Perfil,
             usuario.MotoristaId,
             usuario.Ativo,
-            Permissoes =
-                dto.Permissoes
+            Permissoes = dto.Permissoes
         });
+    }
+
+    private static string? ValidarUsuarioCreate(UsuarioCreateDto dto)
+    {
+        if (string.IsNullOrWhiteSpace(dto.Nome))
+            return "O nome do usuário é obrigatório.";
+
+        if (string.IsNullOrWhiteSpace(dto.Email))
+            return "O e-mail do usuário é obrigatório.";
+
+        if (!dto.Email.Contains('@') || !dto.Email.Contains('.'))
+            return "Informe um e-mail válido.";
+
+        if (string.IsNullOrWhiteSpace(dto.Senha) || dto.Senha.Length < 4)
+            return "A senha deve ter no mínimo 4 caracteres.";
+
+        if (!Enum.IsDefined(typeof(PerfilUsuario), dto.Perfil))
+            return "Selecione um perfil válido.";
+
+        return null;
+    }
+
+    private static string? ValidarUsuarioUpdate(UsuarioUpdateDto dto)
+    {
+        if (string.IsNullOrWhiteSpace(dto.Nome))
+            return "O nome do usuário é obrigatório.";
+
+        if (string.IsNullOrWhiteSpace(dto.Email))
+            return "O e-mail do usuário é obrigatório.";
+
+        if (!dto.Email.Contains('@') || !dto.Email.Contains('.'))
+            return "Informe um e-mail válido.";
+
+        if (!string.IsNullOrWhiteSpace(dto.Senha) && dto.Senha.Length < 4)
+            return "A senha deve ter no mínimo 4 caracteres.";
+
+        if (!Enum.IsDefined(typeof(PerfilUsuario), dto.Perfil))
+            return "Selecione um perfil válido.";
+
+        return null;
     }
 }
