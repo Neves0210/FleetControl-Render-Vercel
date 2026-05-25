@@ -1,0 +1,8 @@
+import { api } from '../api/api';
+
+export const abastecimentoService = {
+  listar: params => api.get('/abastecimentos', { params }),
+  criar: formData => api.post('/abastecimentos', formData),
+  analisarNota: formData => api.post('/abastecimentos/analisar-nota', formData),
+  lerQrCodeImagem: formData => api.post('/abastecimentos/ler-qrcode-imagem', formData)
+};
