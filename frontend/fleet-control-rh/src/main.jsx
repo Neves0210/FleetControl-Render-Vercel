@@ -8,6 +8,7 @@ import 'react-toastify/dist/ReactToastify.css';
 import { BarChart3, Car, Fuel, LayoutDashboard, LogOut, Users, UserCog } from 'lucide-react';
 import './style.css';
 import { Html5QrcodeScanner } from 'html5-qrcode';
+import { useQrScanner } from './useQrScanner';
 
 
 const API_BASE_URL = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
@@ -646,6 +647,15 @@ function Abastecimentos() {
   const [form, setForm] = useState(emptyAbastecimento());
   const [chaveAcesso, setChaveAcesso] = useState('');
 
+  const { scannerAberto, videoRef, abrirScanner, fecharScanner, temBarcodeDetector } =
+    useQrScanner({
+      onResult: async (url) => {
+        setUrlConsulta(url);
+        toast.success('QR Code lido! Analisando NFC-e...');
+        await analisarPorUrl(url);
+      },
+  });
+
   async function load() {
     const [abastecimentosRes, veiculosRes, motoristasRes] = await Promise.all([
       api.get('/abastecimentos', { params: filtro }),
@@ -658,61 +668,73 @@ function Abastecimentos() {
     setMotoristas(motoristasRes.data);
   }
 
-  function abrirLeitorQrCode() {
-
-    setScannerAberto(true);
-
-    setTimeout(() => {
-
-      const scanner = new Html5QrcodeScanner(
-        "reader",
-        {
-          fps: 10,
-          qrbox: {
-            width: 280,
-            height: 280
-          },
-
-          aspectRatio: 1,
-
-          supportedScanTypes: [0],
-
-          rememberLastUsedCamera: true,
-
-          videoConstraints: {
-            facingMode: "environment"
-          }
-        },
-        false
+  async function abrirLeitorQrCode() {
+    try {
+      await abrirScanner();
+    } catch (err) {
+      console.error(err);
+      toast.error(
+        'Não foi possível abrir a câmera. ' +
+        'Verifique se o navegador tem permissão e se o site está em HTTPS.'
       );
-
-      scanner.render(
-        async (textoQr) => {
-
-          try {
-
-            await scanner.clear();
-
-          } catch {}
-
-          setScannerAberto(false);
-
-          setUrlConsulta(textoQr);
-
-          toast.success("QR Code lido.");
-
-          await analisarPorUrl(textoQr);
-
-        },
-
-        () => {
-          // ignora erros de tentativa
-        }
-      );
-
-    },200);
-
+    }
   }
+
+  // function abrirLeitorQrCode() {
+
+  //   setScannerAberto(true);
+
+  //   setTimeout(() => {
+
+  //     const scanner = new Html5QrcodeScanner(
+  //       "reader",
+  //       {
+  //         fps: 10,
+  //         qrbox: {
+  //           width: 280,
+  //           height: 280
+  //         },
+
+  //         aspectRatio: 1,
+
+  //         supportedScanTypes: [0],
+
+  //         rememberLastUsedCamera: true,
+
+  //         videoConstraints: {
+  //           facingMode: "environment"
+  //         }
+  //       },
+  //       false
+  //     );
+
+  //     scanner.render(
+  //       async (textoQr) => {
+
+  //         try {
+
+  //           await scanner.clear();
+
+  //         } catch {}
+
+  //         setScannerAberto(false);
+
+  //         setUrlConsulta(textoQr);
+
+  //         toast.success("QR Code lido.");
+
+  //         await analisarPorUrl(textoQr);
+
+  //       },
+
+  //       () => {
+  //         // ignora erros de tentativa
+  //       }
+  //     );
+
+  //   },200);
+
+  // }
 
   function fecharLeitorQrCode(){
 
@@ -1019,6 +1041,88 @@ async function analisarImagemQrCode(file) {
                     Analisar pela chave
                   </button>
                 </div>
+          </div>
+          <div>
+              <label className="mt-3">
+                Leitura do QR Code da NFC-e
+                {temBarcodeDetector && (
+                  <span className="badge bg-success ms-2" style={{ fontSize: 11 }}>
+                    Leitor nativo ativo
+                  </span>
+                )}
+              </label>
+
+              <div className="input-group">
+                <input
+                  className="form-control"
+                  placeholder="O link será preenchido automaticamente pelo leitor de QR Code"
+                  value={urlConsulta}
+                  readOnly
+                />
+                <button
+                  type="button"
+                  className="btn btn-outline-dark"
+                  onClick={abrirLeitorQrCode}
+                >
+                  Ler QR Code
+                </button>
+              </div>
+
+              <small className="text-muted">
+                {temBarcodeDetector
+                  ? 'Usando o decoder nativo do dispositivo — mesmo leitor da câmera nativa.'
+                  : 'Usando ZXing (fallback JS). Para melhor leitura, prefira o Chrome/Edge no Android.'}
+              </small>
+
+              <br />
+
+              <button
+                type="button"
+                className="btn btn-outline-primary mt-2"
+                onClick={analisar}
+              >
+                Analisar NFC-e manualmente
+              </button>
+
+              {scannerAberto && (
+                <div className="card p-3 mt-3">
+                  <h5>
+                    Leitor de QR Code
+                    {temBarcodeDetector && (
+                      <span className="badge bg-success ms-2" style={{ fontSize: 11 }}>
+                        Nativo
+                      </span>
+                    )}
+                  </h5>
+
+                  <video
+                    ref={videoRef}
+                    style={{
+                      width: '100%',
+                      maxWidth: 420,
+                      borderRadius: 12,
+                      border: '2px solid #333',
+                    }}
+                    muted
+                    playsInline
+                  />
+
+                  <small className="text-muted mt-2">
+                    Aponte a câmera para o QR Code da nota fiscal.
+                    {temBarcodeDetector
+                      ? ' O decoder nativo detecta automaticamente, inclusive QR Codes com pequenos danos.'
+                      : ' Mantenha a nota firme e bem iluminada.'}
+                  </small>
+
+                  <button
+                    type="button"
+                    className="btn btn-secondary mt-3"
+                    onClick={fecharScanner}
+                  >
+                    Fechar leitor
+                  </button>
+                </div>
+              )}
           </div>
 
           <Select label="Veículo" value={form.veiculoId} onChange={v => setForm({ ...form, veiculoId: v })} items={veiculos} text={x => `${x.modelo} - ${x.placa}`} />
