@@ -21,7 +21,7 @@ export function Abastecimentos() {
   const [filtro, setFiltro] = useState({ veiculoId: '', motoristaId: '' });
   const [form, setForm] = useState(emptyAbastecimento());
 
-  const { scannerAberto, videoRef, abrirScanner, fecharScanner, temBarcodeDetector } = useQrScanner({
+  const { scannerAberto, abrirScanner, fecharScanner, cameraErro, readerElementId } = useQrScanner({
     onResult: async url => {
       setUrlConsulta(url);
       toast.success('QR Code lido! Analisando NFC-e...');
@@ -50,7 +50,7 @@ export function Abastecimentos() {
       await abrirScanner();
     } catch (err) {
       console.error(err);
-      toast.error('Não foi possível abrir a câmera. Verifique se o navegador tem permissão, HTTPS e suporte a BarcodeDetector.');
+      toast.error('Não foi possível abrir a câmera. Verifique se o navegador tem permissão e se o site está em HTTPS.');
     }
   }
 
@@ -146,7 +146,7 @@ export function Abastecimentos() {
 
             <label className="mt-3">
               Leitura do QR Code da NFC-e
-              {temBarcodeDetector && <span className="badge bg-success ms-2" style={{ fontSize: 11 }}>Leitor nativo ativo</span>}
+              <span className="badge bg-primary ms-2" style={{ fontSize: 11 }}>html5-qrcode</span>
             </label>
 
             <div className="input-group">
@@ -155,9 +155,7 @@ export function Abastecimentos() {
             </div>
 
             <small className="text-muted">
-              {temBarcodeDetector
-                ? 'Usando o leitor nativo do navegador.'
-                : 'Seu navegador não possui BarcodeDetector. Use a chave de acesso abaixo como alternativa.'}
+              O leitor usa html5-qrcode com a câmera traseira. Em celular, mantenha a nota bem iluminada e permita o acesso à câmera.
             </small>
 
             <br />
@@ -167,7 +165,8 @@ export function Abastecimentos() {
             {scannerAberto && (
               <div className="card p-3 mt-3">
                 <h5>Leitor de QR Code</h5>
-                <video ref={videoRef} style={{ width: '100%', maxWidth: 420, borderRadius: 12, border: '2px solid #333' }} muted playsInline />
+                <div id={readerElementId} style={{ width: '100%', maxWidth: 420 }} />
+                {cameraErro && <small className="text-danger mt-2">{cameraErro}</small>}
                 <small className="text-muted mt-2">Aponte a câmera para o QR Code da nota fiscal.</small>
                 <button type="button" className="btn btn-secondary mt-3" onClick={fecharScanner}>Fechar leitor</button>
               </div>

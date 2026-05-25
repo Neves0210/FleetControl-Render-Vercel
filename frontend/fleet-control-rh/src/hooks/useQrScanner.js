@@ -1,82 +1,101 @@
 import { useEffect, useRef, useState } from 'react';
+import { Html5Qrcode } from 'html5-qrcode';
+
+const QR_READER_ELEMENT_ID = 'reader';
 
 export function useQrScanner({ onResult }) {
-  const videoRef = useRef(null);
-  const streamRef = useRef(null);
-  const intervalRef = useRef(null);
+  const scannerRef = useRef(null);
+  const runningRef = useRef(false);
   const [scannerAberto, setScannerAberto] = useState(false);
-  const temBarcodeDetector = typeof window !== 'undefined' && 'BarcodeDetector' in window;
+  const [cameraErro, setCameraErro] = useState('');
+
+  async function pararScanner() {
+    const scanner = scannerRef.current;
+
+    if (!scanner) return;
+
+    try {
+      if (runningRef.current) {
+        await scanner.stop();
+      }
+    } catch (err) {
+      console.warn('Erro ao parar scanner:', err);
+    }
+
+    try {
+      await scanner.clear();
+    } catch (err) {
+      console.warn('Erro ao limpar scanner:', err);
+    }
+
+    runningRef.current = false;
+    scannerRef.current = null;
+  }
 
   async function fecharScanner() {
-    if (intervalRef.current) {
-      clearInterval(intervalRef.current);
-      intervalRef.current = null;
-    }
-
-    if (streamRef.current) {
-      streamRef.current.getTracks().forEach(track => track.stop());
-      streamRef.current = null;
-    }
-
-    if (videoRef.current) {
-      videoRef.current.pause();
-      videoRef.current.srcObject = null;
-    }
-
+    await pararScanner();
     setScannerAberto(false);
   }
 
   async function abrirScanner() {
-    if (!temBarcodeDetector) {
-      throw new Error('BarcodeDetector não está disponível neste navegador.');
-    }
-
+    setCameraErro('');
     setScannerAberto(true);
 
-    const stream = await navigator.mediaDevices.getUserMedia({
-      video: { facingMode: { ideal: 'environment' } },
-      audio: false
-    });
+    // Garante que o elemento #reader já foi renderizado antes de iniciar a câmera.
+    await new Promise(resolve => setTimeout(resolve, 150));
 
-    streamRef.current = stream;
+    const readerElement = document.getElementById(QR_READER_ELEMENT_ID);
 
-    setTimeout(async () => {
-      if (!videoRef.current) return;
+    if (!readerElement) {
+      setScannerAberto(false);
+      throw new Error('Elemento do leitor QR Code não encontrado.');
+    }
 
-      videoRef.current.srcObject = stream;
-      await videoRef.current.play();
+    await pararScanner();
 
-      const detector = new window.BarcodeDetector({ formats: ['qr_code'] });
+    const scanner = new Html5Qrcode(QR_READER_ELEMENT_ID);
+    scannerRef.current = scanner;
 
-      intervalRef.current = setInterval(async () => {
-        try {
-          if (!videoRef.current) return;
+    try {
+      await scanner.start(
+        { facingMode: 'environment' },
+        {
+          fps: 10,
+          qrbox: { width: 280, height: 280 },
+          aspectRatio: 1,
+          disableFlip: false
+        },
+        async decodedText => {
+          if (!decodedText) return;
 
-          const codes = await detector.detect(videoRef.current);
-          const value = codes?.[0]?.rawValue;
-
-          if (value) {
-            await fecharScanner();
-            await onResult?.(value);
-          }
-        } catch {
-          // Mantém o scanner ativo enquanto tenta detectar o QR Code.
+          await fecharScanner();
+          await onResult?.(decodedText);
+        },
+        () => {
+          // Ignora falhas intermediárias de leitura enquanto a câmera está aberta.
         }
-      }, 700);
-    }, 100);
+      );
+
+      runningRef.current = true;
+    } catch (err) {
+      console.error('Erro ao iniciar scanner:', err);
+      setCameraErro('Não foi possível acessar a câmera. Verifique permissão, HTTPS e se existe câmera disponível.');
+      await fecharScanner();
+      throw err;
+    }
   }
 
   useEffect(() => {
     return () => {
-      fecharScanner();
+      pararScanner();
     };
   }, []);
 
   return {
     scannerAberto,
-    videoRef,
     abrirScanner,
     fecharScanner,
-    temBarcodeDetector
+    cameraErro,
+    readerElementId: QR_READER_ELEMENT_ID
   };
 }
