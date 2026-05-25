@@ -8,6 +8,7 @@ import 'react-toastify/dist/ReactToastify.css';
 import { BarChart3, Car, Fuel, LayoutDashboard, LogOut, Users, UserCog } from 'lucide-react';
 import './style.css';
 import { Html5QrcodeScanner } from 'html5-qrcode';
+import { BrowserMultiFormatReader } from "@zxing/browser";
 import { useQrScanner } from './useQrScanner';
 
 
