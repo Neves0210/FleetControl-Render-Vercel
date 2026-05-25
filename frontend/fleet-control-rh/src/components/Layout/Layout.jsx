@@ -1,4 +1,4 @@
-import { BarChart3, Car, Fuel, LayoutDashboard, LogOut, Users, UserCog } from 'lucide-react';
+import { BarChart3, Car, Fuel, KeyRound, LayoutDashboard, LogOut, Users, UserCog } from 'lucide-react';
 import { ToastContainer } from 'react-toastify';
 import { useNavigate } from 'react-router-dom';
 import { getUser, podeVerTela } from '../../utils/permissions';
@@ -22,6 +22,7 @@ export function Layout({ children }) {
         {podeVerTela('Veiculos.Visualizar') && <NavItem to="/veiculos" icon={<Car size={18} />} label="Veículos" />}
         {podeVerTela('Motoristas.Visualizar') && <NavItem to="/motoristas" icon={<Users size={18} />} label="Motoristas" />}
         {podeVerTela('Abastecimentos.Visualizar') && <NavItem to="/abastecimentos" icon={<Fuel size={18} />} label="Abastecimentos" />}
+        {podeVerTela('UsosVeiculos.Visualizar') && <NavItem to="/uso-veiculos" icon={<KeyRound size={18} />} label="Uso de Veículos" />}
         {podeVerTela('Relatorios.Visualizar') && <NavItem to="/relatorios" icon={<BarChart3 size={18} />} label="Relatórios" />}
         {podeVerTela('Usuarios.Visualizar') && <NavItem to="/usuarios" icon={<UserCog size={18} />} label="Usuários" />}
       </aside>
