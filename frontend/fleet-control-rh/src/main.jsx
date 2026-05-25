@@ -638,7 +638,7 @@ function Abastecimentos() {
   const [foto, setFoto] = useState(null);
   const [preview, setPreview] = useState('');
   const [urlConsulta, setUrlConsulta] = useState('');
-  const [scannerAberto, setScannerAberto] = useState(false);
+  // const [scannerAberto, setScannerAberto] = useState(false);
   const [qrReader, setQrReader] = useState(null);
   const [filtro, setFiltro] = useState({
     veiculoId: '',
