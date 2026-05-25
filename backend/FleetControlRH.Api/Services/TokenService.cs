@@ -15,7 +15,7 @@ public class TokenService
         _configuration = configuration;
     }
 
-    public string GerarToken(Usuario usuario)
+    public string GerarToken(Usuario usuario, IEnumerable<string>? permissoesExtras = null)
     {
         var jwtKey =
             _configuration["Jwt:Key"]
@@ -44,9 +44,11 @@ public class TokenService
             claims.Add(new Claim("MotoristaId", usuario.MotoristaId.Value.ToString()));
         }
 
-        foreach (var permissao in usuario.Permissoes)
+        var permissoes = permissoesExtras?.ToList() ?? usuario.Permissoes.Select(x => x.Permissao).ToList();
+
+        foreach (var permissao in permissoes.Distinct())
         {
-            claims.Add(new Claim("Permissao", permissao.Permissao));
+            claims.Add(new Claim("Permissao", permissao));
         }
 
         var key = new SymmetricSecurityKey(

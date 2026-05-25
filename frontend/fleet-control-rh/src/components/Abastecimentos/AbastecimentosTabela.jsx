@@ -2,7 +2,7 @@ import { STATIC_BASE_URL } from '../../api/api';
 import { litros, money, number } from '../../utils/formatters';
 import { temPermissao } from '../../utils/permissions';
 
-export function AbastecimentosTabela({ items }) {
+export function AbastecimentosTabela({ items, onEditar }) {
   const podeEditar = temPermissao('Abastecimentos.Editar');
 
   return (
@@ -29,8 +29,24 @@ export function AbastecimentosTabela({ items }) {
             <td>{number(x.kmAtual)}</td>
             <td>{litros(x.litros)}</td>
             <td>{money(x.valorTotal)}</td>
-            <td>{x.fotoNotaFiscalPath && <a href={`${STATIC_BASE_URL}${x.fotoNotaFiscalPath}`} target="_blank" rel="noreferrer">Ver</a>}</td>
-            {podeEditar && <td><button className="btn btn-warning btn-sm">Editar</button></td>}
+            <td>
+              {x.fotoNotaFiscalPath && (
+                <a href={`${STATIC_BASE_URL}${x.fotoNotaFiscalPath}`} target="_blank" rel="noreferrer">
+                  Ver
+                </a>
+              )}
+            </td>
+            {podeEditar && (
+              <td>
+                <button
+                  type="button"
+                  className="btn btn-warning btn-sm"
+                  onClick={() => onEditar?.(x)}
+                >
+                  Editar
+                </button>
+              </td>
+            )}
           </tr>
         ))}
       </tbody>

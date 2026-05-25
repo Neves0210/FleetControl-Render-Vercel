@@ -1,5 +1,6 @@
 using FleetControlRH.Api.Data;
 using FleetControlRH.Api.DTOs;
+using FleetControlRH.Api.Models;
 using FleetControlRH.Api.Services;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -35,7 +36,48 @@ public class AuthController : ControllerBase
             });
         }
 
-        var token = _tokenService.GerarToken(usuario);
+        var permissoes = usuario.Perfil switch
+        {
+            PerfilUsuario.Master => new List<string>
+            {
+                "Dashboard.Visualizar",
+                "Veiculos.Visualizar",
+                "Motoristas.Visualizar",
+                "Abastecimentos.Visualizar",
+                "Abastecimentos.Criar",
+                "Abastecimentos.Editar",
+                "Relatorios.Visualizar",
+                "Relatorios.Exportar",
+                "Usuarios.Visualizar",
+                "Usuarios.Gerenciar"
+            },
+            PerfilUsuario.RH => new List<string>
+            {
+                "Dashboard.Visualizar",
+                "Veiculos.Visualizar",
+                "Motoristas.Visualizar",
+                "Abastecimentos.Visualizar",
+                "Abastecimentos.Criar",
+                "Abastecimentos.Editar",
+                "Relatorios.Visualizar",
+                "Relatorios.Exportar"
+            },
+            PerfilUsuario.Tecnico => new List<string>
+            {
+                "Dashboard.Visualizar",
+                "Abastecimentos.Visualizar",
+                "Abastecimentos.Criar"
+            },
+            _ => usuario.Permissoes.Select(x => x.Permissao).ToList()
+        };
+
+        foreach (var permissao in usuario.Permissoes.Select(x => x.Permissao))
+        {
+            if (!permissoes.Contains(permissao))
+                permissoes.Add(permissao);
+        }
+
+        var token = _tokenService.GerarToken(usuario, permissoes);
 
         return Ok(new
         {
@@ -45,7 +87,7 @@ public class AuthController : ControllerBase
             perfil = usuario.Perfil,
             motoristaId = usuario.MotoristaId,
             motorista = usuario.Motorista?.Nome,
-            permissoes = usuario.Permissoes.Select(x => x.Permissao).ToList()
+            permissoes
         });
     }
 }

@@ -92,7 +92,7 @@ public class AbastecimentosController : ControllerBase
     [HttpPut("{id:int}")]
     public async Task<IActionResult> Update(int id, [FromForm] Abastecimento model, IFormFile? fotoNotaFiscal)
     {
-        if (!User.TemPermissao("Abastecimentos.Editar"))
+        if (!UsuarioPodeEditarAbastecimento())
             return Forbid();
 
         var abastecimento = await _db.Abastecimentos.FindAsync(id);
@@ -107,7 +107,7 @@ public class AbastecimentosController : ControllerBase
         if (!string.IsNullOrWhiteSpace(erro))
             return BadRequest(new { mensagem = erro });
 
-        var veiculo = await _db.Veiculos.FindAsync(model.VeiculoId);
+        var veiculoIdAnterior = abastecimento.VeiculoId;
 
         abastecimento.VeiculoId = model.VeiculoId;
         abastecimento.MotoristaId = model.MotoristaId;
@@ -121,8 +121,10 @@ public class AbastecimentosController : ControllerBase
         if (fotoNotaFiscal is { Length: > 0 })
             abastecimento.FotoNotaFiscalPath = await SalvarFotoAsync(fotoNotaFiscal);
 
-        if (veiculo != null && model.KmAtual > veiculo.KmAtual)
-            veiculo.KmAtual = model.KmAtual;
+        await RecalcularKmAtualVeiculoAsync(model.VeiculoId);
+
+        if (veiculoIdAnterior != model.VeiculoId)
+            await RecalcularKmAtualVeiculoAsync(veiculoIdAnterior);
 
         await _db.SaveChangesAsync();
 
@@ -285,6 +287,30 @@ public class AbastecimentosController : ControllerBase
 
             resultado.MotoristaId = motorista?.Id;
         }
+    }
+
+
+    private bool UsuarioPodeEditarAbastecimento()
+    {
+        return User.IsInRole("Master") ||
+               User.IsInRole("RH") ||
+               User.TemPermissao("Abastecimentos.Editar");
+    }
+
+    private async Task RecalcularKmAtualVeiculoAsync(int veiculoId)
+    {
+        var veiculo = await _db.Veiculos.FindAsync(veiculoId);
+
+        if (veiculo == null)
+            return;
+
+        var maiorKmAbastecimento = await _db.Abastecimentos
+            .Where(x => x.VeiculoId == veiculoId)
+            .Select(x => (int?)x.KmAtual)
+            .MaxAsync();
+
+        if (maiorKmAbastecimento.HasValue)
+            veiculo.KmAtual = maiorKmAbastecimento.Value;
     }
 
     private bool UsuarioEhTecnico()

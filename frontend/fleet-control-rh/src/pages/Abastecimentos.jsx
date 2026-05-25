@@ -20,6 +20,7 @@ export function Abastecimentos() {
   const [chaveAcesso, setChaveAcesso] = useState('');
   const [filtro, setFiltro] = useState({ veiculoId: '', motoristaId: '' });
   const [form, setForm] = useState(emptyAbastecimento());
+  const [editandoId, setEditandoId] = useState(null);
 
   const { scannerAberto, abrirScanner, fecharScanner, cameraErro, readerElementId } = useQrScanner({
     onResult: async url => {
@@ -110,7 +111,7 @@ export function Abastecimentos() {
   async function save(e) {
     e.preventDefault();
 
-    if (!foto) return toast.warning('A foto da nota fiscal é obrigatória.');
+    if (!editandoId && !foto) return toast.warning('A foto da nota fiscal é obrigatória.');
     if (!form.veiculoId) return toast.warning('Selecione um veículo.');
     if (!form.motoristaId) return toast.warning('Selecione um motorista/técnico.');
     if (Number(form.kmAtual) <= 0) return toast.warning('O KM atual deve ser maior que zero.');
@@ -123,17 +124,49 @@ export function Abastecimentos() {
     if (foto) fd.append('fotoNotaFiscal', foto);
 
     try {
-      await abastecimentoService.criar(fd);
-      toast.success('Abastecimento salvo.');
-      setForm(emptyAbastecimento());
-      setFoto(null);
-      setPreview('');
-      setUrlConsulta('');
-      setChaveAcesso('');
+      if (editandoId) {
+        await abastecimentoService.editar(editandoId, fd);
+        toast.success('Abastecimento atualizado.');
+      } else {
+        await abastecimentoService.criar(fd);
+        toast.success('Abastecimento salvo.');
+      }
+
+      limparFormulario();
       await load();
     } catch (err) {
       toast.error(err.response?.data?.mensagem || 'Erro ao salvar.');
     }
+  }
+
+  function editarAbastecimento(item) {
+    setEditandoId(item.id);
+    setForm({
+      veiculoId: item.veiculoId || '',
+      motoristaId: item.motoristaId || '',
+      dataAbastecimento: item.dataAbastecimento ? item.dataAbastecimento.substring(0, 16) : emptyAbastecimento().dataAbastecimento,
+      kmAtual: item.kmAtual ?? '',
+      litros: item.litros ?? '',
+      valorTotal: item.valorTotal ?? '',
+      posto: item.posto ?? '',
+      observacao: item.observacao ?? ''
+    });
+
+    setFoto(null);
+    setPreview('');
+    setUrlConsulta('');
+    setChaveAcesso('');
+
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function limparFormulario() {
+    setForm(emptyAbastecimento());
+    setEditandoId(null);
+    setFoto(null);
+    setPreview('');
+    setUrlConsulta('');
+    setChaveAcesso('');
   }
 
   function fileChange(file) {
@@ -143,13 +176,14 @@ export function Abastecimentos() {
 
   return (
     <>
-      <Header title="Abastecimentos" subtitle="Registre abastecimentos e anexe a nota fiscal" />
+      <Header title="Abastecimentos" subtitle={editandoId ? "Edite os dados do abastecimento selecionado" : "Registre abastecimentos e anexe a nota fiscal"} />
 
       <form className="card card-soft p-3 mb-4" onSubmit={save}>
         <div className="row">
           <div className="col-md-12 mb-3">
             <label>Foto da nota fiscal para armazenamento</label>
-            <input className="form-control" type="file" accept="image/*" required={!foto} onChange={e => fileChange(e.target.files[0])} />
+            <input className="form-control" type="file" accept="image/*" required={!editandoId && !foto} onChange={e => fileChange(e.target.files[0])} />
+            {editandoId && <small className="text-muted d-block mt-1">Ao editar, envie uma nova foto somente se quiser substituir a nota salva.</small>}
             {preview && <img src={preview} className="preview-img" />}
 
             <label className="mt-3">
@@ -198,7 +232,16 @@ export function Abastecimentos() {
 
         <label>Observação</label>
         <textarea className="form-control mb-3" rows="3" value={form.observacao} onChange={e => setForm({ ...form, observacao: e.target.value })} />
-        <button className="btn btn-success">Salvar Abastecimento</button>
+        <div className="d-flex gap-2">
+          <button className="btn btn-success">
+            {editandoId ? 'Atualizar Abastecimento' : 'Salvar Abastecimento'}
+          </button>
+          {editandoId && (
+            <button type="button" className="btn btn-secondary" onClick={limparFormulario}>
+              Cancelar edição
+            </button>
+          )}
+        </div>
       </form>
 
       <div className="card card-soft p-3 mb-3">
@@ -209,7 +252,7 @@ export function Abastecimentos() {
         </div>
       </div>
 
-      <div className="card card-soft table-card"><AbastecimentosTabela items={items} /></div>
+      <div className="card card-soft table-card"><AbastecimentosTabela items={items} onEditar={editarAbastecimento} /></div>
     </>
   );
 }
