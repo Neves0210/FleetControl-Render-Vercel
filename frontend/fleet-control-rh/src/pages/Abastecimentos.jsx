@@ -8,7 +8,6 @@ import { abastecimentoService } from '../services/abastecimentoService';
 import { veiculoService } from '../services/veiculoService';
 import { motoristaService } from '../services/motoristaService';
 import { emptyAbastecimento } from '../utils/constants';
-import { useQrScanner } from '../hooks/useQrScanner';
 
 export function Abastecimentos() {
   const [items, setItems] = useState([]);
@@ -16,19 +15,13 @@ export function Abastecimentos() {
   const [motoristas, setMotoristas] = useState([]);
   const [foto, setFoto] = useState(null);
   const [preview, setPreview] = useState('');
+  const [qrImagem, setQrImagem] = useState(null);
+  const [qrPreview, setQrPreview] = useState('');
   const [urlConsulta, setUrlConsulta] = useState('');
-  const [chaveAcesso, setChaveAcesso] = useState('');
+  const [analisandoQr, setAnalisandoQr] = useState(false);
   const [filtro, setFiltro] = useState({ veiculoId: '', motoristaId: '' });
   const [form, setForm] = useState(emptyAbastecimento());
   const [editandoId, setEditandoId] = useState(null);
-
-  const { scannerAberto, abrirScanner, fecharScanner, cameraErro, readerElementId } = useQrScanner({
-    onResult: async url => {
-      setUrlConsulta(url);
-      toast.success('QR Code lido! Analisando NFC-e...');
-      await analisarPorUrl(url);
-    }
-  });
 
   async function load() {
     const [abastecimentosRes, veiculosRes, motoristasRes] = await Promise.all([
@@ -46,18 +39,9 @@ export function Abastecimentos() {
     load().catch(() => toast.error('Erro ao carregar abastecimentos.'));
   }, []);
 
-  async function abrirLeitorQrCode() {
-    try {
-      await abrirScanner();
-    } catch (err) {
-      console.error(err);
-      toast.error('Não foi possível abrir a câmera. Verifique se o navegador tem permissão e se o site está em HTTPS.');
-    }
-  }
-
   async function analisarPorUrl(url) {
     if (!url?.trim()) {
-      return toast.warning('Leia o QR Code ou informe o link da NFC-e.');
+      return toast.warning('Envie a foto do QR Code ou informe a URL completa da NFC-e.');
     }
 
     const fd = new FormData();
@@ -94,18 +78,38 @@ export function Abastecimentos() {
     }
   }
 
-  async function analisar() {
-    await analisarPorUrl(urlConsulta);
-  }
-
-  async function analisarPorChave(chave) {
-    if (!chave || chave.length !== 44) {
-      return toast.warning('Informe uma chave de acesso válida com 44 números.');
+  async function analisarImagemQrCode(file = qrImagem) {
+    if (!file) {
+      return toast.warning('Selecione uma foto aproximada somente do QR Code.');
     }
 
-    const url = `https://www.nfce.fazenda.sp.gov.br/NFCeConsultaPublica/Paginas/ConsultaQRCode.aspx?p=${chave}|2|1|1`;
-    setUrlConsulta(url);
-    await analisarPorUrl(url);
+    setAnalisandoQr(true);
+
+    const fd = new FormData();
+    fd.append('imagemQrCode', file);
+
+    try {
+      const { data } = await abastecimentoService.lerQrCodeImagem(fd);
+
+      if (!data.sucesso || !data.url) {
+        toast.warning(data.mensagem || 'Não foi possível ler o QR Code da imagem.');
+        return;
+      }
+
+      setUrlConsulta(data.url);
+
+      toast.success('QR Code lido pela imagem. Analisando NFC-e...');
+
+      await analisarPorUrl(data.url);
+    } catch (err) {
+      toast.error(err.response?.data?.mensagem || 'Erro ao ler QR Code da imagem.');
+    } finally {
+      setAnalisandoQr(false);
+    }
+  }
+
+  async function analisarUrlManual() {
+    await analisarPorUrl(urlConsulta);
   }
 
   async function save(e) {
@@ -154,8 +158,9 @@ export function Abastecimentos() {
 
     setFoto(null);
     setPreview('');
+    setQrImagem(null);
+    setQrPreview('');
     setUrlConsulta('');
-    setChaveAcesso('');
 
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
@@ -165,13 +170,23 @@ export function Abastecimentos() {
     setEditandoId(null);
     setFoto(null);
     setPreview('');
+    setQrImagem(null);
+    setQrPreview('');
     setUrlConsulta('');
-    setChaveAcesso('');
   }
 
   function fileChange(file) {
     setFoto(file);
     setPreview(file ? URL.createObjectURL(file) : '');
+  }
+
+  function qrFileChange(file) {
+    setQrImagem(file);
+    setQrPreview(file ? URL.createObjectURL(file) : '');
+
+    if (file) {
+      analisarImagemQrCode(file);
+    }
   }
 
   return (
@@ -186,39 +201,48 @@ export function Abastecimentos() {
             {editandoId && <small className="text-muted d-block mt-1">Ao editar, envie uma nova foto somente se quiser substituir a nota salva.</small>}
             {preview && <img src={preview} className="preview-img" />}
 
-            <label className="mt-3">
-              Leitura do QR Code da NFC-e
-              <span className="badge bg-primary ms-2" style={{ fontSize: 11 }}>html5-qrcode</span>
-            </label>
+            <hr className="my-4" />
 
+            <label>Foto aproximada do QR Code da NFC-e</label>
+            <input
+              className="form-control"
+              type="file"
+              accept="image/*"
+              capture="environment"
+              onChange={e => qrFileChange(e.target.files[0])}
+            />
+
+            <small className="text-muted d-block mt-2">
+              Tire uma foto focada somente no QR Code. Este será o método principal de leitura.
+            </small>
+
+            {qrPreview && <img src={qrPreview} className="preview-img" />}
+
+            <button
+              type="button"
+              className="btn btn-outline-primary mt-2"
+              disabled={analisandoQr || !qrImagem}
+              onClick={() => analisarImagemQrCode()}
+            >
+              {analisandoQr ? 'Lendo QR Code...' : 'Ler QR Code da imagem'}
+            </button>
+
+            <label className="mt-3">URL completa da NFC-e</label>
             <div className="input-group">
-              <input className="form-control" placeholder="O link será preenchido automaticamente pelo leitor de QR Code" value={urlConsulta} readOnly />
-              <button type="button" className="btn btn-outline-dark" onClick={abrirLeitorQrCode}>Ler QR Code</button>
+              <input
+                className="form-control"
+                placeholder="Campo de emergência: cole a URL completa se a imagem do QR Code falhar"
+                value={urlConsulta}
+                onChange={e => setUrlConsulta(e.target.value)}
+              />
+              <button type="button" className="btn btn-outline-secondary" onClick={analisarUrlManual}>
+                Analisar URL
+              </button>
             </div>
 
             <small className="text-muted">
-              O leitor usa html5-qrcode com a câmera traseira. Em celular, mantenha a nota bem iluminada e permita o acesso à câmera.
+              A chave de acesso foi removida porque não substitui a URL completa da NFC-e quando falta o hash de segurança.
             </small>
-
-            <br />
-
-            <button type="button" className="btn btn-outline-primary mt-2" onClick={analisar}>Analisar NFC-e manualmente</button>
-
-            {scannerAberto && (
-              <div className="card p-3 mt-3">
-                <h5>Leitor de QR Code</h5>
-                <div id={readerElementId} style={{ width: '100%', maxWidth: 420 }} />
-                {cameraErro && <small className="text-danger mt-2">{cameraErro}</small>}
-                <small className="text-muted mt-2">Aponte a câmera para o QR Code da nota fiscal.</small>
-                <button type="button" className="btn btn-secondary mt-3" onClick={fecharScanner}>Fechar leitor</button>
-              </div>
-            )}
-
-            <label className="mt-3">Chave de acesso da NFC-e</label>
-            <div className="input-group">
-              <input className="form-control" placeholder="Digite os 44 números da chave de acesso" value={chaveAcesso} maxLength={44} onChange={e => setChaveAcesso(e.target.value.replace(/\D/g, ''))} />
-              <button type="button" className="btn btn-outline-primary" onClick={() => analisarPorChave(chaveAcesso)}>Analisar pela chave</button>
-            </div>
           </div>
 
           <Select label="Veículo" required value={form.veiculoId} onChange={v => setForm({ ...form, veiculoId: v })} items={veiculos} text={x => `${x.modelo} - ${x.placa}`} />
@@ -232,10 +256,12 @@ export function Abastecimentos() {
 
         <label>Observação</label>
         <textarea className="form-control mb-3" rows="3" value={form.observacao} onChange={e => setForm({ ...form, observacao: e.target.value })} />
+
         <div className="d-flex gap-2">
           <button className="btn btn-success">
             {editandoId ? 'Atualizar Abastecimento' : 'Salvar Abastecimento'}
           </button>
+
           {editandoId && (
             <button type="button" className="btn btn-secondary" onClick={limparFormulario}>
               Cancelar edição
