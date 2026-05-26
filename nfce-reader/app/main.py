@@ -43,6 +43,7 @@ async def analisar_imagem(file: UploadFile = File(...)):
         raise HTTPException(status_code=400, detail=str(ex))
 
     variants = generate_variants(image)
+    variants = variants[:35]
     logging.info("NFC-e: tentando QR com %s variantes", len(variants))
 
     qr_url, qr_method, qr_confidence = read_qr_from_variants(variants)

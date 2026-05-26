@@ -110,7 +110,8 @@ def generate_variants(image: np.ndarray) -> list[tuple[str, np.ndarray]]:
             variants.append((f"{region_name}_sharp", sharp))
             variants.append((f"{region_name}_upscale_gray", upscale(gray, 2)))
             variants.append((f"{region_name}_upscale_clahe", upscale(clahe, 2)))
-            variants.append((f"{region_name}_upscale_binary", upscale(binary, 2)))
+            if region_name in ["bottom", "bottom_center", "qr_region"]:
+                variants.append((f"{region_name}_upscale_binary", upscale(binary, 2)))
         except Exception:
             pass
 

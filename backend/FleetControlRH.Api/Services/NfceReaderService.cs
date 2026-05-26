@@ -13,7 +13,7 @@ public class NfceReaderService
     {
         _httpClient = httpClient;
         _configuration = configuration;
-        _httpClient.Timeout = TimeSpan.FromSeconds(60);
+        _httpClient.Timeout = TimeSpan.FromSeconds(120);
     }
 
     public async Task<NfceReaderResponseDto> AnalisarImagemAsync(IFormFile fotoNotaFiscal)
@@ -32,48 +32,78 @@ public class NfceReaderService
             };
         }
 
-        using var content = new MultipartFormDataContent();
+        try
+        {
+            using var content = new MultipartFormDataContent();
 
-        await using var stream = fotoNotaFiscal.OpenReadStream();
+            await using var stream = fotoNotaFiscal.OpenReadStream();
 
-        var fileContent = new StreamContent(stream);
-        fileContent.Headers.ContentType = new MediaTypeHeaderValue(
-            string.IsNullOrWhiteSpace(fotoNotaFiscal.ContentType)
-                ? "image/jpeg"
-                : fotoNotaFiscal.ContentType
-        );
+            var fileContent = new StreamContent(stream);
+            fileContent.Headers.ContentType = new MediaTypeHeaderValue(
+                string.IsNullOrWhiteSpace(fotoNotaFiscal.ContentType)
+                    ? "image/jpeg"
+                    : fotoNotaFiscal.ContentType
+            );
 
-        content.Add(fileContent, "file", fotoNotaFiscal.FileName);
+            content.Add(fileContent, "file", fotoNotaFiscal.FileName);
 
-        var endpoint = $"{baseUrl.TrimEnd('/')}/api/nfce/analisar-imagem";
+            var endpoint = $"{baseUrl.TrimEnd('/')}/api/nfce/analisar-imagem";
 
-        using var response = await _httpClient.PostAsync(endpoint, content);
+            using var response = await _httpClient.PostAsync(endpoint, content);
 
-        var json = await response.Content.ReadAsStringAsync();
+            var json = await response.Content.ReadAsStringAsync();
 
-        if (!response.IsSuccessStatusCode)
+            if (!response.IsSuccessStatusCode)
+            {
+                return new NfceReaderResponseDto
+                {
+                    Sucesso = false,
+                    Metodo = "ErroHttp",
+                    Mensagem = $"Erro no microserviço NFC-e: {(int)response.StatusCode} - {json}"
+                };
+            }
+
+            var result = JsonSerializer.Deserialize<NfceReaderResponseDto>(
+                json,
+                new JsonSerializerOptions
+                {
+                    PropertyNameCaseInsensitive = true
+                }
+            );
+
+            return result ?? new NfceReaderResponseDto
+            {
+                Sucesso = false,
+                Metodo = "RespostaInvalida",
+                Mensagem = "O microserviço NFC-e retornou uma resposta inválida."
+            };
+        }
+        catch (TaskCanceledException)
         {
             return new NfceReaderResponseDto
             {
                 Sucesso = false,
-                Metodo = "ErroHttp",
-                Mensagem = $"Erro no microserviço NFC-e: {(int)response.StatusCode} - {json}"
+                Metodo = "Timeout",
+                Mensagem = "A leitura da NFC-e demorou demais. Tente uma foto mais próxima, nítida e bem iluminada do QR Code."
             };
         }
-
-        var result = JsonSerializer.Deserialize<NfceReaderResponseDto>(
-            json,
-            new JsonSerializerOptions
-            {
-                PropertyNameCaseInsensitive = true
-            }
-        );
-
-        return result ?? new NfceReaderResponseDto
+        catch (HttpRequestException ex)
         {
-            Sucesso = false,
-            Metodo = "RespostaInvalida",
-            Mensagem = "O microserviço NFC-e retornou uma resposta inválida."
-        };
+            return new NfceReaderResponseDto
+            {
+                Sucesso = false,
+                Metodo = "ErroConexao",
+                Mensagem = "Não foi possível conectar ao leitor NFC-e: " + ex.Message
+            };
+        }
+        catch (Exception ex)
+        {
+            return new NfceReaderResponseDto
+            {
+                Sucesso = false,
+                Metodo = "ErroInterno",
+                Mensagem = "Erro ao chamar o leitor NFC-e: " + ex.Message
+            };
+        }
     }
 }
