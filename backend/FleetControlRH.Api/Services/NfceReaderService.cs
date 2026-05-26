@@ -28,24 +28,35 @@ public class NfceReaderService
             {
                 Sucesso = false,
                 Metodo = "Configuracao",
-                Mensagem = "NFCE_READER_URL não configurada. Configure a URL do microserviço Python."
+                Mensagem = "NFCE_READER_URL não configurada."
             };
         }
 
         try
         {
+            await using var memoryStream = new MemoryStream();
+
+            await fotoNotaFiscal.CopyToAsync(memoryStream);
+
+            var imageBytes = memoryStream.ToArray();
+
             using var content = new MultipartFormDataContent();
 
-            await using var stream = fotoNotaFiscal.OpenReadStream();
+            using var imageContent = new ByteArrayContent(imageBytes);
 
-            var fileContent = new StreamContent(stream);
-            fileContent.Headers.ContentType = new MediaTypeHeaderValue(
+            imageContent.Headers.ContentType = new MediaTypeHeaderValue(
                 string.IsNullOrWhiteSpace(fotoNotaFiscal.ContentType)
                     ? "image/jpeg"
                     : fotoNotaFiscal.ContentType
             );
 
-            content.Add(fileContent, "file", fotoNotaFiscal.FileName);
+            content.Add(
+                imageContent,
+                "file",
+                string.IsNullOrWhiteSpace(fotoNotaFiscal.FileName)
+                    ? "nota-fiscal.jpg"
+                    : fotoNotaFiscal.FileName
+            );
 
             var endpoint = $"{baseUrl.TrimEnd('/')}/api/nfce/analisar-imagem";
 
@@ -84,7 +95,7 @@ public class NfceReaderService
             {
                 Sucesso = false,
                 Metodo = "Timeout",
-                Mensagem = "A leitura da NFC-e demorou demais. Tente uma foto mais próxima, nítida e bem iluminada do QR Code."
+                Mensagem = "A leitura da NFC-e demorou demais. Tente uma foto mais próxima, nítida e bem iluminada."
             };
         }
         catch (HttpRequestException ex)
