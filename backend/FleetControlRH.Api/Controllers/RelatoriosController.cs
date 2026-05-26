@@ -32,31 +32,105 @@ public class RelatoriosController : ControllerBase
             return Forbid();
         }
 
-        var query = _db.Abastecimentos
+        var inicio = dataInicio?.Date;
+        var fim = dataFim?.Date.AddDays(1).AddTicks(-1);
+
+        var abastecimentosQuery = _db.Abastecimentos
             .Include(x => x.Veiculo)
             .Include(x => x.Motorista)
             .AsQueryable();
 
-        if (dataInicio.HasValue)
-            query = query.Where(x => x.DataAbastecimento >= dataInicio.Value.Date);
+        if (inicio.HasValue)
+            abastecimentosQuery = abastecimentosQuery.Where(x => x.DataAbastecimento >= inicio.Value);
 
-        if (dataFim.HasValue)
-        {
-            var fim = dataFim.Value.Date.AddDays(1).AddTicks(-1);
-            query = query.Where(x => x.DataAbastecimento <= fim);
-        }
+        if (fim.HasValue)
+            abastecimentosQuery = abastecimentosQuery.Where(x => x.DataAbastecimento <= fim.Value);
 
         if (veiculoId.HasValue)
-            query = query.Where(x => x.VeiculoId == veiculoId.Value);
+            abastecimentosQuery = abastecimentosQuery.Where(x => x.VeiculoId == veiculoId.Value);
 
         if (motoristaId.HasValue)
-            query = query.Where(x => x.MotoristaId == motoristaId.Value);
+            abastecimentosQuery = abastecimentosQuery.Where(x => x.MotoristaId == motoristaId.Value);
 
-        var itens = await query
+        var abastecimentos = await abastecimentosQuery
             .OrderByDescending(x => x.DataAbastecimento)
             .ToListAsync();
 
-        var porVeiculo = itens
+        var usosQuery = _db.UsosVeiculos
+            .Include(x => x.Veiculo)
+            .Include(x => x.Motorista)
+            .AsQueryable();
+
+        if (inicio.HasValue)
+            usosQuery = usosQuery.Where(x => x.DataInicio >= inicio.Value);
+
+        if (fim.HasValue)
+            usosQuery = usosQuery.Where(x => x.DataInicio <= fim.Value);
+
+        if (veiculoId.HasValue)
+            usosQuery = usosQuery.Where(x => x.VeiculoId == veiculoId.Value);
+
+        if (motoristaId.HasValue)
+            usosQuery = usosQuery.Where(x => x.MotoristaId == motoristaId.Value);
+
+        var usos = await usosQuery
+            .OrderByDescending(x => x.DataInicio)
+            .ToListAsync();
+
+        var manutencoesQuery = _db.ManutencoesVeiculos
+            .Include(x => x.Veiculo)
+            .AsQueryable();
+
+        if (inicio.HasValue)
+            manutencoesQuery = manutencoesQuery.Where(x => x.DataManutencao >= inicio.Value);
+
+        if (fim.HasValue)
+            manutencoesQuery = manutencoesQuery.Where(x => x.DataManutencao <= fim.Value);
+
+        if (veiculoId.HasValue)
+            manutencoesQuery = manutencoesQuery.Where(x => x.VeiculoId == veiculoId.Value);
+
+        var manutencoes = await manutencoesQuery
+            .OrderByDescending(x => x.DataManutencao)
+            .ToListAsync();
+
+        var hoje = DateTime.Now.Date;
+
+        var manutencoesAlertas = manutencoes
+            .Select(x =>
+            {
+                var kmAtual = x.Veiculo?.KmAtual ?? 0;
+
+                int? kmRestante = x.ProximaManutencaoKm.HasValue
+                    ? x.ProximaManutencaoKm.Value - kmAtual
+                    : null;
+
+                int? diasRestantes = x.ProximaManutencaoData.HasValue
+                    ? (int)(x.ProximaManutencaoData.Value.Date - hoje).TotalDays
+                    : null;
+
+                var vencida =
+                    (kmRestante.HasValue && kmRestante.Value < 0) ||
+                    (diasRestantes.HasValue && diasRestantes.Value < 0);
+
+                var proxima =
+                    !vencida &&
+                    (
+                        (kmRestante.HasValue && kmRestante.Value <= 500) ||
+                        (diasRestantes.HasValue && diasRestantes.Value <= 7)
+                    );
+
+                return new
+                {
+                    manutencao = x,
+                    status = vencida ? "Vencida" : proxima ? "Próxima" : "Em dia",
+                    kmRestante,
+                    diasRestantes
+                };
+            })
+            .ToList();
+
+        var porVeiculo = abastecimentos
             .GroupBy(x => new
             {
                 x.VeiculoId,
@@ -75,7 +149,7 @@ public class RelatoriosController : ControllerBase
             .OrderByDescending(x => x.totalValor)
             .ToList();
 
-        var porMotorista = itens
+        var porMotorista = abastecimentos
             .GroupBy(x => new
             {
                 x.MotoristaId,
@@ -94,19 +168,111 @@ public class RelatoriosController : ControllerBase
             .OrderByDescending(x => x.totalValor)
             .ToList();
 
+        var usoPorVeiculo = usos
+            .GroupBy(x => new
+            {
+                x.VeiculoId,
+                Veiculo = x.Veiculo != null ? $"{x.Veiculo.Modelo} - {x.Veiculo.Placa}" : "Sem veículo"
+            })
+            .Select(g => new
+            {
+                veiculoId = g.Key.VeiculoId,
+                veiculo = g.Key.Veiculo,
+                quantidadeUsos = g.Count(),
+                tempoTotalMinutos = g.Sum(x => x.DataFim.HasValue ? (x.DataFim.Value - x.DataInicio).TotalMinutes : 0),
+                kmRodado = g.Sum(x => x.KmFinal.HasValue ? x.KmFinal.Value - x.KmInicial : 0)
+            })
+            .OrderByDescending(x => x.tempoTotalMinutos)
+            .ToList();
+
+        var usoPorMotorista = usos
+            .GroupBy(x => new
+            {
+                x.MotoristaId,
+                Motorista = x.Motorista != null ? x.Motorista.Nome : "Sem motorista"
+            })
+            .Select(g => new
+            {
+                motoristaId = g.Key.MotoristaId,
+                motorista = g.Key.Motorista,
+                quantidadeUsos = g.Count(),
+                tempoTotalMinutos = g.Sum(x => x.DataFim.HasValue ? (x.DataFim.Value - x.DataInicio).TotalMinutes : 0),
+                kmRodado = g.Sum(x => x.KmFinal.HasValue ? x.KmFinal.Value - x.KmInicial : 0)
+            })
+            .OrderByDescending(x => x.tempoTotalMinutos)
+            .ToList();
+
         return Ok(new
         {
             resumo = new
             {
-                quantidade = itens.Count,
-                totalLitros = itens.Sum(x => x.Litros),
-                totalValor = itens.Sum(x => x.ValorTotal),
-                mediaLitros = itens.Any() ? itens.Average(x => x.Litros) : 0,
-                mediaValor = itens.Any() ? itens.Average(x => x.ValorTotal) : 0
+                quantidade = abastecimentos.Count,
+                totalLitros = abastecimentos.Sum(x => x.Litros),
+                totalValor = abastecimentos.Sum(x => x.ValorTotal),
+                mediaLitros = abastecimentos.Any() ? abastecimentos.Average(x => x.Litros) : 0,
+                mediaValor = abastecimentos.Any() ? abastecimentos.Average(x => x.ValorTotal) : 0,
+
+                quantidadeUsos = usos.Count,
+                tempoTotalUsoMinutos = usos.Sum(x => x.DataFim.HasValue ? (x.DataFim.Value - x.DataInicio).TotalMinutes : 0),
+                kmTotalRodado = usos.Sum(x => x.KmFinal.HasValue ? x.KmFinal.Value - x.KmInicial : 0),
+
+                quantidadeManutencoes = manutencoes.Count,
+                manutencoesProximas = manutencoesAlertas.Count(x => x.status == "Próxima"),
+                manutencoesVencidas = manutencoesAlertas.Count(x => x.status == "Vencida"),
+                custoTotalManutencoes = manutencoes.Sum(x => x.Custo ?? 0)
             },
-            porVeiculo,
-            porMotorista,
-            itens
+            abastecimentos = new
+            {
+                porVeiculo,
+                porMotorista,
+                itens = abastecimentos
+            },
+            usos = new
+            {
+                porVeiculo = usoPorVeiculo,
+                porMotorista = usoPorMotorista,
+                itens = usos
+            },
+            manutencoes = new
+            {
+                feitas = manutencoes,
+                proximas = manutencoesAlertas
+                    .Where(x => x.status == "Próxima")
+                    .Select(x => new
+                    {
+                        x.manutencao.Id,
+                        x.manutencao.VeiculoId,
+                        x.manutencao.Veiculo,
+                        x.manutencao.Tipo,
+                        x.manutencao.DataManutencao,
+                        x.manutencao.KmManutencao,
+                        x.manutencao.Descricao,
+                        x.manutencao.Custo,
+                        x.manutencao.ProximaManutencaoKm,
+                        x.manutencao.ProximaManutencaoData,
+                        x.status,
+                        x.kmRestante,
+                        x.diasRestantes
+                    }),
+                vencidas = manutencoesAlertas
+                    .Where(x => x.status == "Vencida")
+                    .Select(x => new
+                    {
+                        x.manutencao.Id,
+                        x.manutencao.VeiculoId,
+                        x.manutencao.Veiculo,
+                        x.manutencao.Tipo,
+                        x.manutencao.DataManutencao,
+                        x.manutencao.KmManutencao,
+                        x.manutencao.Descricao,
+                        x.manutencao.Custo,
+                        x.manutencao.ProximaManutencaoKm,
+                        x.manutencao.ProximaManutencaoData,
+                        x.status,
+                        x.kmRestante,
+                        x.diasRestantes
+                    })
+            }
         });
     }
 }

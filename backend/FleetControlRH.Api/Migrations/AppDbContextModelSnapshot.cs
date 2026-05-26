@@ -68,52 +68,7 @@ namespace FleetControlRH.Api.Migrations
 
                     b.HasIndex("VeiculoId");
 
-                    b.ToTable("Abastecimentos", (string)null);
-                });
-
-            modelBuilder.Entity("FleetControlRH.Api.Models.ManutencaoVeiculo", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<DateTime>("CriadoEm")
-                        .HasColumnType("timestamp without time zone");
-
-                    b.Property<decimal?>("Custo")
-                        .HasColumnType("decimal(10,2)");
-
-                    b.Property<DateTime>("DataManutencao")
-                        .HasColumnType("timestamp without time zone");
-
-                    b.Property<string>("Descricao")
-                        .HasMaxLength(1000)
-                        .HasColumnType("character varying(1000)");
-
-                    b.Property<int>("KmManutencao")
-                        .HasColumnType("integer");
-
-                    b.Property<DateTime?>("ProximaManutencaoData")
-                        .HasColumnType("timestamp without time zone");
-
-                    b.Property<int?>("ProximaManutencaoKm")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("Tipo")
-                        .IsRequired()
-                        .HasMaxLength(120)
-                        .HasColumnType("character varying(120)");
-
-                    b.Property<int>("VeiculoId")
-                        .HasColumnType("integer");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("VeiculoId");
-
-                    b.ToTable("ManutencoesVeiculos", (string)null);
+                    b.ToTable("Abastecimentos");
                 });
 
             modelBuilder.Entity("FleetControlRH.Api.Models.Motorista", b =>
@@ -146,58 +101,7 @@ namespace FleetControlRH.Api.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Motoristas", (string)null);
-                });
-
-            modelBuilder.Entity("FleetControlRH.Api.Models.UsoVeiculo", b =>
-                {
-                    b.Property<int>("Id")
-                        .ValueGeneratedOnAdd()
-                        .HasColumnType("integer");
-
-                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
-
-                    b.Property<DateTime?>("DataFim")
-                        .HasColumnType("timestamp without time zone");
-
-                    b.Property<DateTime>("DataInicio")
-                        .HasColumnType("timestamp without time zone");
-
-                    b.Property<int?>("KmFinal")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("KmInicial")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("MotoristaId")
-                        .HasColumnType("integer");
-
-                    b.Property<string>("ObservacaoFim")
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)");
-
-                    b.Property<string>("ObservacaoInicio")
-                        .HasMaxLength(500)
-                        .HasColumnType("character varying(500)");
-
-                    b.Property<int>("Status")
-                        .HasColumnType("integer");
-
-                    b.Property<int?>("UsuarioId")
-                        .HasColumnType("integer");
-
-                    b.Property<int>("VeiculoId")
-                        .HasColumnType("integer");
-
-                    b.HasKey("Id");
-
-                    b.HasIndex("MotoristaId");
-
-                    b.HasIndex("UsuarioId");
-
-                    b.HasIndex("VeiculoId");
-
-                    b.ToTable("UsosVeiculos", (string)null);
+                    b.ToTable("Motoristas");
                 });
 
             modelBuilder.Entity("FleetControlRH.Api.Models.Usuario", b =>
@@ -241,7 +145,7 @@ namespace FleetControlRH.Api.Migrations
 
                     b.HasIndex("MotoristaId");
 
-                    b.ToTable("Usuarios", (string)null);
+                    b.ToTable("Usuarios");
                 });
 
             modelBuilder.Entity("FleetControlRH.Api.Models.UsuarioPermissao", b =>
@@ -264,7 +168,7 @@ namespace FleetControlRH.Api.Migrations
                     b.HasIndex("UsuarioId", "Permissao")
                         .IsUnique();
 
-                    b.ToTable("UsuarioPermissoes", (string)null);
+                    b.ToTable("UsuarioPermissoes");
                 });
 
             modelBuilder.Entity("FleetControlRH.Api.Models.Veiculo", b =>
@@ -299,7 +203,7 @@ namespace FleetControlRH.Api.Migrations
                     b.HasIndex("Placa")
                         .IsUnique();
 
-                    b.ToTable("Veiculos", (string)null);
+                    b.ToTable("Veiculos");
                 });
 
             modelBuilder.Entity("FleetControlRH.Api.Models.Abastecimento", b =>
@@ -317,42 +221,6 @@ namespace FleetControlRH.Api.Migrations
                         .IsRequired();
 
                     b.Navigation("Motorista");
-
-                    b.Navigation("Veiculo");
-                });
-
-            modelBuilder.Entity("FleetControlRH.Api.Models.ManutencaoVeiculo", b =>
-                {
-                    b.HasOne("FleetControlRH.Api.Models.Veiculo", "Veiculo")
-                        .WithMany()
-                        .HasForeignKey("VeiculoId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Veiculo");
-                });
-
-            modelBuilder.Entity("FleetControlRH.Api.Models.UsoVeiculo", b =>
-                {
-                    b.HasOne("FleetControlRH.Api.Models.Motorista", "Motorista")
-                        .WithMany()
-                        .HasForeignKey("MotoristaId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.HasOne("FleetControlRH.Api.Models.Usuario", "Usuario")
-                        .WithMany()
-                        .HasForeignKey("UsuarioId");
-
-                    b.HasOne("FleetControlRH.Api.Models.Veiculo", "Veiculo")
-                        .WithMany()
-                        .HasForeignKey("VeiculoId")
-                        .OnDelete(DeleteBehavior.Cascade)
-                        .IsRequired();
-
-                    b.Navigation("Motorista");
-
-                    b.Navigation("Usuario");
 
                     b.Navigation("Veiculo");
                 });
