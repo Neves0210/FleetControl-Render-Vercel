@@ -13,6 +13,7 @@ public class AppDbContext : DbContext
     public DbSet<Abastecimento> Abastecimentos => Set<Abastecimento>();
     public DbSet<UsuarioPermissao> UsuarioPermissoes => Set<UsuarioPermissao>();
     public DbSet<UsoVeiculo> UsosVeiculos => Set<UsoVeiculo>();
+    public DbSet<ManutencaoVeiculo> ManutencoesVeiculos => Set<ManutencaoVeiculo>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -36,6 +37,16 @@ public class AppDbContext : DbContext
             .HasIndex(x => new { x.UsuarioId, x.Permissao })
             .IsUnique();
 
+
+
+        modelBuilder.Entity<ManutencaoVeiculo>()
+            .HasOne(x => x.Veiculo)
+            .WithMany()
+            .HasForeignKey(x => x.VeiculoId);
+
+        modelBuilder.Entity<ManutencaoVeiculo>()
+            .Property(x => x.Custo)
+            .HasColumnType("decimal(10,2)");
 
         modelBuilder.Entity<UsoVeiculo>()
             .HasOne(x => x.Veiculo)

@@ -49,6 +49,8 @@ public class AuthController : ControllerBase
                 "UsosVeiculos.Visualizar",
                 "UsosVeiculos.Criar",
                 "UsosVeiculos.Finalizar",
+                "Manutencoes.Visualizar",
+                "Manutencoes.Gerenciar",
                 "Relatorios.Visualizar",
                 "Relatorios.Exportar",
                 "Usuarios.Visualizar",
@@ -65,6 +67,8 @@ public class AuthController : ControllerBase
                 "UsosVeiculos.Visualizar",
                 "UsosVeiculos.Criar",
                 "UsosVeiculos.Finalizar",
+                "Manutencoes.Visualizar",
+                "Manutencoes.Gerenciar",
                 "Relatorios.Visualizar",
                 "Relatorios.Exportar"
             },
@@ -75,7 +79,8 @@ public class AuthController : ControllerBase
                 "Abastecimentos.Criar",
                 "UsosVeiculos.Visualizar",
                 "UsosVeiculos.Criar",
-                "UsosVeiculos.Finalizar"
+                "UsosVeiculos.Finalizar",
+                "Manutencoes.Visualizar"
             },
             _ => usuario.Permissoes.Select(x => x.Permissao).ToList()
         };
