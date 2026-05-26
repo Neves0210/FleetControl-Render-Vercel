@@ -68,7 +68,7 @@ namespace FleetControlRH.Api.Migrations
 
                     b.HasIndex("VeiculoId");
 
-                    b.ToTable("Abastecimentos");
+                    b.ToTable("Abastecimentos", (string)null);
                 });
 
             modelBuilder.Entity("FleetControlRH.Api.Models.ManutencaoVeiculo", b =>
@@ -113,7 +113,7 @@ namespace FleetControlRH.Api.Migrations
 
                     b.HasIndex("VeiculoId");
 
-                    b.ToTable("ManutencoesVeiculos");
+                    b.ToTable("ManutencoesVeiculos", (string)null);
                 });
 
             modelBuilder.Entity("FleetControlRH.Api.Models.Motorista", b =>
@@ -146,7 +146,7 @@ namespace FleetControlRH.Api.Migrations
 
                     b.HasKey("Id");
 
-                    b.ToTable("Motoristas");
+                    b.ToTable("Motoristas", (string)null);
                 });
 
             modelBuilder.Entity("FleetControlRH.Api.Models.UsoVeiculo", b =>
@@ -197,7 +197,7 @@ namespace FleetControlRH.Api.Migrations
 
                     b.HasIndex("VeiculoId");
 
-                    b.ToTable("UsosVeiculos");
+                    b.ToTable("UsosVeiculos", (string)null);
                 });
 
             modelBuilder.Entity("FleetControlRH.Api.Models.Usuario", b =>
@@ -241,7 +241,7 @@ namespace FleetControlRH.Api.Migrations
 
                     b.HasIndex("MotoristaId");
 
-                    b.ToTable("Usuarios");
+                    b.ToTable("Usuarios", (string)null);
                 });
 
             modelBuilder.Entity("FleetControlRH.Api.Models.UsuarioPermissao", b =>
@@ -264,7 +264,7 @@ namespace FleetControlRH.Api.Migrations
                     b.HasIndex("UsuarioId", "Permissao")
                         .IsUnique();
 
-                    b.ToTable("UsuarioPermissoes");
+                    b.ToTable("UsuarioPermissoes", (string)null);
                 });
 
             modelBuilder.Entity("FleetControlRH.Api.Models.Veiculo", b =>
@@ -299,7 +299,7 @@ namespace FleetControlRH.Api.Migrations
                     b.HasIndex("Placa")
                         .IsUnique();
 
-                    b.ToTable("Veiculos");
+                    b.ToTable("Veiculos", (string)null);
                 });
 
             modelBuilder.Entity("FleetControlRH.Api.Models.Abastecimento", b =>
