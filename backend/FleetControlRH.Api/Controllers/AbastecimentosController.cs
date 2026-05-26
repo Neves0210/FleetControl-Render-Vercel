@@ -16,11 +16,13 @@ public class AbastecimentosController : ControllerBase
 {
     private readonly AppDbContext _db;
     private readonly NotaFiscalService _notaFiscalService;
+    private readonly NfceReaderService _nfceReaderService;
 
-    public AbastecimentosController(AppDbContext db, NotaFiscalService notaFiscalService)
+    public AbastecimentosController(AppDbContext db, NotaFiscalService notaFiscalService, NfceReaderService nfceReaderService)
     {
         _db = db;
         _notaFiscalService = notaFiscalService;
+        _nfceReaderService = nfceReaderService;
     }
 
     [HttpGet]
@@ -148,6 +150,89 @@ public class AbastecimentosController : ControllerBase
         await VincularVeiculoMotoristaAsync(resultado);
 
         return Ok(resultado);
+    }
+
+
+    [HttpPost("analisar-nota-imagem-robusta")]
+    public async Task<ActionResult<NotaFiscalAnaliseDto>> AnalisarNotaImagemRobusta(IFormFile fotoNotaFiscal)
+    {
+        if (fotoNotaFiscal == null || fotoNotaFiscal.Length == 0)
+        {
+            return BadRequest(new NotaFiscalAnaliseDto
+            {
+                Sucesso = false,
+                Mensagem = "Envie a foto da nota fiscal inteira."
+            });
+        }
+
+        var erroArquivo = ValidarFotoNotaFiscal(fotoNotaFiscal);
+
+        if (!string.IsNullOrWhiteSpace(erroArquivo))
+        {
+            return BadRequest(new NotaFiscalAnaliseDto
+            {
+                Sucesso = false,
+                Mensagem = erroArquivo
+            });
+        }
+
+        var leitura = await _nfceReaderService.AnalisarImagemAsync(fotoNotaFiscal);
+
+        var resultado = new NotaFiscalAnaliseDto
+        {
+            Sucesso = leitura.Sucesso,
+            Mensagem = leitura.Mensagem ?? (leitura.Sucesso ? "NFC-e analisada com sucesso." : "Não foi possível analisar a NFC-e."),
+            UrlConsulta = leitura.UrlConsulta,
+            ChaveAcesso = leitura.ChaveAcesso,
+            Posto = leitura.DadosExtraidos.Posto,
+            Combustivel = leitura.DadosExtraidos.Combustivel,
+            Litros = leitura.DadosExtraidos.Litros,
+            ValorTotal = leitura.DadosExtraidos.ValorTotal,
+            TextoExtraido = leitura.DadosExtraidos.TextoBruto ?? leitura.DadosExtraidos.TextoOcr
+        };
+
+        if (!string.IsNullOrWhiteSpace(resultado.UrlConsulta))
+        {
+            var dadosDoSite = await _notaFiscalService.AnalisarUrlAsync(resultado.UrlConsulta);
+
+            if (dadosDoSite.Sucesso)
+            {
+                resultado.Sucesso = true;
+                resultado.Posto ??= dadosDoSite.Posto;
+                resultado.Combustivel ??= dadosDoSite.Combustivel;
+                resultado.Litros ??= dadosDoSite.Litros;
+                resultado.ValorTotal ??= dadosDoSite.ValorTotal;
+                resultado.KmAtual ??= dadosDoSite.KmAtual;
+                resultado.DataAbastecimento ??= dadosDoSite.DataAbastecimento;
+                resultado.Placa ??= dadosDoSite.Placa;
+                resultado.Motorista ??= dadosDoSite.Motorista;
+                resultado.TextoExtraido ??= dadosDoSite.TextoExtraido;
+            }
+        }
+
+        await VincularVeiculoMotoristaAsync(resultado);
+
+        return Ok(new
+        {
+            resultado.Sucesso,
+            resultado.Mensagem,
+            metodo = leitura.Metodo,
+            confianca = leitura.Confianca,
+            resultado.VeiculoId,
+            resultado.MotoristaId,
+            resultado.UrlConsulta,
+            resultado.ChaveAcesso,
+            resultado.Placa,
+            resultado.Motorista,
+            resultado.Posto,
+            resultado.Combustivel,
+            resultado.Litros,
+            resultado.ValorTotal,
+            resultado.KmAtual,
+            resultado.DataAbastecimento,
+            resultado.TextoExtraido,
+            dadosExtraidos = leitura.DadosExtraidos
+        });
     }
 
     [HttpPost("ler-qrcode-imagem")]

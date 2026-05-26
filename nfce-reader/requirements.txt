@@ -1,0 +1,11 @@
+fastapi
+uvicorn[standard]
+python-multipart
+opencv-python-headless
+numpy
+pillow
+pytesseract
+pyzbar
+zxing-cpp
+requests
+beautifulsoup4

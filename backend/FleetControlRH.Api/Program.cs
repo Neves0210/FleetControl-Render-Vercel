@@ -35,6 +35,7 @@ builder.Services.AddDbContext<AppDbContext>(options =>
 
 builder.Services.AddScoped<TokenService>();
 builder.Services.AddHttpClient<NotaFiscalService>();
+builder.Services.AddHttpClient<NfceReaderService>();
 
 builder.Services.AddCors(options =>
 {

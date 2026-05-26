@@ -15,10 +15,9 @@ export function Abastecimentos() {
   const [motoristas, setMotoristas] = useState([]);
   const [foto, setFoto] = useState(null);
   const [preview, setPreview] = useState('');
-  const [qrImagem, setQrImagem] = useState(null);
-  const [qrPreview, setQrPreview] = useState('');
   const [urlConsulta, setUrlConsulta] = useState('');
-  const [analisandoQr, setAnalisandoQr] = useState(false);
+  const [analisandoNota, setAnalisandoNota] = useState(false);
+  const [resultadoLeitura, setResultadoLeitura] = useState(null);
   const [filtro, setFiltro] = useState({ veiculoId: '', motoristaId: '' });
   const [form, setForm] = useState(emptyAbastecimento());
   const [editandoId, setEditandoId] = useState(null);
@@ -39,9 +38,40 @@ export function Abastecimentos() {
     load().catch(() => toast.error('Erro ao carregar abastecimentos.'));
   }, []);
 
+  function aplicarDadosNfce(data, fallbackUrl = '') {
+    setUrlConsulta(data.urlConsulta || fallbackUrl || '');
+
+    setResultadoLeitura({
+      metodo: data.metodo || 'URL',
+      confianca: data.confianca,
+      chaveAcesso: data.chaveAcesso,
+      urlConsulta: data.urlConsulta || fallbackUrl || ''
+    });
+
+    setForm(f => ({
+      ...f,
+      veiculoId: data.veiculoId || f.veiculoId,
+      motoristaId: data.motoristaId || f.motoristaId,
+      kmAtual: data.kmAtual || f.kmAtual,
+      litros: data.litros || f.litros,
+      valorTotal: data.valorTotal || f.valorTotal,
+      posto: data.posto || f.posto,
+      dataAbastecimento: data.dataAbastecimento ? data.dataAbastecimento.substring(0, 16) : f.dataAbastecimento,
+      observacao: [
+        data.urlConsulta || fallbackUrl ? `URL NFC-e: ${data.urlConsulta || fallbackUrl}` : '',
+        data.chaveAcesso ? `Chave NFC-e: ${data.chaveAcesso}` : '',
+        data.combustivel ? `Combustível: ${data.combustivel}` : '',
+        data.placa ? `Placa: ${data.placa}` : '',
+        data.motorista ? `Motorista: ${data.motorista}` : '',
+        data.metodo ? `Método leitura: ${data.metodo}` : '',
+        data.confianca !== undefined && data.confianca !== null ? `Confiança: ${Math.round(Number(data.confianca) * 100)}%` : ''
+      ].filter(Boolean).join('\n') || f.observacao
+    }));
+  }
+
   async function analisarPorUrl(url) {
     if (!url?.trim()) {
-      return toast.warning('Envie a foto do QR Code ou informe a URL completa da NFC-e.');
+      return toast.warning('Informe a URL completa da NFC-e.');
     }
 
     const fd = new FormData();
@@ -55,22 +85,7 @@ export function Abastecimentos() {
         return;
       }
 
-      setForm(f => ({
-        ...f,
-        veiculoId: data.veiculoId || f.veiculoId,
-        motoristaId: data.motoristaId || f.motoristaId,
-        kmAtual: data.kmAtual || f.kmAtual,
-        litros: data.litros || f.litros,
-        valorTotal: data.valorTotal || f.valorTotal,
-        posto: data.posto || f.posto,
-        dataAbastecimento: data.dataAbastecimento ? data.dataAbastecimento.substring(0, 16) : f.dataAbastecimento,
-        observacao: [
-          `URL NFC-e: ${data.urlConsulta || url}`,
-          data.combustivel ? `Combustível: ${data.combustivel}` : '',
-          data.placa ? `Placa: ${data.placa}` : '',
-          data.motorista ? `Motorista: ${data.motorista}` : ''
-        ].filter(Boolean).join('\n') || f.observacao
-      }));
+      aplicarDadosNfce(data, url);
 
       toast.success(data.mensagem || 'NFC-e analisada com sucesso.');
     } catch (err) {
@@ -78,33 +93,32 @@ export function Abastecimentos() {
     }
   }
 
-  async function analisarImagemQrCode(file = qrImagem) {
+  async function analisarFotoNotaInteira(file = foto) {
     if (!file) {
-      return toast.warning('Selecione uma foto aproximada somente do QR Code.');
+      return toast.warning('Tire ou selecione a foto da nota fiscal inteira.');
     }
 
-    setAnalisandoQr(true);
+    setAnalisandoNota(true);
+    setResultadoLeitura(null);
 
     const fd = new FormData();
-    fd.append('imagemQrCode', file);
+    fd.append('fotoNotaFiscal', file);
 
     try {
-      const { data } = await abastecimentoService.lerQrCodeImagem(fd);
+      const { data } = await abastecimentoService.analisarNotaImagemRobusta(fd);
 
-      if (!data.sucesso || !data.url) {
-        toast.warning(data.mensagem || 'Não foi possível ler o QR Code da imagem.');
+      if (!data.sucesso) {
+        toast.warning(data.mensagem || 'Não foi possível ler a NFC-e pela imagem.');
         return;
       }
 
-      setUrlConsulta(data.url);
+      aplicarDadosNfce(data);
 
-      toast.success('QR Code lido pela imagem. Analisando NFC-e...');
-
-      await analisarPorUrl(data.url);
+      toast.success(`NFC-e lida com sucesso via ${data.metodo || 'imagem'}.`);
     } catch (err) {
-      toast.error(err.response?.data?.mensagem || 'Erro ao ler QR Code da imagem.');
+      toast.error(err.response?.data?.mensagem || 'Erro ao processar a foto da nota.');
     } finally {
-      setAnalisandoQr(false);
+      setAnalisandoNota(false);
     }
   }
 
@@ -158,9 +172,8 @@ export function Abastecimentos() {
 
     setFoto(null);
     setPreview('');
-    setQrImagem(null);
-    setQrPreview('');
     setUrlConsulta('');
+    setResultadoLeitura(null);
 
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
@@ -170,22 +183,16 @@ export function Abastecimentos() {
     setEditandoId(null);
     setFoto(null);
     setPreview('');
-    setQrImagem(null);
-    setQrPreview('');
     setUrlConsulta('');
+    setResultadoLeitura(null);
   }
 
   function fileChange(file) {
     setFoto(file);
     setPreview(file ? URL.createObjectURL(file) : '');
-  }
 
-  function qrFileChange(file) {
-    setQrImagem(file);
-    setQrPreview(file ? URL.createObjectURL(file) : '');
-
-    if (file) {
-      analisarImagemQrCode(file);
+    if (file && !editandoId) {
+      analisarFotoNotaInteira(file);
     }
   }
 
@@ -196,42 +203,66 @@ export function Abastecimentos() {
       <form className="card card-soft p-3 mb-4" onSubmit={save}>
         <div className="row">
           <div className="col-md-12 mb-3">
-            <label>Foto da nota fiscal para armazenamento</label>
-            <input className="form-control" type="file" accept="image/*" required={!editandoId && !foto} onChange={e => fileChange(e.target.files[0])} />
-            {editandoId && <small className="text-muted d-block mt-1">Ao editar, envie uma nova foto somente se quiser substituir a nota salva.</small>}
-            {preview && <img src={preview} className="preview-img" />}
+            <label>Foto da nota fiscal inteira</label>
 
-            <hr className="my-4" />
-
-            <label>Foto aproximada do QR Code da NFC-e</label>
             <input
               className="form-control"
               type="file"
               accept="image/*"
               capture="environment"
-              onChange={e => qrFileChange(e.target.files[0])}
+              required={!editandoId && !foto}
+              onChange={e => fileChange(e.target.files[0])}
             />
 
             <small className="text-muted d-block mt-2">
-              Tire uma foto focada somente no QR Code. Este será o método principal de leitura.
+              Tire a foto da nota inteira. O backend vai localizar o QR Code, tratar a imagem e tentar OCR automaticamente.
             </small>
 
-            {qrPreview && <img src={qrPreview} className="preview-img" />}
+            {editandoId && (
+              <small className="text-muted d-block mt-1">
+                Ao editar, envie uma nova foto somente se quiser substituir a nota salva.
+              </small>
+            )}
 
-            <button
-              type="button"
-              className="btn btn-outline-primary mt-2"
-              disabled={analisandoQr || !qrImagem}
-              onClick={() => analisarImagemQrCode()}
-            >
-              {analisandoQr ? 'Lendo QR Code...' : 'Ler QR Code da imagem'}
-            </button>
+            {preview && <img src={preview} className="preview-img" />}
+
+            <div className="mt-2 d-flex gap-2">
+              <button
+                type="button"
+                className="btn btn-outline-primary"
+                disabled={analisandoNota || !foto}
+                onClick={() => analisarFotoNotaInteira()}
+              >
+                {analisandoNota ? 'Processando NFC-e...' : 'Analisar foto da nota'}
+              </button>
+            </div>
+
+            {resultadoLeitura && (
+              <div className="alert alert-info mt-3">
+                <strong>Método:</strong> {resultadoLeitura.metodo || '-'}<br />
+                {resultadoLeitura.confianca !== undefined && resultadoLeitura.confianca !== null && (
+                  <>
+                    <strong>Confiança:</strong> {Math.round(Number(resultadoLeitura.confianca) * 100)}%<br />
+                  </>
+                )}
+                {resultadoLeitura.chaveAcesso && (
+                  <>
+                    <strong>Chave:</strong> {resultadoLeitura.chaveAcesso}<br />
+                  </>
+                )}
+                {resultadoLeitura.urlConsulta && (
+                  <>
+                    <strong>URL:</strong> {resultadoLeitura.urlConsulta}
+                  </>
+                )}
+              </div>
+            )}
 
             <label className="mt-3">URL completa da NFC-e</label>
             <div className="input-group">
               <input
                 className="form-control"
-                placeholder="Campo de emergência: cole a URL completa se a imagem do QR Code falhar"
+                placeholder="Emergência: cole a URL completa se a imagem falhar"
                 value={urlConsulta}
                 onChange={e => setUrlConsulta(e.target.value)}
               />
@@ -239,10 +270,6 @@ export function Abastecimentos() {
                 Analisar URL
               </button>
             </div>
-
-            <small className="text-muted">
-              A chave de acesso foi removida porque não substitui a URL completa da NFC-e quando falta o hash de segurança.
-            </small>
           </div>
 
           <Select label="Veículo" required value={form.veiculoId} onChange={v => setForm({ ...form, veiculoId: v })} items={veiculos} text={x => `${x.modelo} - ${x.placa}`} />
