@@ -569,3 +569,268 @@ label {
     width: calc(100vw - 28px) !important;
   }
 }
+
+/* ─────────────────────────────────────────────────────────────────────────
+   MOBILE FIXES — FleetControlRH
+   Ajustes para smartphone: botões visíveis, tabelas roláveis e telas sem estouro.
+   ───────────────────────────────────────────────────────────────────────── */
+
+.table-card {
+  width: 100%;
+}
+
+.table-card .table {
+  width: 100%;
+}
+
+.card,
+.card-soft {
+  max-width: 100%;
+}
+
+img,
+video,
+canvas {
+  max-width: 100%;
+}
+
+.d-flex.gap-2,
+.d-flex.gap-3 {
+  flex-wrap: wrap;
+}
+
+@media (max-width: 992px) {
+  .content {
+    padding: 16px;
+  }
+
+  .metric h3 {
+    font-size: 22px;
+    word-break: break-word;
+  }
+
+  .btn {
+    justify-content: center;
+  }
+
+  .table-card {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch;
+  }
+
+  .table-card > .table,
+  .table-card table {
+    min-width: 780px;
+  }
+
+  .card-body {
+    padding: 14px !important;
+  }
+}
+
+@media (max-width: 768px) {
+  body {
+    font-size: 13px;
+  }
+
+  h1, h2 {
+    font-size: 22px !important;
+    line-height: 1.2;
+  }
+
+  h3 {
+    font-size: 19px !important;
+  }
+
+  h5 {
+    font-size: 16px !important;
+  }
+
+  .app-shell {
+    min-height: 100vh;
+  }
+
+  .sidebar {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-height: auto !important;
+  }
+
+  .sidebar::-webkit-scrollbar {
+    height: 3px;
+  }
+
+  .sidebar a span {
+    display: block;
+  }
+
+  .content {
+    width: 100% !important;
+    max-width: 100% !important;
+    padding: 10px !important;
+  }
+
+  .topbar {
+    width: 100%;
+  }
+
+  .topbar .btn {
+    width: 100%;
+  }
+
+  .card,
+  .card-soft,
+  .table-card {
+    border-radius: 12px !important;
+  }
+
+  .card.p-3,
+  .card-soft.p-3 {
+    padding: 12px !important;
+  }
+
+  .row.g-3 {
+    gap: 10px 0 !important;
+  }
+
+  .metric {
+    padding: 14px !important;
+  }
+
+  .metric small {
+    font-size: 10.5px;
+  }
+
+  .metric h3 {
+    font-size: 20px !important;
+  }
+
+  .btn,
+  button.btn,
+  a.btn {
+    width: 100%;
+    max-width: 100%;
+    justify-content: center;
+    margin-bottom: 6px;
+  }
+
+  .btn.me-2,
+  .btn.ms-2 {
+    margin-left: 0 !important;
+    margin-right: 0 !important;
+  }
+
+  td .btn,
+  td button.btn,
+  td a.btn {
+    width: auto;
+    min-width: 82px;
+    margin-bottom: 4px;
+  }
+
+  .d-flex,
+  .input-group,
+  .btn-toolbar,
+  .btn-group {
+    max-width: 100%;
+  }
+
+  .d-flex.gap-2,
+  .d-flex.gap-3 {
+    flex-direction: column;
+    gap: 6px !important;
+    align-items: stretch !important;
+  }
+
+  .input-group {
+    width: 100%;
+  }
+
+  .form-control,
+  .form-select {
+    width: 100%;
+    max-width: 100%;
+  }
+
+  label {
+    font-size: 12px;
+  }
+
+  textarea.form-control {
+    min-height: 90px;
+  }
+
+  .preview-img {
+    width: 100%;
+    height: auto;
+    object-fit: contain;
+  }
+
+  .table-card {
+    display: block;
+    width: 100%;
+    max-width: 100%;
+    overflow-x: auto !important;
+    overflow-y: hidden;
+    padding-bottom: 4px;
+  }
+
+  .table-card .card-body {
+    min-width: 720px;
+  }
+
+  .table-card table,
+  .table {
+    width: max-content;
+    min-width: 760px !important;
+  }
+
+  .table th,
+  .table td {
+    white-space: nowrap;
+    padding: 9px 10px !important;
+  }
+
+  .table td {
+    font-size: 12.5px;
+  }
+
+  .Toastify__toast-container {
+    width: calc(100vw - 20px) !important;
+    left: 10px !important;
+    right: 10px !important;
+  }
+
+  .Toastify__toast {
+    margin-bottom: 8px !important;
+  }
+}
+
+@media (max-width: 420px) {
+  .brand {
+    max-width: 120px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .sidebar a {
+    min-width: 72px;
+  }
+
+  .content {
+    padding: 8px !important;
+  }
+
+  .table-card table,
+  .table {
+    min-width: 820px !important;
+  }
+
+  td .btn,
+  td button.btn,
+  td a.btn {
+    min-width: 76px;
+    padding-left: 8px;
+    padding-right: 8px;
+  }
+}
