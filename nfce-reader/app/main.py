@@ -43,7 +43,7 @@ async def analisar_imagem(file: UploadFile = File(...)):
         raise HTTPException(status_code=400, detail=str(ex))
 
     variants = generate_variants(image)
-    variants = variants[:35]
+    variants = variants[:15]
     logging.info("NFC-e: tentando QR com %s variantes", len(variants))
 
     qr_url, qr_method, qr_confidence = read_qr_from_variants(variants)
@@ -75,7 +75,13 @@ async def analisar_imagem(file: UploadFile = File(...)):
 
     logging.info("NFC-e: QR falhou. Tentando OCR.")
     ocr_region = crop_bottom_center(image)
-    chave, ocr_method, ocr_confidence, texto_ocr = read_key_with_ocr(ocr_region)
+    try:
+        chave, ocr_method, ocr_confidence, texto_ocr = read_key_with_ocr(ocr_region)
+    except Exception as ex:
+        chave = None
+        ocr_method = "OCRFalhou"
+        ocr_confidence = 0
+        texto_ocr = str(ex)
 
     if chave:
         url = build_sp_url_from_key(chave)
