@@ -11,8 +11,9 @@ from app.services.nfce_client import fetch_nfce_html, parse_nfce_html, build_sp_
 
 
 logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger(__name__)
 
-app = FastAPI(title="FleetControlRH NFC-e Reader", version="1.0.0")
+app = FastAPI(title="FleetControlRH NFC-e Reader", version="2.0.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -42,13 +43,18 @@ async def analisar_imagem(file: UploadFile = File(...)):
     except Exception as ex:
         raise HTTPException(status_code=400, detail=str(ex))
 
+    # generate_variants já aplica:
+    #  - correct_orientation (fix landscape)
+    #  - detect_note_region (remove fundo)
+    #  - strict_threshold variants (anti bleed-through)
     variants = generate_variants(image)
-    variants = variants[:15]
-    logging.info("NFC-e: tentando QR com %s variantes", len(variants))
+
+    logger.info("NFC-e: %s variantes geradas para '%s'", len(variants), file.filename)
 
     qr_url, qr_method, qr_confidence = read_qr_from_variants(variants)
 
     if qr_url:
+        logger.info("NFC-e: QR lido via %s → %s", qr_method, qr_url[:80])
         try:
             html = fetch_nfce_html(qr_url)
             dados = parse_nfce_html(html)
@@ -60,9 +66,10 @@ async def analisar_imagem(file: UploadFile = File(...)):
                 chaveAcesso=None,
                 urlConsulta=qr_url,
                 dadosExtraidos={**dados, "tempoProcessamentoSegundos": elapsed},
-                confianca=qr_confidence
+                confianca=qr_confidence,
             )
         except Exception as ex:
+            logger.warning("NFC-e: QR lido mas erro ao consultar: %s", ex)
             return NfceResponse(
                 sucesso=True,
                 metodo=f"QRCode:{qr_method}",
@@ -70,11 +77,12 @@ async def analisar_imagem(file: UploadFile = File(...)):
                 urlConsulta=qr_url,
                 dadosExtraidos={"erroConsulta": str(ex)},
                 confianca=qr_confidence,
-                mensagem="QR Code lido, mas houve erro ao consultar a NFC-e."
+                mensagem="QR Code lido, mas houve erro ao consultar a NFC-e.",
             )
 
-    logging.info("NFC-e: QR falhou. Tentando OCR.")
+    logger.info("NFC-e: QR falhou (%s). Tentando OCR.", qr_method)
     ocr_region = crop_bottom_center(image)
+
     try:
         chave, ocr_method, ocr_confidence, texto_ocr = read_key_with_ocr(ocr_region)
     except Exception as ex:
@@ -84,6 +92,7 @@ async def analisar_imagem(file: UploadFile = File(...)):
         texto_ocr = str(ex)
 
     if chave:
+        logger.info("NFC-e: chave extraída via %s → %s", ocr_method, chave)
         url = build_sp_url_from_key(chave)
 
         try:
@@ -97,9 +106,10 @@ async def analisar_imagem(file: UploadFile = File(...)):
                 chaveAcesso=chave,
                 urlConsulta=url,
                 dadosExtraidos={**dados, "tempoProcessamentoSegundos": elapsed},
-                confianca=ocr_confidence
+                confianca=ocr_confidence,
             )
         except Exception as ex:
+            logger.warning("NFC-e: OCR ok mas erro ao consultar: %s", ex)
             return NfceResponse(
                 sucesso=True,
                 metodo=ocr_method,
@@ -107,15 +117,16 @@ async def analisar_imagem(file: UploadFile = File(...)):
                 urlConsulta=url,
                 dadosExtraidos={"erroConsulta": str(ex), "textoOcr": texto_ocr[:1500]},
                 confianca=ocr_confidence,
-                mensagem="Chave extraída por OCR, mas houve erro ao consultar a NFC-e."
+                mensagem="Chave extraída por OCR, mas houve erro ao consultar a NFC-e.",
             )
 
     elapsed = round(time.time() - started, 2)
+    logger.warning("NFC-e: falha total após %.2fs. textoOCR: %s", elapsed, texto_ocr[:200])
 
     return NfceResponse(
         sucesso=False,
         metodo="Falha",
         dadosExtraidos={"tempoProcessamentoSegundos": elapsed, "textoOcr": texto_ocr[:1500]},
         confianca=0,
-        mensagem="Não foi possível ler QR Code nem extrair chave de acesso por OCR."
+        mensagem="Não foi possível ler QR Code nem extrair chave de acesso por OCR.",
     )
