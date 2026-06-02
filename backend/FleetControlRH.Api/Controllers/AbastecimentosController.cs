@@ -152,6 +152,12 @@ public class AbastecimentosController : ControllerBase
         return Ok(resultado);
     }
 
+    [HttpGet("aquecer-leitor")]
+    public async Task<IActionResult> AquecerLeitor()
+    {
+        var ok = await _nfceReaderService.AquecerAsync();
+        return Ok(new { ok });
+    }
 
     [HttpPost("analisar-nota-imagem-robusta")]
     public async Task<ActionResult<NotaFiscalAnaliseDto>> AnalisarNotaImagemRobusta(IFormFile fotoNotaFiscal)

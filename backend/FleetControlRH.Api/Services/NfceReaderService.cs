@@ -117,4 +117,21 @@ public class NfceReaderService
             };
         }
     }
+    public async Task<bool> AquecerAsync()
+    {
+        var baseUrl = Environment.GetEnvironmentVariable("NFCE_READER_URL")
+                    ?? _configuration["NfceReader:BaseUrl"];
+
+        if (string.IsNullOrWhiteSpace(baseUrl)) return false;
+
+        try
+        {
+            using var resp = await _httpClient.GetAsync($"{baseUrl.TrimEnd('/')}/health");
+            return resp.IsSuccessStatusCode;
+        }
+        catch
+        {
+            return false; // se o serviço ainda está acordando, não tem problema
+        }
+    }
 }

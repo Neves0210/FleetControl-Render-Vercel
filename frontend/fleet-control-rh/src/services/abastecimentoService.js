@@ -6,5 +6,6 @@ export const abastecimentoService = {
   editar: (id, formData) => api.put(`/abastecimentos/${id}`, formData),
   analisarNota: formData => api.post('/abastecimentos/analisar-nota', formData),
   analisarNotaImagemRobusta: formData => api.post('/abastecimentos/analisar-nota-imagem-robusta', formData),
-  lerQrCodeImagem: formData => api.post('/abastecimentos/ler-qrcode-imagem', formData)
-};
+  lerQrCodeImagem: formData => api.post('/abastecimentos/ler-qrcode-imagem', formData),
+  aquecerLeitor: () => api.get('/abastecimentos/aquecer-leitor')
+};s

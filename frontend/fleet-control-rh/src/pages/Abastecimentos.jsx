@@ -8,6 +8,7 @@ import { abastecimentoService } from '../services/abastecimentoService';
 import { veiculoService } from '../services/veiculoService';
 import { motoristaService } from '../services/motoristaService';
 import { emptyAbastecimento } from '../utils/constants';
+import { comprimirImagem } from '../utils/comprimirImagem';
 
 export function Abastecimentos() {
   const [items, setItems] = useState([]);
@@ -37,6 +38,10 @@ export function Abastecimentos() {
   useEffect(() => {
     load().catch(() => toast.error('Erro ao carregar abastecimentos.'));
   }, []);
+
+  useEffect(() => {
+  abastecimentoService.aquecerLeitor().catch(() => {}); // acorda o leitor em background
+}, []);
 
   function aplicarDadosNfce(data, fallbackUrl = '') {
     setUrlConsulta(data.urlConsulta || fallbackUrl || '');
@@ -187,12 +192,20 @@ export function Abastecimentos() {
     setResultadoLeitura(null);
   }
 
-  function fileChange(file) {
-    setFoto(file);
-    setPreview(file ? URL.createObjectURL(file) : '');
+  async function fileChange(file) {
+    if (!file) {
+      setFoto(null);
+      setPreview('');
+      return;
+    }
 
-    if (file && !editandoId) {
-      analisarFotoNotaInteira(file);
+    const comprimida = await comprimirImagem(file);
+
+    setFoto(comprimida);
+    setPreview(URL.createObjectURL(comprimida));
+
+    if (!editandoId) {
+      analisarFotoNotaInteira(comprimida);
     }
   }
 
