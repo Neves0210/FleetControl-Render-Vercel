@@ -8,4 +8,4 @@ export const abastecimentoService = {
   analisarNotaImagemRobusta: formData => api.post('/abastecimentos/analisar-nota-imagem-robusta', formData),
   lerQrCodeImagem: formData => api.post('/abastecimentos/ler-qrcode-imagem', formData),
   aquecerLeitor: () => api.get('/abastecimentos/aquecer-leitor')
-};s
+};
