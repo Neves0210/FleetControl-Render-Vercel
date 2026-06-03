@@ -12,7 +12,7 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 namespace FleetControlRH.Api.Migrations
 {
     [DbContext(typeof(AppDbContext))]
-    [Migration("20260603160150_AddFotoNotaFiscalBytes")]
+    [Migration("20260603161425_AddFotoNotaFiscalBytes")]
     partial class AddFotoNotaFiscalBytes
     {
         /// <inheritdoc />
