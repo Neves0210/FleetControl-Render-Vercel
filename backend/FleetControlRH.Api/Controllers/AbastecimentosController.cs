@@ -53,6 +53,22 @@ public class AbastecimentosController : ControllerBase
 
         var abastecimentos = await query
             .OrderByDescending(x => x.DataAbastecimento)
+            .Select(x => new
+            {
+                x.Id,
+                x.VeiculoId,
+                x.Veiculo,
+                x.MotoristaId,
+                x.Motorista,
+                x.KmAtual,
+                x.Litros,
+                x.ValorTotal,
+                x.Posto,
+                x.Observacao,
+                x.DataAbastecimento,
+                x.CriadoEm,
+                temFoto = x.FotoNotaFiscal != null
+            })
             .ToListAsync();
 
         return Ok(abastecimentos);
@@ -79,7 +95,11 @@ public class AbastecimentosController : ControllerBase
         var veiculo = await _db.Veiculos.FindAsync(model.VeiculoId);
 
         if (fotoNotaFiscal is { Length: > 0 })
-            model.FotoNotaFiscalPath = await SalvarFotoAsync(fotoNotaFiscal);
+        {
+            var (bytes, contentType) = await LerFotoAsync(fotoNotaFiscal);
+            model.FotoNotaFiscal = bytes;
+            model.FotoNotaFiscalContentType = contentType;
+        }
 
         veiculo!.KmAtual = model.KmAtual;
         model.CriadoEm = DateTime.UtcNow;
@@ -121,7 +141,11 @@ public class AbastecimentosController : ControllerBase
         abastecimento.Observacao = model.Observacao;
 
         if (fotoNotaFiscal is { Length: > 0 })
-            abastecimento.FotoNotaFiscalPath = await SalvarFotoAsync(fotoNotaFiscal);
+        {
+            var (bytes, contentType) = await LerFotoAsync(fotoNotaFiscal);
+            abastecimento.FotoNotaFiscal = bytes;
+            abastecimento.FotoNotaFiscalContentType = contentType;
+        }
 
         await RecalcularKmAtualVeiculoAsync(model.VeiculoId);
 
@@ -131,6 +155,20 @@ public class AbastecimentosController : ControllerBase
         await _db.SaveChangesAsync();
 
         return Ok(abastecimento);
+    }
+
+    [HttpGet("{id:int}/foto")]
+    public async Task<IActionResult> ObterFoto(int id)
+    {
+        var foto = await _db.Abastecimentos
+            .Where(x => x.Id == id)
+            .Select(x => new { x.FotoNotaFiscal, x.FotoNotaFiscalContentType })
+            .FirstOrDefaultAsync();
+
+        if (foto?.FotoNotaFiscal == null || foto.FotoNotaFiscal.Length == 0)
+            return NotFound();
+
+        return File(foto.FotoNotaFiscal, foto.FotoNotaFiscalContentType ?? "image/jpeg");
     }
 
     [HttpPost("analisar-nota")]
@@ -418,25 +456,11 @@ public class AbastecimentosController : ControllerBase
             : null;
     }
 
-    private static async Task<string> SalvarFotoAsync(IFormFile arquivo)
+    private static async Task<(byte[] bytes, string contentType)> LerFotoAsync(IFormFile arquivo)
     {
-        var pasta = Path.Combine(
-            Directory.GetCurrentDirectory(),
-            "wwwroot",
-            "uploads",
-            "notas-fiscais"
-        );
-
-        Directory.CreateDirectory(pasta);
-
-        var extensao = Path.GetExtension(arquivo.FileName).ToLowerInvariant();
-        var nome = $"nota-{DateTime.UtcNow:yyyyMMddHHmmss}-{Guid.NewGuid():N}{extensao}";
-        var caminho = Path.Combine(pasta, nome);
-
-        await using var stream = new FileStream(caminho, FileMode.Create);
-
-        await arquivo.CopyToAsync(stream);
-
-        return $"/uploads/notas-fiscais/{nome}";
+        using var ms = new MemoryStream();
+        await arquivo.CopyToAsync(ms);
+        var contentType = string.IsNullOrWhiteSpace(arquivo.ContentType) ? "image/jpeg" : arquivo.ContentType;
+        return (ms.ToArray(), contentType);
     }
 }

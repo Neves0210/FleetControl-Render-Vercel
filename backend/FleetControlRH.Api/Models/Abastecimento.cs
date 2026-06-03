@@ -36,4 +36,7 @@ public class Abastecimento
     public DateTime DataAbastecimento { get; set; } = DateTime.UtcNow;
 
     public DateTime CriadoEm { get; set; } = DateTime.UtcNow;
+
+    public byte[]? FotoNotaFiscal { get; set; }
+    public string? FotoNotaFiscalContentType { get; set; }
 }

@@ -37,8 +37,6 @@ public class AppDbContext : DbContext
             .HasIndex(x => new { x.UsuarioId, x.Permissao })
             .IsUnique();
 
-
-
         modelBuilder.Entity<ManutencaoVeiculo>()
             .HasOne(x => x.Veiculo)
             .WithMany()
@@ -67,5 +65,9 @@ public class AppDbContext : DbContext
             .HasOne(x => x.Usuario)
             .WithMany(x => x.Permissoes)
             .HasForeignKey(x => x.UsuarioId);
+
+        modelBuilder.Entity<Abastecimento>()
+            .Property(x => x.FotoNotaFiscal)
+            .HasColumnType("bytea");
     }
 }
