@@ -204,69 +204,100 @@ def try_detect_qr_region(image: np.ndarray) -> np.ndarray | None:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-# GERAÇÃO DE VARIANTES — pipeline completo
+# GERAÇÃO DE VARIANTES — SOB DEMANDA (lazy / gerador)
+#
+# OTIMIZAÇÃO DE VELOCIDADE
+# ------------------------
+# Antes: todas as ~70 variantes eram calculadas de uma vez ANTES de tentar ler
+# qualquer QR — incluindo as operações mais caras (denoise 6x e upscale 3x, que
+# triplicam o nº de pixels). Mesmo com foto boa (QR lê na 1ª variante), pagava-se
+# o custo das 70.
+#
+# Agora: as variantes são geradas SOB DEMANDA, em ordem de custo crescente, e o
+# leitor de QR para na primeira que decodificar. As variantes caras só são
+# calculadas se TODAS as baratas falharem. Cobertura idêntica à versão antiga
+# (mesmas variantes), só que na ordem certa — sem perda de precisão.
+#
+#   TIER 0  detecção direta do QR pelo OpenCV (mais precisa quando acha)
+#   TIER 1  barato: original / gray / strict100  -> resolve a maioria das fotos boas
+#   TIER 2  médio: clahe / strict90 / strict120 / sharp
+#   TIER 3  CARO: denoise + upscale 2x/3x        -> só roda se tudo acima falhar
 # ─────────────────────────────────────────────────────────────────────────────
 
-def generate_variants(image: np.ndarray) -> list[tuple[str, np.ndarray]]:
+def generate_variants(image: np.ndarray):
+    """
+    Gera variantes SOB DEMANDA (é um GERADOR: use com `for ... in`, NÃO tem len()).
+    Cada `yield` entrega uma variante; o leitor consome e para na primeira que
+    decodificar, evitando calcular as variantes caras desnecessariamente.
+    """
     # FIX 1: corrigir orientação antes de qualquer coisa
     image = correct_orientation(image)
-
     # FIX 2: detectar a nota no fundo (mesa, madeira, mão)
     image = detect_note_region(image)
-
     image = resize_large_image(image)
-    variants: list[tuple[str, np.ndarray]] = []
 
-    for region_name, region in crop_regions(image):
-        variants.append((f"{region_name}_original", region))
+    regions = crop_regions(image)
 
+    # ── TIER 0: detecção automática do QR pelo OpenCV ────────────────────────
+    # Quando acha, é o recorte mais preciso. As versões baratas vêm aqui;
+    # as caras desse recorte ficam para o final (Tier 3).
+    qr_region = try_detect_qr_region(image)
+    qr_gray = None
+    if qr_region is not None:
+        qr_gray = to_gray(qr_region)
+        yield ("qr_detected_original", qr_region)
+        yield ("qr_detected_gray", qr_gray)
+        yield ("qr_detected_strict100", strict_threshold(qr_gray, 100))
+
+    # ── TIER 1: barato — resolve a grande maioria das fotos boas ─────────────
+    for name, region in regions:
+        yield (f"{name}_original", region)
+    for name, region in regions:
+        try:
+            gray = to_gray(region)
+            yield (f"{name}_gray", gray)
+            yield (f"{name}_strict100", strict_threshold(gray, 100))
+        except Exception:
+            pass
+
+    # ── TIER 2: custo médio (CLAHE, thresholds extras, sharpen) ──────────────
+    for name, region in regions:
+        try:
+            gray = to_gray(region)
+            clahe = apply_clahe(gray)
+            yield (f"{name}_clahe", clahe)
+            yield (f"{name}_strict90", strict_threshold(gray, 90))
+            yield (f"{name}_strict120", strict_threshold(gray, 120))
+            yield (f"{name}_sharp", sharpen(clahe))
+        except Exception:
+            pass
+
+    # ── TIER 3: CARO — denoise + upscale. Só chega aqui se tudo acima falhou ──
+    for name, region in regions:
         try:
             gray = to_gray(region)
             clahe = apply_clahe(gray)
             clean = denoise(clahe)
             binary = adaptive_binary(clean)
-            sharp = sharpen(clahe)
+            yield (f"{name}_binary", binary)
+            yield (f"{name}_strict_up3", strict_threshold_upscaled(gray, 100, 3))
+            yield (f"{name}_strict_up3_90", strict_threshold_upscaled(gray, 90, 3))
 
-            # Variantes padrão
-            variants.append((f"{region_name}_gray", gray))
-            variants.append((f"{region_name}_clahe", clahe))
-            variants.append((f"{region_name}_binary", binary))
-            variants.append((f"{region_name}_sharp", sharp))
-
-            # FIX 3: variantes com threshold estrito anti-bleed-through
-            # São as mais importantes para notas térmicas com sangramento
-            variants.append((f"{region_name}_strict90",  strict_threshold(gray, 90)))
-            variants.append((f"{region_name}_strict100", strict_threshold(gray, 100)))
-            variants.append((f"{region_name}_strict120", strict_threshold(gray, 120)))
-
-            # Upscale com threshold estrito (melhor combinação para QR danificado)
-            variants.append((f"{region_name}_strict_up3",
-                             strict_threshold_upscaled(gray, 100, 3)))
-            variants.append((f"{region_name}_strict_up3_90",
-                             strict_threshold_upscaled(gray, 90, 3)))
-
-            # Upscale padrão
-            if region_name in ("qr_zone", "qr_zone_tight", "bottom_left"):
-                variants.append((f"{region_name}_upscale2", upscale(gray, 2)))
-                variants.append((f"{region_name}_upscale2_clahe", upscale(clahe, 2)))
-                variants.append((f"{region_name}_upscale2_binary", upscale(binary, 2)))
-
+            if name in ("qr_zone", "qr_zone_tight", "bottom_left"):
+                yield (f"{name}_upscale2", upscale(gray, 2))
+                yield (f"{name}_upscale2_clahe", upscale(clahe, 2))
+                yield (f"{name}_upscale2_binary", upscale(binary, 2))
         except Exception:
             pass
 
-    # Detecção automática de QR pelo OpenCV (quando funciona, é o mais preciso)
-    qr_region = try_detect_qr_region(image)
-    if qr_region is not None:
-        qr_gray = to_gray(qr_region)
-        qr_clahe = apply_clahe(qr_gray)
-        qr_binary = adaptive_binary(qr_clahe)
-
-        variants.append(("qr_detected_original", qr_region))
-        variants.append(("qr_detected_gray", qr_gray))
-        variants.append(("qr_detected_clahe", qr_clahe))
-        variants.append(("qr_detected_binary", qr_binary))
-        variants.append(("qr_detected_strict100", strict_threshold(qr_gray, 100)))
-        variants.append(("qr_detected_strict_up3", strict_threshold_upscaled(qr_gray, 100, 3)))
-        variants.append(("qr_detected_upscale3", upscale(qr_binary, 3)))
-
-    return variants
+    # Variantes pesadas do recorte detectado pelo OpenCV (último recurso)
+    if qr_region is not None and qr_gray is not None:
+        try:
+            qr_clahe = apply_clahe(qr_gray)
+            qr_binary = adaptive_binary(qr_clahe)
+            yield ("qr_detected_clahe", qr_clahe)
+            yield ("qr_detected_binary", qr_binary)
+            yield ("qr_detected_strict_up3", strict_threshold_upscaled(qr_gray, 100, 3))
+            yield ("qr_detected_upscale3", upscale(qr_binary, 3))
+        except Exception:
+            pass

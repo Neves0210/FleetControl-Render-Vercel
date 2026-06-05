@@ -14,7 +14,7 @@ from app.services.nfce_client import fetch_nfce_html, parse_nfce_html, build_sp_
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
 
-app = FastAPI(title="FleetControlRH NFC-e Reader", version="2.1.0")
+app = FastAPI(title="FleetControlRH NFC-e Reader", version="2.2.0")
 
 app.add_middleware(
     CORSMiddleware,
@@ -81,13 +81,15 @@ async def analisar_imagem(file: UploadFile = File(...)):
         raise HTTPException(status_code=400, detail=str(ex))
 
     # ── Estágio 1: QR Code ────────────────────────────────────────────────────
+    # generate_variants agora é um GERADOR (sob demanda). O leitor para na
+    # primeira variante que decodificar, então não há mais len() aqui.
     variants = generate_variants(image)
-    logger.info("main: %d variantes | arquivo='%s'", len(variants), file.filename)
+    logger.info("main: iniciando leitura de QR | arquivo='%s'", file.filename)
 
     qr_url, qr_method, qr_confidence = read_qr_from_variants(variants)
 
     if qr_url:
-        logger.info("main: ✅ QR lido via %s", qr_method)
+        logger.info("main: ✅ QR lido via %s (%.2fs)", qr_method, time.time() - started)
         return _consultar_e_retornar(None, qr_url, f"QRCode:{qr_method}", qr_confidence, started)
 
     # ── Estágio 2: OCR ────────────────────────────────────────────────────────

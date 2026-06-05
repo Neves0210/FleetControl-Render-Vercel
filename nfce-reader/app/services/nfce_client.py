@@ -1,6 +1,27 @@
+import os
 import re
 import requests
 from bs4 import BeautifulSoup
+
+# ─────────────────────────────────────────────────────────────────────────────
+# OTIMIZAÇÃO DE VELOCIDADE
+# O site da SEFAZ-SP costuma ser lento e às vezes fica pendurado. Antes o
+# timeout era 20s "cego" — se o governo travasse, o request todo segurava 20s.
+#
+# Agora:
+#  - Sessão reutilizável (reaproveita conexão TCP/TLS entre chamadas).
+#  - Timeout separado: (connect, read). Connect curto; read limitado.
+#  - Configurável por env var NFCE_HTTP_TIMEOUT (segundos de leitura).
+#
+# Se a consulta estourar o tempo, o serviço ainda retorna a CHAVE/URL lida —
+# apenas sem os dados extras (valor/litros), que o usuário pode preencher.
+# ─────────────────────────────────────────────────────────────────────────────
+
+_CONNECT_TIMEOUT = 5
+_READ_TIMEOUT = float(os.environ.get("NFCE_HTTP_TIMEOUT", "12"))
+
+_session = requests.Session()
+_session.headers.update({"User-Agent": "Mozilla/5.0 FleetControlRH/1.0"})
 
 
 def build_sp_url_from_key(chave: str) -> str:
@@ -8,8 +29,7 @@ def build_sp_url_from_key(chave: str) -> str:
 
 
 def fetch_nfce_html(url: str) -> str:
-    headers = {"User-Agent": "Mozilla/5.0 FleetControlRH/1.0"}
-    response = requests.get(url, headers=headers, timeout=20)
+    response = _session.get(url, timeout=(_CONNECT_TIMEOUT, _READ_TIMEOUT))
     response.raise_for_status()
     return response.text
 

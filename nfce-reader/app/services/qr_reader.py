@@ -67,11 +67,25 @@ def read_with_pyzbar(image: np.ndarray) -> str | None:
         return None
 
 
-def read_qr_from_variants(variants: list[tuple[str, np.ndarray]]) -> tuple[str | None, str, float]:
+# ─────────────────────────────────────────────────────────────────────────────
+# OTIMIZAÇÃO DE VELOCIDADE
+# Ordem dos leitores: do mais RÁPIDO para o mais LENTO.
+#   1) ZXingCPP  — rápido e robusto para QR
+#   2) pyzbar    — rápido
+#   3) OpenCV    — detectAndDecode é o mais pesado dos três, fica por último
+# Combinado com o gerador sob demanda do image_pipeline, o detectAndDecode do
+# OpenCV só roda quando os dois rápidos falham naquela variante.
+# ─────────────────────────────────────────────────────────────────────────────
+
+def read_qr_from_variants(variants) -> tuple[str | None, str, float]:
+    """
+    `variants` é um iterável de (nome, imagem) — aceita lista OU gerador.
+    Para na primeira variante que decodificar.
+    """
     readers = [
+        ("ZXingCPP", read_with_zxing,  0.90),
+        ("pyzbar",   read_with_pyzbar, 0.82),
         ("OpenCV",   read_with_opencv, 0.92),
-        ("ZXingCPP", read_with_zxing,  0.88),
-        ("pyzbar",   read_with_pyzbar,  0.82),
     ]
 
     for variant_name, image in variants:
