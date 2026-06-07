@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ToastContainer, toast } from 'react-toastify';
+import { Truck, LogIn } from 'lucide-react';
 import { api } from '../api/api';
 
 export function Login() {
@@ -28,16 +29,28 @@ export function Login() {
   return (
     <div className="login-page">
       <form className="card p-4 login-card" onSubmit={submit}>
-        <h3 className="mb-1">FleetControlRH</h3>
-        <p className="text-muted">Controle de abastecimentos</p>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
+          <span style={{
+            width: 42, height: 42, borderRadius: 12, background: 'linear-gradient(135deg,#2563eb,#1e3a8a)',
+            color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0
+          }}>
+            <Truck size={22} />
+          </span>
+          <div>
+            <h3 className="mb-0">FleetControlRH</h3>
+            <p className="text-muted" style={{ margin: 0, fontSize: 13 }}>Controle de abastecimentos</p>
+          </div>
+        </div>
 
-        <label>E-mail</label>
+        <label className="mt-3">E-mail</label>
         <input className="form-control mb-3" value={email} onChange={e => setEmail(e.target.value)} />
 
         <label>Senha</label>
         <input className="form-control mb-3" type="password" value={senha} onChange={e => setSenha(e.target.value)} />
 
-        <button className="btn btn-primary" disabled={loading}>{loading ? 'Entrando...' : 'Entrar'}</button>
+        <button className="btn btn-primary" disabled={loading}>
+          <LogIn size={16} /> {loading ? 'Entrando...' : 'Entrar'}
+        </button>
 
         <small className="text-muted mt-3">Admin padrão: admin@fleet.local / 123456</small>
         <ToastContainer position="top-right" autoClose={2500} />

@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'react-toastify';
+import { Car } from 'lucide-react';
 import { Header } from '../components/Layout/Header';
 import { FormVeiculo } from '../components/Forms/FormVeiculo';
 import { Search } from '../components/Forms/Search';
@@ -55,8 +56,17 @@ export function Veiculos() {
 
   return (
     <>
-      <Header title="Veículos" subtitle="Cadastro e manutenção da frota" />
+      <Header
+        title="Veículos"
+        subtitle="Cadastro e manutenção da frota"
+        actions={<span className="badge-soft">{items.length} cadastrados</span>}
+      />
+
+      <h5 style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+        <Car size={17} /> {edit ? 'Editar veículo' : 'Novo veículo'}
+      </h5>
       <FormVeiculo form={form} setForm={setForm} save={save} edit={edit} />
+
       <Search value={busca} setValue={setBusca} />
 
       <div className="card card-soft table-card">
@@ -70,13 +80,17 @@ export function Veiculos() {
                 <td>{x.modelo}</td>
                 <td><span className="badge-soft">{x.placa}</span></td>
                 <td>{number(x.kmAtual)}</td>
-                <td>{combustivel(x.tipoCombustivel)}</td>
+                <td><span className="chip chip-success">{combustivel(x.tipoCombustivel)}</span></td>
                 <td>
                   <button className="btn btn-sm btn-warning me-2" onClick={() => { setEdit(x.id); setForm(x); }}>Editar</button>
                   <button className="btn btn-sm btn-danger" onClick={() => del(x.id)}>Remover</button>
                 </td>
               </tr>
             ))}
+
+            {filtered.length === 0 && (
+              <tr><td colSpan="5" className="text-muted" style={{ textAlign: 'center', padding: 28 }}>Nenhum veículo encontrado.</td></tr>
+            )}
           </tbody>
         </table>
       </div>

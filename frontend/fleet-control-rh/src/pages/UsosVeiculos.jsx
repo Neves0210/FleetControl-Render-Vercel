@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'react-toastify';
+import { KeyRound, PlayCircle, StopCircle } from 'lucide-react';
 import { Header } from '../components/Layout/Header';
 import { Input } from '../components/Forms/Input';
 import { Select } from '../components/Forms/Select';
@@ -165,12 +166,13 @@ export function UsosVeiculos() {
       <Header
         title="Uso de Veículos"
         subtitle="Controle de disponibilidade, bloqueio e tempo de uso da frota"
+        actions={<span className="badge-soft">{usosAtivos.length} em uso</span>}
       />
 
       <div className="row">
         <div className="col-lg-6">
           <form className="card card-soft p-3 mb-3" onSubmit={iniciarUso}>
-            <h5>Iniciar uso</h5>
+            <h5 style={{ display: 'flex', alignItems: 'center', gap: 8 }}><PlayCircle size={17} /> Iniciar uso</h5>
 
             <div className="row">
               <Select
@@ -215,7 +217,7 @@ export function UsosVeiculos() {
 
         <div className="col-lg-6">
           <form className="card card-soft p-3 mb-3" onSubmit={finalizarUso}>
-            <h5>Finalizar uso</h5>
+            <h5 style={{ display: 'flex', alignItems: 'center', gap: 8 }}><StopCircle size={17} /> Finalizar uso</h5>
 
             <div className="row">
               <Select
@@ -250,7 +252,7 @@ export function UsosVeiculos() {
       </div>
 
       <div className="card card-soft p-3 mb-3">
-        <h5>Filtros</h5>
+        <h5 style={{ display: 'flex', alignItems: 'center', gap: 8 }}><KeyRound size={17} /> Filtros</h5>
 
         <div className="row">
           <Select
@@ -328,6 +330,10 @@ export function UsosVeiculos() {
                 <td>{x.kmFinal ? number(x.kmFinal - x.kmInicial) : '-'}</td>
               </tr>
             ))}
+
+            {items.length === 0 && (
+              <tr><td colSpan="9" className="text-muted" style={{ textAlign: 'center', padding: 28 }}>Nenhum uso encontrado.</td></tr>
+            )}
           </tbody>
         </table>
       </div>

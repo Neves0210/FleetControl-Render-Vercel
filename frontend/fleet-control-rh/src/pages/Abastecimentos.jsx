@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { toast } from 'react-toastify';
+import { Fuel, Camera, Link2, ScanLine } from 'lucide-react';
 import { Header } from '../components/Layout/Header';
 import { Input } from '../components/Forms/Input';
 import { Select } from '../components/Forms/Select';
@@ -40,8 +41,8 @@ export function Abastecimentos() {
   }, []);
 
   useEffect(() => {
-  abastecimentoService.aquecerLeitor().catch(() => {}); // acorda o leitor em background
-}, []);
+    abastecimentoService.aquecerLeitor().catch(() => {}); // acorda o leitor em background
+  }, []);
 
   function aplicarDadosNfce(data, fallbackUrl = '') {
     setUrlConsulta(data.urlConsulta || fallbackUrl || '');
@@ -211,77 +212,93 @@ export function Abastecimentos() {
 
   return (
     <>
-      <Header title="Abastecimentos" subtitle={editandoId ? "Edite os dados do abastecimento selecionado" : "Registre abastecimentos e anexe a nota fiscal"} />
+      <Header
+        title="Abastecimentos"
+        subtitle={editandoId ? 'Edite os dados do abastecimento selecionado' : 'Registre abastecimentos e anexe a nota fiscal'}
+        actions={editandoId && (
+          <button type="button" className="btn btn-secondary" onClick={limparFormulario}>Cancelar edição</button>
+        )}
+      />
 
       <form className="card card-soft p-3 mb-4" onSubmit={save}>
+        <h5 style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+          <Fuel size={17} /> {editandoId ? 'Editar abastecimento' : 'Novo abastecimento'}
+        </h5>
+
         <div className="row">
           <div className="col-md-12 mb-3">
-            <label>Foto da nota fiscal inteira</label>
-
-            <input
-              className="form-control"
-              type="file"
-              accept="image/*"
-              capture="environment"
-              required={!editandoId && !foto}
-              onChange={e => fileChange(e.target.files[0])}
-            />
-
-            <small className="text-muted d-block mt-2">
-              Tire a foto da nota inteira. O backend vai localizar o QR Code, tratar a imagem e tentar OCR automaticamente.
-            </small>
-
-            {editandoId && (
-              <small className="text-muted d-block mt-1">
-                Ao editar, envie uma nova foto somente se quiser substituir a nota salva.
-              </small>
-            )}
-
-            {preview && <img src={preview} className="preview-img" />}
-
-            <div className="mt-2 d-flex gap-2">
-              <button
-                type="button"
-                className="btn btn-outline-primary"
-                disabled={analisandoNota || !foto}
-                onClick={() => analisarFotoNotaInteira()}
-              >
-                {analisandoNota ? 'Processando NFC-e...' : 'Analisar foto da nota'}
-              </button>
-            </div>
-
-            {resultadoLeitura && (
-              <div className="alert alert-info mt-3">
-                <strong>Método:</strong> {resultadoLeitura.metodo || '-'}<br />
-                {resultadoLeitura.confianca !== undefined && resultadoLeitura.confianca !== null && (
-                  <>
-                    <strong>Confiança:</strong> {Math.round(Number(resultadoLeitura.confianca) * 100)}%<br />
-                  </>
-                )}
-                {resultadoLeitura.chaveAcesso && (
-                  <>
-                    <strong>Chave:</strong> {resultadoLeitura.chaveAcesso}<br />
-                  </>
-                )}
-                {resultadoLeitura.urlConsulta && (
-                  <>
-                    <strong>URL:</strong> {resultadoLeitura.urlConsulta}
-                  </>
-                )}
+            <div className="nfce-section">
+              <div className="section-label" style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+                <Camera size={15} /> Foto da nota fiscal inteira
               </div>
-            )}
 
-            <label className="mt-3">URL completa da NFC-e</label>
-            <div className="input-group">
               <input
                 className="form-control"
-                placeholder="Emergência: cole a URL completa se a imagem falhar"
-                value={urlConsulta}
-                onChange={e => setUrlConsulta(e.target.value)}
+                type="file"
+                accept="image/*"
+                capture="environment"
+                required={!editandoId && !foto}
+                onChange={e => fileChange(e.target.files[0])}
               />
-              <button type="button" className="btn btn-outline-secondary" onClick={analisarUrlManual}>
-                Analisar URL
-              </button>
+
+              <small className="text-muted d-block mt-2">
+                Tire a foto da nota inteira. O backend vai localizar o QR Code, tratar a imagem e tentar OCR automaticamente.
+              </small>
+
+              {editandoId && (
+                <small className="text-muted d-block mt-1">
+                  Ao editar, envie uma nova foto somente se quiser substituir a nota salva.
+                </small>
+              )}
+
+              {preview && <img src={preview} className="preview-img" />}
+
+              <div className="mt-2 d-flex gap-2">
+                <button
+                  type="button"
+                  className="btn btn-outline-primary"
+                  disabled={analisandoNota || !foto}
+                  onClick={() => analisarFotoNotaInteira()}
+                >
+                  <ScanLine size={16} /> {analisandoNota ? 'Processando NFC-e...' : 'Analisar foto da nota'}
+                </button>
+              </div>
+
+              {resultadoLeitura && (
+                <div className="alert alert-info mt-3">
+                  <strong>Método:</strong> {resultadoLeitura.metodo || '-'}<br />
+                  {resultadoLeitura.confianca !== undefined && resultadoLeitura.confianca !== null && (
+                    <>
+                      <strong>Confiança:</strong> {Math.round(Number(resultadoLeitura.confianca) * 100)}%<br />
+                    </>
+                  )}
+                  {resultadoLeitura.chaveAcesso && (
+                    <>
+                      <strong>Chave:</strong> {resultadoLeitura.chaveAcesso}<br />
+                    </>
+                  )}
+                  {resultadoLeitura.urlConsulta && (
+                    <>
+                      <strong>URL:</strong> {resultadoLeitura.urlConsulta}
+                    </>
+                  )}
+                </div>
+              )}
+
+              <label className="mt-3" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <Link2 size={14} /> URL completa da NFC-e
+              </label>
+              <div className="input-group">
+                <input
+                  className="form-control"
+                  placeholder="Emergência: cole a URL completa se a imagem falhar"
+                  value={urlConsulta}
+                  onChange={e => setUrlConsulta(e.target.value)}
+                />
+                <button type="button" className="btn btn-outline-secondary" onClick={analisarUrlManual}>
+                  Analisar URL
+                </button>
+              </div>
             </div>
           </div>
 
@@ -311,6 +328,7 @@ export function Abastecimentos() {
       </form>
 
       <div className="card card-soft p-3 mb-3">
+        <h5 style={{ marginBottom: 12 }}>Filtros</h5>
         <div className="row">
           <Select label="Filtrar veículo" value={filtro.veiculoId} onChange={v => setFiltro({ ...filtro, veiculoId: v })} items={veiculos} text={x => `${x.modelo} - ${x.placa}`} />
           <Select label="Filtrar motorista" value={filtro.motoristaId} onChange={v => setFiltro({ ...filtro, motoristaId: v })} items={motoristas} text={x => x.nome} />

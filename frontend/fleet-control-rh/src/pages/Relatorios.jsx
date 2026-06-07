@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { toast } from 'react-toastify';
+import { Filter, RotateCcw, Download } from 'lucide-react';
 import { Header } from '../components/Layout/Header';
 import { Select } from '../components/Forms/Select';
 import { Input } from '../components/Forms/Input';
@@ -285,6 +286,7 @@ export function Relatorios() {
       <Header title="Relatórios RH" subtitle="Abastecimentos, uso de veículos e manutenções conforme os filtros aplicados" />
 
       <form className="card card-soft p-3 mb-3" onSubmit={filtrar}>
+        <h5 style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}><Filter size={17} /> Filtros</h5>
         <div className="row">
           <Input
             label="Data inicial"
@@ -318,19 +320,19 @@ export function Relatorios() {
 
           <div className="col-md-2 d-flex align-items-end mb-3">
             <button className="btn btn-primary w-100">
-              Filtrar
+              <Filter size={16} /> Filtrar
             </button>
           </div>
 
           <div className="col-md-2 d-flex align-items-end mb-3">
             <button type="button" className="btn btn-outline-secondary w-100" onClick={limparFiltros}>
-              Todos
+              <RotateCcw size={16} /> Todos
             </button>
           </div>
 
           <div className="col-md-2 d-flex align-items-end mb-3">
             <button type="button" className="btn btn-success w-100" onClick={exportarCsv}>
-              Exportar CSV
+              <Download size={16} /> Exportar CSV
             </button>
           </div>
         </div>
@@ -505,7 +507,11 @@ function TabelaUsos({ items }) {
               <td>{number(x.kmInicial)}</td>
               <td>{x.kmFinal ? number(x.kmFinal) : '-'}</td>
               <td>{x.kmFinal ? number(x.kmFinal - x.kmInicial) : '-'}</td>
-              <td>{x.status === 1 || x.status === 'EmUso' ? 'Em uso' : 'Finalizado'}</td>
+              <td>
+                <span className={`chip ${x.status === 1 || x.status === 'EmUso' ? 'chip-warn' : 'chip-success'}`}>
+                  {x.status === 1 || x.status === 'EmUso' ? 'Em uso' : 'Finalizado'}
+                </span>
+              </td>
             </tr>
           ))}
 

@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'react-toastify';
+import { Wrench, AlertTriangle, CalendarClock } from 'lucide-react';
 import { Header } from '../components/Layout/Header';
 import { Input } from '../components/Forms/Input';
 import { Select } from '../components/Forms/Select';
+import { Metric } from '../components/Dashboard/Metric';
 import { manutencaoService } from '../services/manutencaoService';
 import { veiculoService } from '../services/veiculoService';
 import { getUser } from '../utils/permissions';
@@ -27,9 +29,9 @@ function formatDate(value) {
 }
 
 function statusClass(status) {
-  if (status === 'Vencida') return 'badge bg-danger';
-  if (status === 'Próxima') return 'badge bg-warning text-dark';
-  return 'badge bg-success';
+  if (status === 'Vencida') return 'chip chip-danger';
+  if (status === 'Próxima') return 'chip chip-warn';
+  return 'chip chip-success';
 }
 
 export function Manutencoes() {
@@ -166,19 +168,8 @@ export function Manutencoes() {
       />
 
       <div className="row g-3 mb-3">
-        <div className="col-md-3">
-          <div className="card-soft metric">
-            <small>Alertas próximos</small>
-            <h3>{totalAlertas.proximas}</h3>
-          </div>
-        </div>
-
-        <div className="col-md-3">
-          <div className="card-soft metric">
-            <small>Alertas vencidos</small>
-            <h3>{totalAlertas.vencidas}</h3>
-          </div>
-        </div>
+        <Metric title="Alertas próximos" value={totalAlertas.proximas} icon={<CalendarClock size={20} />} cor="#d97706" />
+        <Metric title="Alertas vencidos" value={totalAlertas.vencidas} icon={<AlertTriangle size={20} />} cor="#dc2626" />
       </div>
 
       {alertas.length > 0 && (
@@ -221,7 +212,9 @@ export function Manutencoes() {
 
       {podeGerenciar && (
         <form className="card card-soft p-3 mb-3" onSubmit={save}>
-          <h5>{edit ? 'Editar manutenção' : 'Registrar manutenção'}</h5>
+          <h5 style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Wrench size={17} /> {edit ? 'Editar manutenção' : 'Registrar manutenção'}
+          </h5>
 
           <div className="row">
             <Select
@@ -378,6 +371,10 @@ export function Manutencoes() {
                 </td>
               </tr>
             ))}
+
+            {items.length === 0 && (
+              <tr><td colSpan="8" className="text-muted" style={{ textAlign: 'center', padding: 28 }}>Nenhuma manutenção encontrada.</td></tr>
+            )}
           </tbody>
         </table>
       </div>

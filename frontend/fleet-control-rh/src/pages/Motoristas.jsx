@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { toast } from 'react-toastify';
+import { Users } from 'lucide-react';
 import { Header } from '../components/Layout/Header';
 import { Input } from '../components/Forms/Input';
 import { Search } from '../components/Forms/Search';
@@ -54,8 +55,15 @@ export function Motoristas() {
 
   return (
     <>
-      <Header title="Motoristas/Técnicos" subtitle="Equipe vinculada aos abastecimentos" />
+      <Header
+        title="Motoristas/Técnicos"
+        subtitle="Equipe vinculada aos abastecimentos"
+        actions={<span className="badge-soft">{items.length} cadastrados</span>}
+      />
 
+      <h5 style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+        <Users size={17} /> {edit ? 'Editar pessoa' : 'Nova pessoa'}
+      </h5>
       <form className="card card-soft p-3 mb-3" onSubmit={save}>
         <div className="row">
           <Input label="Nome" required value={form.nome} onChange={v => setForm({ ...form, nome: v })} />
@@ -74,13 +82,18 @@ export function Motoristas() {
           <tbody>
             {filtered.map(x => (
               <tr key={x.id}>
-                <td>{x.nome}</td><td>{x.documento}</td><td>{x.telefone}</td><td>{x.cargo}</td>
+                <td>{x.nome}</td><td>{x.documento}</td><td>{x.telefone}</td>
+                <td>{x.cargo ? <span className="chip chip-success">{x.cargo}</span> : '-'}</td>
                 <td>
                   <button className="btn btn-sm btn-warning me-2" onClick={() => { setEdit(x.id); setForm(x); }}>Editar</button>
                   <button className="btn btn-sm btn-danger" onClick={() => del(x.id)}>Remover</button>
                 </td>
               </tr>
             ))}
+
+            {filtered.length === 0 && (
+              <tr><td colSpan="5" className="text-muted" style={{ textAlign: 'center', padding: 28 }}>Nenhuma pessoa encontrada.</td></tr>
+            )}
           </tbody>
         </table>
       </div>

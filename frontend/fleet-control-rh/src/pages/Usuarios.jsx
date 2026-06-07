@@ -1,5 +1,6 @@
 import { useEffect, useState } from 'react';
 import { toast } from 'react-toastify';
+import { UserCog, ShieldCheck } from 'lucide-react';
 import { Header } from '../components/Layout/Header';
 import { Input } from '../components/Forms/Input';
 import { usuarioService } from '../services/usuarioService';
@@ -78,9 +79,22 @@ export function Usuarios() {
     setForm({ ...form, perfil: perfilNumero, permissoes: permissoesPadrao });
   }
 
+  function chipPerfil(p) {
+    const cls = p === 1 ? 'chip-danger' : p === 2 ? 'chip-warn' : 'chip-success';
+    return <span className={`chip ${cls}`}>{perfil(p)}</span>;
+  }
+
   return (
     <>
-      <Header title="Usuários" subtitle="Controle de acesso, perfis e permissões" />
+      <Header
+        title="Usuários"
+        subtitle="Controle de acesso, perfis e permissões"
+        actions={<span className="badge-soft">{items.length} usuários</span>}
+      />
+
+      <h5 style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+        <UserCog size={17} /> {edit ? 'Editar usuário' : 'Novo usuário'}
+      </h5>
 
       <form className="card card-soft p-3 mb-3" onSubmit={save}>
         <div className="row">
@@ -99,26 +113,31 @@ export function Usuarios() {
 
           <Input label="MotoristaId" type="number" value={form.motoristaId} onChange={v => setForm({ ...form, motoristaId: v })} />
 
-          <div className="col-md-12 mb-3">
-            <label className="fw-bold">Permissões de acesso</label>
-            <div className="row mt-2">
-              {TODAS_PERMISSOES.map(p => (
-                <div className="col-md-4 mb-2" key={p}>
-                  <label className="form-check">
-                    <input type="checkbox" className="form-check-input" checked={form.permissoes.includes(p)} onChange={e => togglePermissao(p, e.target.checked)} />
-                    <span className="form-check-label">{p}</span>
-                  </label>
-                </div>
-              ))}
-            </div>
-          </div>
-
           <div className="col-md-2 mb-3">
             <label>Status</label>
             <select className="form-select" value={form.ativo ? 'true' : 'false'} onChange={e => setForm({ ...form, ativo: e.target.value === 'true' })}>
               <option value="true">Ativo</option>
               <option value="false">Inativo</option>
             </select>
+          </div>
+
+          <div className="col-md-12 mb-3">
+            <div className="nfce-section">
+              <div className="section-label" style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+                <ShieldCheck size={15} /> Permissões de acesso
+                <span className="badge-soft" style={{ marginLeft: 'auto' }}>{form.permissoes.length} ativas</span>
+              </div>
+              <div className="row mt-2">
+                {TODAS_PERMISSOES.map(p => (
+                  <div className="col-md-4 mb-2" key={p}>
+                    <label className="form-check">
+                      <input type="checkbox" className="form-check-input" checked={form.permissoes.includes(p)} onChange={e => togglePermissao(p, e.target.checked)} />
+                      <span className="form-check-label">{p}</span>
+                    </label>
+                  </div>
+                ))}
+              </div>
+            </div>
           </div>
 
           <div className="col-md-2 d-flex align-items-end mb-3"><button className="btn btn-success w-100">{edit ? 'Atualizar' : 'Salvar'}</button></div>
@@ -131,7 +150,12 @@ export function Usuarios() {
           <tbody>
             {items.map(x => (
               <tr key={x.id}>
-                <td>{x.nome}</td><td>{x.email}</td><td>{perfil(x.perfil)}</td><td>{x.motoristaId || '-'}</td><td>{x.ativo ? 'Ativo' : 'Inativo'}</td><td>{x.permissoes?.length || 0}</td>
+                <td>{x.nome}</td>
+                <td>{x.email}</td>
+                <td>{chipPerfil(x.perfil)}</td>
+                <td>{x.motoristaId || '-'}</td>
+                <td><span className={`chip ${x.ativo ? 'chip-success' : 'chip-danger'}`}>{x.ativo ? 'Ativo' : 'Inativo'}</span></td>
+                <td><span className="badge-soft">{x.permissoes?.length || 0}</span></td>
                 <td>
                   <button className="btn btn-sm btn-warning" onClick={() => {
                     setEdit(x.id);
@@ -140,6 +164,10 @@ export function Usuarios() {
                 </td>
               </tr>
             ))}
+
+            {items.length === 0 && (
+              <tr><td colSpan="7" className="text-muted" style={{ textAlign: 'center', padding: 28 }}>Nenhum usuário encontrado.</td></tr>
+            )}
           </tbody>
         </table>
       </div>
