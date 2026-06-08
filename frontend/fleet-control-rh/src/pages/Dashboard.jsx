@@ -274,7 +274,7 @@ export function Dashboard() {
               <h3>Gasto por mês</h3>
               <span className="panel-sub">Valor abastecido no período</span>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>              
               <span className="panel-total">{money(totalGastoPeriodo)}</span>
               {seletorPeriodo}
             </div>
