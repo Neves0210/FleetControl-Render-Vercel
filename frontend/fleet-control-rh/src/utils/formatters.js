@@ -42,3 +42,14 @@ export function combustivel(value) {
 export function perfil(value) {
   return ({ 1: 'Master', 2: 'RH', 3: 'Técnico' })[value] || value;
 }
+
+export function dataHora(value) {
+  if (!value) return '-';
+  const d = new Date(value);
+  if (isNaN(d.getTime())) return '-';
+  return d.toLocaleString('pt-BR', {
+    dateStyle: 'short',
+    timeStyle: 'short',
+    timeZone: 'UTC'   // mostra a hora gravada como está, sem deslocar -3
+  });
+}

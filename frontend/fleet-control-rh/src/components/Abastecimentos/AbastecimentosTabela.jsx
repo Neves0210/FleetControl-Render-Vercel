@@ -2,6 +2,7 @@ import { useState } from 'react';
 import { api } from '../../api/api';
 import { litros, money, number } from '../../utils/formatters';
 import { temPermissao } from '../../utils/permissions';
+import { dataHora } from '../../utils/formatters';
 
 export function AbastecimentosTabela({ items, onEditar }) {
   const podeEditar = temPermissao('Abastecimentos.Editar');
@@ -45,7 +46,7 @@ export function AbastecimentosTabela({ items, onEditar }) {
         <tbody>
           {items.map(x => (
             <tr key={x.id}>
-              <td>{new Date(x.dataAbastecimento).toLocaleString('pt-BR')}</td>
+              <td>{dataHora(x.dataAbastecimento)}</td>
               <td>{x.veiculo?.placa}</td>
               <td>{x.motorista?.nome}</td>
               <td>{number(x.kmAtual)}</td>
