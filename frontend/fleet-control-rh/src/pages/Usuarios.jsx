@@ -6,6 +6,7 @@ import { Input } from '../components/Forms/Input';
 import { usuarioService } from '../services/usuarioService';
 import { TODAS_PERMISSOES } from '../utils/constants';
 import { perfil } from '../utils/formatters';
+import { PermissoesSelect } from '../components/Forms/PermissoesSelect';
 
 const initialForm = {
   nome: '',
@@ -127,15 +128,12 @@ export function Usuarios() {
                 <ShieldCheck size={15} /> Permissões de acesso
                 <span className="badge-soft" style={{ marginLeft: 'auto' }}>{form.permissoes.length} ativas</span>
               </div>
-              <div className="row mt-2">
-                {TODAS_PERMISSOES.map(p => (
-                  <div className="col-md-4 mb-2" key={p}>
-                    <label className="form-check">
-                      <input type="checkbox" className="form-check-input" checked={form.permissoes.includes(p)} onChange={e => togglePermissao(p, e.target.checked)} />
-                      <span className="form-check-label">{p}</span>
-                    </label>
-                  </div>
-                ))}
+              <div className="mt-2">
+                <PermissoesSelect
+                  todas={TODAS_PERMISSOES}
+                  value={form.permissoes}
+                  onChange={permissoes => setForm({ ...form, permissoes })}
+                />
               </div>
             </div>
           </div>
