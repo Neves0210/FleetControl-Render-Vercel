@@ -5,6 +5,7 @@ using FleetControlRH.Api.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using FleetControlRH.Api.Utils;
 
 namespace FleetControlRH.Api.Controllers;
 
@@ -133,7 +134,7 @@ public class UsosVeiculosController : ControllerBase
             UsuarioId = ObterUsuarioIdLogado(),
             KmInicial = dto.KmInicial,
             ObservacaoInicio = dto.ObservacaoInicio?.Trim(),
-            DataInicio = DateTime.Now,
+            DataInicio = DataHoraBrasil.Agora(),
             Status = StatusUsoVeiculo.EmUso
         };
 
@@ -173,7 +174,7 @@ public class UsosVeiculosController : ControllerBase
 
         uso.KmFinal = dto.KmFinal;
         uso.ObservacaoFim = dto.ObservacaoFim?.Trim();
-        uso.DataFim = DateTime.Now;
+        uso.DataFim = DataHoraBrasil.Agora();
         uso.Status = StatusUsoVeiculo.Finalizado;
 
         if (uso.Veiculo != null && dto.KmFinal > uso.Veiculo.KmAtual)
