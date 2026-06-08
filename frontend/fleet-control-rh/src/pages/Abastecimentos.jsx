@@ -1,6 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'react-toastify';
-import { Fuel, Camera, Link2, ScanLine } from 'lucide-react';
+import { Fuel, Camera, Link2, ScanLine, Filter, RotateCcw, Search, ClipboardList } from 'lucide-react';
 import { Header } from '../components/Layout/Header';
 import { Input } from '../components/Forms/Input';
 import { Select } from '../components/Forms/Select';
@@ -24,9 +24,14 @@ export function Abastecimentos() {
   const [form, setForm] = useState(emptyAbastecimento());
   const [editandoId, setEditandoId] = useState(null);
 
-  async function load() {
+  // Sub-telas + filtros de visualização
+  const [aba, setAba] = useState('registrar');     // 'registrar' | 'consultar'
+  const [busca, setBusca] = useState('');
+  const [periodo, setPeriodo] = useState({ de: '', ate: '' });
+
+  async function load(f = filtro) {
     const [abastecimentosRes, veiculosRes, motoristasRes] = await Promise.all([
-      abastecimentoService.listar(filtro),
+      abastecimentoService.listar(f),
       veiculoService.listar(),
       motoristaService.listar()
     ]);
@@ -181,6 +186,7 @@ export function Abastecimentos() {
     setUrlConsulta('');
     setResultadoLeitura(null);
 
+    setAba('registrar');
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
@@ -210,133 +216,221 @@ export function Abastecimentos() {
     }
   }
 
+  function aplicarFiltroServidor() {
+    setAba('consultar');
+    load(filtro).catch(() => toast.error('Erro ao filtrar abastecimentos.'));
+  }
+
+  function limparConsulta() {
+    const novo = { veiculoId: '', motoristaId: '' };
+    setFiltro(novo);
+    setBusca('');
+    setPeriodo({ de: '', ate: '' });
+    load(novo).catch(() => toast.error('Erro ao carregar abastecimentos.'));
+  }
+
+  /* Refino client-side sobre o que já veio do servidor (busca + intervalo de datas). */
+  const itemsFiltrados = useMemo(() => {
+    const q = busca.trim().toLowerCase();
+
+    return items.filter(x => {
+      if (q) {
+        const alvo = `${x.veiculo?.placa || ''} ${x.veiculo?.modelo || ''} ${x.motorista?.nome || ''} ${x.posto || ''}`.toLowerCase();
+        if (!alvo.includes(q)) return false;
+      }
+
+      if (periodo.de || periodo.ate) {
+        const dia = String(x.dataAbastecimento || '').slice(0, 10); // YYYY-MM-DD (relógio gravado)
+        if (!dia) return false;
+        if (periodo.de && dia < periodo.de) return false;
+        if (periodo.ate && dia > periodo.ate) return false;
+      }
+
+      return true;
+    });
+  }, [items, busca, periodo]);
+
   return (
     <>
       <Header
         title="Abastecimentos"
-        subtitle={editandoId ? 'Edite os dados do abastecimento selecionado' : 'Registre abastecimentos e anexe a nota fiscal'}
-        actions={editandoId && (
+        subtitle={
+          aba === 'registrar'
+            ? (editandoId ? 'Edite os dados do abastecimento selecionado' : 'Registre abastecimentos e anexe a nota fiscal')
+            : 'Consulte, filtre e baixe as notas dos abastecimentos'
+        }
+        actions={editandoId && aba === 'registrar' && (
           <button type="button" className="btn btn-secondary" onClick={limparFormulario}>Cancelar edição</button>
         )}
       />
 
-      <form className="card card-soft p-3 mb-4" onSubmit={save}>
-        <h5 style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-          <Fuel size={17} /> {editandoId ? 'Editar abastecimento' : 'Novo abastecimento'}
-        </h5>
+      <div className="segmented" style={{ marginBottom: 18 }}>
+        <button className={`seg ${aba === 'registrar' ? 'active' : ''}`} onClick={() => setAba('registrar')}>
+          Registro
+        </button>
+        <button className={`seg ${aba === 'consultar' ? 'active' : ''}`} onClick={() => setAba('consultar')}>
+          Consulta
+        </button>
+      </div>
 
-        <div className="row">
-          <div className="col-md-12 mb-3">
-            <div className="nfce-section">
-              <div className="section-label" style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-                <Camera size={15} /> Foto da nota fiscal inteira
+      {/* ───────────────── ABA: REGISTRO ───────────────── */}
+      {aba === 'registrar' && (
+        <form className="card card-soft p-3 mb-4" onSubmit={save}>
+          <h5 style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Fuel size={17} /> {editandoId ? 'Editar abastecimento' : 'Novo abastecimento'}
+          </h5>
+
+          <div className="row">
+            <div className="col-md-12 mb-3">
+              <div className="nfce-section">
+                <div className="section-label" style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+                  <Camera size={15} /> Foto da nota fiscal inteira
+                </div>
+
+                <input
+                  className="form-control"
+                  type="file"
+                  accept="image/*"
+                  capture="environment"
+                  required={!editandoId && !foto}
+                  onChange={e => fileChange(e.target.files[0])}
+                />
+
+                <small className="text-muted d-block mt-2">
+                  Tire a foto da nota inteira. O backend vai localizar o QR Code, tratar a imagem e tentar OCR automaticamente.
+                </small>
+
+                {editandoId && (
+                  <small className="text-muted d-block mt-1">
+                    Ao editar, envie uma nova foto somente se quiser substituir a nota salva.
+                  </small>
+                )}
+
+                {preview && <img src={preview} className="preview-img" />}
+
+                <div className="mt-2 d-flex gap-2">
+                  <button
+                    type="button"
+                    className="btn btn-outline-primary"
+                    disabled={analisandoNota || !foto}
+                    onClick={() => analisarFotoNotaInteira()}
+                  >
+                    <ScanLine size={16} /> {analisandoNota ? 'Processando NFC-e...' : 'Analisar foto da nota'}
+                  </button>
+                </div>
+
+                {resultadoLeitura && (
+                  <div className="alert alert-info mt-3">
+                    <strong>Método:</strong> {resultadoLeitura.metodo || '-'}<br />
+                    {resultadoLeitura.confianca !== undefined && resultadoLeitura.confianca !== null && (
+                      <>
+                        <strong>Confiança:</strong> {Math.round(Number(resultadoLeitura.confianca) * 100)}%<br />
+                      </>
+                    )}
+                    {resultadoLeitura.chaveAcesso && (
+                      <>
+                        <strong>Chave:</strong> {resultadoLeitura.chaveAcesso}<br />
+                      </>
+                    )}
+                    {resultadoLeitura.urlConsulta && (
+                      <>
+                        <strong>URL:</strong> {resultadoLeitura.urlConsulta}
+                      </>
+                    )}
+                  </div>
+                )}
+
+                <label className="mt-3" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                  <Link2 size={14} /> URL completa da NFC-e
+                </label>
+                <div className="input-group">
+                  <input
+                    className="form-control"
+                    placeholder="Emergência: cole a URL completa se a imagem falhar"
+                    value={urlConsulta}
+                    onChange={e => setUrlConsulta(e.target.value)}
+                  />
+                  <button type="button" className="btn btn-outline-secondary" onClick={analisarUrlManual}>
+                    Analisar URL
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            <Select label="Veículo" required value={form.veiculoId} onChange={v => setForm({ ...form, veiculoId: v })} items={veiculos} text={x => `${x.modelo} - ${x.placa}`} />
+            <Select label="Motorista/Técnico" required value={form.motoristaId} onChange={v => setForm({ ...form, motoristaId: v })} items={motoristas} text={x => x.nome} />
+            <Input label="Data" required type="datetime-local" value={form.dataAbastecimento} onChange={v => setForm({ ...form, dataAbastecimento: v })} />
+            <Input label="KM atual" required type="number" min="1" value={form.kmAtual} onChange={v => setForm({ ...form, kmAtual: v })} />
+            <Input label="Litros" required type="number" min="0.001" step="0.001" value={form.litros} onChange={v => setForm({ ...form, litros: v })} />
+            <Input label="Valor total" required type="number" min="0.01" step="0.01" value={form.valorTotal} onChange={v => setForm({ ...form, valorTotal: v })} />
+            <Input label="Posto" value={form.posto} onChange={v => setForm({ ...form, posto: v })} />
+          </div>
+
+          <label>Observação</label>
+          <textarea className="form-control mb-3" rows="3" value={form.observacao} onChange={e => setForm({ ...form, observacao: e.target.value })} />
+
+          <div className="d-flex gap-2">
+            <button className="btn btn-success">
+              {editandoId ? 'Atualizar Abastecimento' : 'Salvar Abastecimento'}
+            </button>
+
+            {editandoId && (
+              <button type="button" className="btn btn-secondary" onClick={limparFormulario}>
+                Cancelar edição
+              </button>
+            )}
+          </div>
+        </form>
+      )}
+
+      {/* ───────────────── ABA: CONSULTA ───────────────── */}
+      {aba === 'consultar' && (
+        <>
+          <div className="card card-soft p-3 mb-3">
+            <h5 style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
+              <Filter size={17} /> Filtros
+            </h5>
+
+            <div className="row">
+              <Select label="Veículo" value={filtro.veiculoId} onChange={v => setFiltro({ ...filtro, veiculoId: v })} items={veiculos} text={x => `${x.modelo} - ${x.placa}`} />
+              <Select label="Motorista" value={filtro.motoristaId} onChange={v => setFiltro({ ...filtro, motoristaId: v })} items={motoristas} text={x => x.nome} />
+              <Input label="De" type="date" value={periodo.de} onChange={v => setPeriodo({ ...periodo, de: v })} />
+              <Input label="Até" type="date" value={periodo.ate} onChange={v => setPeriodo({ ...periodo, ate: v })} />
+
+              <div className="col-md-12 mb-3">
+                <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}><Search size={14} /> Buscar</label>
+                <input
+                  className="form-control"
+                  placeholder="Placa, modelo, motorista ou posto"
+                  value={busca}
+                  onChange={e => setBusca(e.target.value)}
+                />
               </div>
 
-              <input
-                className="form-control"
-                type="file"
-                accept="image/*"
-                capture="environment"
-                required={!editandoId && !foto}
-                onChange={e => fileChange(e.target.files[0])}
-              />
-
-              <small className="text-muted d-block mt-2">
-                Tire a foto da nota inteira. O backend vai localizar o QR Code, tratar a imagem e tentar OCR automaticamente.
-              </small>
-
-              {editandoId && (
-                <small className="text-muted d-block mt-1">
-                  Ao editar, envie uma nova foto somente se quiser substituir a nota salva.
-                </small>
-              )}
-
-              {preview && <img src={preview} className="preview-img" />}
-
-              <div className="mt-2 d-flex gap-2">
-                <button
-                  type="button"
-                  className="btn btn-outline-primary"
-                  disabled={analisandoNota || !foto}
-                  onClick={() => analisarFotoNotaInteira()}
-                >
-                  <ScanLine size={16} /> {analisandoNota ? 'Processando NFC-e...' : 'Analisar foto da nota'}
+              <div className="col-md-3 d-flex align-items-end mb-3">
+                <button type="button" className="btn btn-primary w-100" onClick={aplicarFiltroServidor}>
+                  <Filter size={16} /> Filtrar
                 </button>
               </div>
 
-              {resultadoLeitura && (
-                <div className="alert alert-info mt-3">
-                  <strong>Método:</strong> {resultadoLeitura.metodo || '-'}<br />
-                  {resultadoLeitura.confianca !== undefined && resultadoLeitura.confianca !== null && (
-                    <>
-                      <strong>Confiança:</strong> {Math.round(Number(resultadoLeitura.confianca) * 100)}%<br />
-                    </>
-                  )}
-                  {resultadoLeitura.chaveAcesso && (
-                    <>
-                      <strong>Chave:</strong> {resultadoLeitura.chaveAcesso}<br />
-                    </>
-                  )}
-                  {resultadoLeitura.urlConsulta && (
-                    <>
-                      <strong>URL:</strong> {resultadoLeitura.urlConsulta}
-                    </>
-                  )}
-                </div>
-              )}
-
-              <label className="mt-3" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-                <Link2 size={14} /> URL completa da NFC-e
-              </label>
-              <div className="input-group">
-                <input
-                  className="form-control"
-                  placeholder="Emergência: cole a URL completa se a imagem falhar"
-                  value={urlConsulta}
-                  onChange={e => setUrlConsulta(e.target.value)}
-                />
-                <button type="button" className="btn btn-outline-secondary" onClick={analisarUrlManual}>
-                  Analisar URL
+              <div className="col-md-3 d-flex align-items-end mb-3">
+                <button type="button" className="btn btn-outline-secondary w-100" onClick={limparConsulta}>
+                  <RotateCcw size={16} /> Limpar
                 </button>
               </div>
             </div>
+
+            <small className="text-muted" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <ClipboardList size={14} /> Exibindo {itemsFiltrados.length} de {items.length} abastecimento(s).
+              Veículo e motorista filtram no servidor; busca e datas refinam a lista carregada.
+            </small>
           </div>
 
-          <Select label="Veículo" required value={form.veiculoId} onChange={v => setForm({ ...form, veiculoId: v })} items={veiculos} text={x => `${x.modelo} - ${x.placa}`} />
-          <Select label="Motorista/Técnico" required value={form.motoristaId} onChange={v => setForm({ ...form, motoristaId: v })} items={motoristas} text={x => x.nome} />
-          <Input label="Data" required type="datetime-local" value={form.dataAbastecimento} onChange={v => setForm({ ...form, dataAbastecimento: v })} />
-          <Input label="KM atual" required type="number" min="1" value={form.kmAtual} onChange={v => setForm({ ...form, kmAtual: v })} />
-          <Input label="Litros" required type="number" min="0.001" step="0.001" value={form.litros} onChange={v => setForm({ ...form, litros: v })} />
-          <Input label="Valor total" required type="number" min="0.01" step="0.01" value={form.valorTotal} onChange={v => setForm({ ...form, valorTotal: v })} />
-          <Input label="Posto" value={form.posto} onChange={v => setForm({ ...form, posto: v })} />
-        </div>
-
-        <label>Observação</label>
-        <textarea className="form-control mb-3" rows="3" value={form.observacao} onChange={e => setForm({ ...form, observacao: e.target.value })} />
-
-        <div className="d-flex gap-2">
-          <button className="btn btn-success">
-            {editandoId ? 'Atualizar Abastecimento' : 'Salvar Abastecimento'}
-          </button>
-
-          {editandoId && (
-            <button type="button" className="btn btn-secondary" onClick={limparFormulario}>
-              Cancelar edição
-            </button>
-          )}
-        </div>
-      </form>
-
-      <div className="card card-soft p-3 mb-3">
-        <h5 style={{ marginBottom: 12 }}>Filtros</h5>
-        <div className="row">
-          <Select label="Filtrar veículo" value={filtro.veiculoId} onChange={v => setFiltro({ ...filtro, veiculoId: v })} items={veiculos} text={x => `${x.modelo} - ${x.placa}`} />
-          <Select label="Filtrar motorista" value={filtro.motoristaId} onChange={v => setFiltro({ ...filtro, motoristaId: v })} items={motoristas} text={x => x.nome} />
-          <div className="col-md-2 d-flex align-items-end mb-3"><button type="button" className="btn btn-primary w-100" onClick={load}>Filtrar</button></div>
-        </div>
-      </div>
-
-      <div className="card card-soft table-card"><AbastecimentosTabela items={items} onEditar={editarAbastecimento} /></div>
+          <div className="card card-soft table-card">
+            <AbastecimentosTabela items={itemsFiltrados} onEditar={editarAbastecimento} />
+          </div>
+        </>
+      )}
     </>
   );
 }
