@@ -229,9 +229,14 @@ export function Dashboard() {
   }
 
   const seletorPeriodo = (
-    <div className="segmented">
+    <div className="d-flex gap-2">
       {PERIODOS.map(p => (
-        <button key={p.id} className={`seg ${periodo === p.id ? 'active' : ''}`} onClick={() => setPeriodo(p.id)}>
+        <button
+          key={p.id}
+          type="button"
+          className={`btn btn-sm ${periodo === p.id ? 'btn-primary' : 'btn-outline-secondary'}`}
+          onClick={() => setPeriodo(p.id)}
+        >
           {p.label}
         </button>
       ))}
