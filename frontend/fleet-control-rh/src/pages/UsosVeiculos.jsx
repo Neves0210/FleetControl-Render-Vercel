@@ -1,13 +1,13 @@
 import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'react-toastify';
-import { KeyRound, PlayCircle, StopCircle } from 'lucide-react';
+import { Edit3, KeyRound, PlayCircle, StopCircle } from 'lucide-react';
 import { Header } from '../components/Layout/Header';
 import { Input } from '../components/Forms/Input';
 import { Select } from '../components/Forms/Select';
 import { usoVeiculoService } from '../services/usoVeiculoService';
 import { veiculoService } from '../services/veiculoService';
 import { motoristaService } from '../services/motoristaService';
-import { getUser } from '../utils/permissions';
+import { getUser, temPermissao } from '../utils/permissions';
 import { number } from '../utils/formatters';
 
 const initialForm = {
@@ -21,6 +21,16 @@ const initialFinalizar = {
   usoId: null,
   kmFinal: '',
   observacaoFim: ''
+};
+
+const initialEditForm = {
+  veiculoId: '',
+  motoristaId: '',
+  kmInicial: '',
+  kmFinal: '',
+  observacaoInicio: '',
+  observacaoFim: '',
+  status: null
 };
 
 function formatDate(value) {
@@ -49,6 +59,8 @@ export function UsosVeiculos() {
   const [motoristas, setMotoristas] = useState([]);
   const [form, setForm] = useState(initialForm);
   const [finalizar, setFinalizar] = useState(initialFinalizar);
+  const [editandoId, setEditandoId] = useState(null);
+  const [editForm, setEditForm] = useState(initialEditForm);
   const [filtro, setFiltro] = useState({
     veiculoId: '',
     motoristaId: '',
@@ -56,6 +68,7 @@ export function UsosVeiculos() {
   });
 
   const usuarioTecnico = user?.perfil === 3 || user?.perfil === 'Tecnico';
+  const podeEditar = user?.perfil === 1 || user?.perfil === 2 || temPermissao('UsosVeiculos.Editar');
 
   const usosAtivos = useMemo(
     () => items.filter(x => x.status === 1 || x.status === 'EmUso'),
@@ -161,6 +174,56 @@ export function UsosVeiculos() {
     }
   }
 
+  function abrirEdicao(uso) {
+    setEditandoId(uso.id);
+    setEditForm({
+      veiculoId: uso.veiculoId || '',
+      motoristaId: uso.motoristaId || '',
+      kmInicial: uso.kmInicial ?? '',
+      kmFinal: uso.kmFinal ?? '',
+      observacaoInicio: uso.observacaoInicio || '',
+      observacaoFim: uso.observacaoFim || '',
+      status: uso.status
+    });
+
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  function cancelarEdicao() {
+    setEditandoId(null);
+    setEditForm(initialEditForm);
+  }
+
+  async function salvarEdicao(e) {
+    e.preventDefault();
+
+    if (!editandoId) return;
+
+    try {
+      await usoVeiculoService.editar(editandoId, {
+        veiculoId: Number(editForm.veiculoId),
+        motoristaId: usuarioTecnico
+          ? Number(user?.motoristaId || 0)
+          : Number(editForm.motoristaId),
+        kmInicial: Number(editForm.kmInicial),
+        kmFinal: editForm.kmFinal === '' ? null : Number(editForm.kmFinal),
+        observacaoInicio: editForm.observacaoInicio,
+        observacaoFim: editForm.observacaoFim
+      });
+
+      toast.success('Uso do veiculo atualizado.');
+
+      cancelarEdicao();
+      await load();
+    } catch (err) {
+      toast.error(err.response?.data?.mensagem || 'Erro ao atualizar uso do veiculo.');
+    }
+  }
+
+  function usoFinalizado(status) {
+    return status === 2 || status === 'Finalizado';
+  }
+
   return (
     <>
       <Header
@@ -251,6 +314,78 @@ export function UsosVeiculos() {
         </div>
       </div>
 
+      {editandoId && (
+        <form className="card card-soft p-3 mb-3" onSubmit={salvarEdicao}>
+          <h5 style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+            <Edit3 size={17} /> Editar uso
+          </h5>
+
+          <div className="row">
+            <Select
+              label="Veiculo"
+              value={editForm.veiculoId}
+              onChange={v => setEditForm({ ...editForm, veiculoId: v })}
+              items={veiculos}
+              text={x => `${x.modelo} - ${x.placa} | KM ${number(x.kmAtual)}`}
+            />
+
+            {!usuarioTecnico && (
+              <Select
+                label="Motorista/Tecnico"
+                value={editForm.motoristaId}
+                onChange={v => setEditForm({ ...editForm, motoristaId: v })}
+                items={motoristas}
+                text={x => x.nome}
+              />
+            )}
+
+            <Input
+              label="KM inicial"
+              type="number"
+              value={editForm.kmInicial}
+              onChange={v => setEditForm({ ...editForm, kmInicial: v })}
+            />
+
+            {usoFinalizado(editForm.status) && (
+              <Input
+                label="KM final"
+                type="number"
+                value={editForm.kmFinal}
+                onChange={v => setEditForm({ ...editForm, kmFinal: v })}
+              />
+            )}
+
+            <div className="col-md-6 mb-3">
+              <label>Observacao de inicio</label>
+              <textarea
+                className="form-control"
+                rows="2"
+                value={editForm.observacaoInicio}
+                onChange={e => setEditForm({ ...editForm, observacaoInicio: e.target.value })}
+              />
+            </div>
+
+            <div className="col-md-6 mb-3">
+              <label>Observacao de fim</label>
+              <textarea
+                className="form-control"
+                rows="2"
+                value={editForm.observacaoFim}
+                onChange={e => setEditForm({ ...editForm, observacaoFim: e.target.value })}
+              />
+            </div>
+
+            <div className="col-md-3 d-flex align-items-end mb-3">
+              <button className="btn btn-success w-100">Atualizar uso</button>
+            </div>
+
+            <div className="col-md-3 d-flex align-items-end mb-3">
+              <button type="button" className="btn btn-outline-secondary w-100" onClick={cancelarEdicao}>Cancelar</button>
+            </div>
+          </div>
+        </form>
+      )}
+
       <div className="card card-soft p-3 mb-3">
         <h5 style={{ display: 'flex', alignItems: 'center', gap: 8 }}><KeyRound size={17} /> Filtros</h5>
 
@@ -309,6 +444,7 @@ export function UsosVeiculos() {
               <th>KM inicial</th>
               <th>KM final</th>
               <th>KM rodado</th>
+              {podeEditar && <th width="100"></th>}
             </tr>
           </thead>
 
@@ -328,11 +464,16 @@ export function UsosVeiculos() {
                 <td>{number(x.kmInicial)}</td>
                 <td>{x.kmFinal ? number(x.kmFinal) : '-'}</td>
                 <td>{x.kmFinal ? number(x.kmFinal - x.kmInicial) : '-'}</td>
+                {podeEditar && (
+                  <td>
+                    <button className="btn btn-sm btn-warning" onClick={() => abrirEdicao(x)}>Editar</button>
+                  </td>
+                )}
               </tr>
             ))}
 
             {items.length === 0 && (
-              <tr><td colSpan="9" className="text-muted" style={{ textAlign: 'center', padding: 28 }}>Nenhum uso encontrado.</td></tr>
+              <tr><td colSpan={podeEditar ? 10 : 9} className="text-muted" style={{ textAlign: 'center', padding: 28 }}>Nenhum uso encontrado.</td></tr>
             )}
           </tbody>
         </table>

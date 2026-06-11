@@ -7,6 +7,7 @@ export const TODAS_PERMISSOES = [
   'Abastecimentos.Editar',
   'UsosVeiculos.Visualizar',
   'UsosVeiculos.Criar',
+  'UsosVeiculos.Editar',
   'UsosVeiculos.Finalizar',
   'Manutencoes.Visualizar',
   'Manutencoes.Gerenciar',
