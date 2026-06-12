@@ -4,5 +4,8 @@
 **/dist/
 **/.env
 **/*.db
+**/*.backup
+**/*.dump
+**/*.sql
 **/wwwroot/uploads/notas-fiscais/*
 !**/wwwroot/uploads/notas-fiscais/.gitkeep

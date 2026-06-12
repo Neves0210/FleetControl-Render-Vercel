@@ -38,6 +38,7 @@ public class RelatoriosController : ControllerBase
         var abastecimentosQuery = _db.Abastecimentos
             .Include(x => x.Veiculo)
             .Include(x => x.Motorista)
+            .AsNoTracking()
             .AsQueryable();
 
         if (inicio.HasValue)
@@ -59,6 +60,7 @@ public class RelatoriosController : ControllerBase
         var usosQuery = _db.UsosVeiculos
             .Include(x => x.Veiculo)
             .Include(x => x.Motorista)
+            .AsNoTracking()
             .AsQueryable();
 
         if (inicio.HasValue)
@@ -79,6 +81,7 @@ public class RelatoriosController : ControllerBase
 
         var manutencoesQuery = _db.ManutencoesVeiculos
             .Include(x => x.Veiculo)
+            .AsNoTracking()
             .AsQueryable();
 
         if (inicio.HasValue)

@@ -24,6 +24,7 @@ public class DashboardController : ControllerBase
         var query = _db.Abastecimentos
             .Include(x => x.Veiculo)
             .Include(x => x.Motorista)
+            .AsNoTracking()
             .AsQueryable();
 
         if (User.IsInRole("Tecnico"))
@@ -54,18 +55,46 @@ public class DashboardController : ControllerBase
         if (veiculoId.HasValue)
             query = query.Where(x => x.VeiculoId == veiculoId.Value);
 
-        var abastecimentos = await query
+        var resumo = await query
+            .GroupBy(_ => 1)
+            .Select(g => new
+            {
+                veiculos = g.Select(x => x.VeiculoId).Distinct().Count(),
+                motoristas = g.Select(x => x.MotoristaId).Distinct().Count(),
+                abastecimentos = g.Count(),
+                totalLitros = g.Sum(x => x.Litros),
+                totalValor = g.Sum(x => x.ValorTotal)
+            })
+            .FirstOrDefaultAsync();
+
+        var ultimos = await query
             .OrderByDescending(x => x.DataAbastecimento)
+            .Take(5)
+            .Select(x => new
+            {
+                x.Id,
+                x.VeiculoId,
+                x.Veiculo,
+                x.MotoristaId,
+                x.Motorista,
+                x.KmAtual,
+                x.Litros,
+                x.ValorTotal,
+                x.Posto,
+                x.DataAbastecimento,
+                x.CriadoEm,
+                temFoto = x.FotoNotaFiscal != null
+            })
             .ToListAsync();
 
         return Ok(new
         {
-            veiculos = abastecimentos.Select(x => x.VeiculoId).Distinct().Count(),
-            motoristas = abastecimentos.Select(x => x.MotoristaId).Distinct().Count(),
-            abastecimentos = abastecimentos.Count,
-            totalLitros = abastecimentos.Sum(x => x.Litros),
-            totalValor = abastecimentos.Sum(x => x.ValorTotal),
-            ultimos = abastecimentos.Take(5)
+            veiculos = resumo?.veiculos ?? 0,
+            motoristas = resumo?.motoristas ?? 0,
+            abastecimentos = resumo?.abastecimentos ?? 0,
+            totalLitros = resumo?.totalLitros ?? 0,
+            totalValor = resumo?.totalValor ?? 0,
+            ultimos
         });
     }
 

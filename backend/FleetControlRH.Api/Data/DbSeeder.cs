@@ -6,19 +6,29 @@ public static class DbSeeder
 {
     public static void Seed(AppDbContext db)
     {
-        if (!db.Usuarios.Any())
+        var adminEmail = Environment.GetEnvironmentVariable("SEED_ADMIN_EMAIL");
+        var adminPassword = Environment.GetEnvironmentVariable("SEED_ADMIN_PASSWORD");
+
+        if (!db.Usuarios.Any() &&
+            !string.IsNullOrWhiteSpace(adminEmail) &&
+            !string.IsNullOrWhiteSpace(adminPassword))
         {
             db.Usuarios.Add(new Usuario
             {
                 Nome = "Administrador",
-                Email = "admin@fleet.local",
-                SenhaHash = BCrypt.Net.BCrypt.HashPassword("123456"),
+                Email = adminEmail.Trim().ToLowerInvariant(),
+                SenhaHash = BCrypt.Net.BCrypt.HashPassword(adminPassword),
                 Perfil = PerfilUsuario.Master,
                 Ativo = true
             });
         }
 
-        if (!db.Veiculos.Any())
+        var seedSampleData = string.Equals(
+            Environment.GetEnvironmentVariable("ASPNETCORE_ENVIRONMENT"),
+            "Development",
+            StringComparison.OrdinalIgnoreCase);
+
+        if (seedSampleData && !db.Veiculos.Any())
         {
             db.Veiculos.Add(new Veiculo
             {
@@ -30,7 +40,7 @@ public static class DbSeeder
             });
         }
 
-        if (!db.Motoristas.Any())
+        if (seedSampleData && !db.Motoristas.Any())
         {
             db.Motoristas.Add(new Motorista
             {

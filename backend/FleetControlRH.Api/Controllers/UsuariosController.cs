@@ -25,6 +25,7 @@ public class UsuariosController : ControllerBase
         var usuarios = await _db.Usuarios
             .Include(x => x.Motorista)
             .Include(x => x.Permissoes)
+            .AsNoTracking()
             .OrderBy(x => x.Nome)
             .Select(x => new
             {

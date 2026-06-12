@@ -72,7 +72,11 @@ namespace FleetControlRH.Api.Migrations
 
                     b.HasIndex("MotoristaId");
 
+                    b.HasIndex("MotoristaId", "DataAbastecimento");
+
                     b.HasIndex("VeiculoId");
+
+                    b.HasIndex("VeiculoId", "DataAbastecimento");
 
                     b.ToTable("Abastecimentos");
                 });
@@ -118,6 +122,8 @@ namespace FleetControlRH.Api.Migrations
                     b.HasKey("Id");
 
                     b.HasIndex("VeiculoId");
+
+                    b.HasIndex("VeiculoId", "DataManutencao");
 
                     b.ToTable("ManutencoesVeiculos");
                 });
@@ -199,9 +205,13 @@ namespace FleetControlRH.Api.Migrations
 
                     b.HasIndex("MotoristaId");
 
+                    b.HasIndex("MotoristaId", "DataInicio");
+
                     b.HasIndex("UsuarioId");
 
                     b.HasIndex("VeiculoId");
+
+                    b.HasIndex("VeiculoId", "DataInicio");
 
                     b.ToTable("UsosVeiculos");
                 });

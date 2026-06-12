@@ -22,6 +22,7 @@ public class VeiculosController : ControllerBase
     public async Task<IActionResult> Get()
     {
         var veiculos = await _db.Veiculos
+            .AsNoTracking()
             .Where(x => x.Ativo)
             .OrderBy(x => x.Modelo)
             .ToListAsync();
@@ -32,7 +33,9 @@ public class VeiculosController : ControllerBase
     [HttpGet("{id:int}")]
     public async Task<IActionResult> GetById(int id)
     {
-        var item = await _db.Veiculos.FindAsync(id);
+        var item = await _db.Veiculos
+            .AsNoTracking()
+            .FirstOrDefaultAsync(x => x.Id == id);
 
         return item == null ? NotFound() : Ok(item);
     }

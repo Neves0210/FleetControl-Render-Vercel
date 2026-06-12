@@ -22,6 +22,7 @@ public class MotoristasController : ControllerBase
     public async Task<IActionResult> Get()
     {
         var motoristas = await _db.Motoristas
+            .AsNoTracking()
             .Where(x => x.Ativo)
             .OrderBy(x => x.Nome)
             .ToListAsync();

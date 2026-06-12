@@ -2,6 +2,7 @@ using FleetControlRH.Api.Data;
 using FleetControlRH.Api.DTOs;
 using FleetControlRH.Api.Models;
 using FleetControlRH.Api.Services;
+using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -21,6 +22,7 @@ public class AuthController : ControllerBase
     }
 
     [HttpPost("login")]
+    [EnableRateLimiting("Login")]
     public async Task<ActionResult<LoginResponse>> Login(LoginRequest request)
     {
         var usuario = await _db.Usuarios

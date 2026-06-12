@@ -31,6 +31,7 @@ public class AbastecimentosController : ControllerBase
         var query = _db.Abastecimentos
             .Include(x => x.Veiculo)
             .Include(x => x.Motorista)
+            .AsNoTracking()
             .AsQueryable();
 
         if (UsuarioEhTecnico())
@@ -122,7 +123,7 @@ public class AbastecimentosController : ControllerBase
         if (abastecimento == null)
             return NotFound();
 
-        var exigirFoto = string.IsNullOrWhiteSpace(abastecimento.FotoNotaFiscalPath);
+        var exigirFoto = abastecimento.FotoNotaFiscal == null || abastecimento.FotoNotaFiscal.Length == 0;
 
         var erro = await ValidarAbastecimentoAsync(model, fotoNotaFiscal, exigirFoto, id);
 
@@ -161,6 +162,7 @@ public class AbastecimentosController : ControllerBase
     public async Task<IActionResult> ObterFoto(int id)
     {
         var foto = await _db.Abastecimentos
+            .AsNoTracking()
             .Where(x => x.Id == id)
             .Select(x => new { x.FotoNotaFiscal, x.FotoNotaFiscalContentType })
             .FirstOrDefaultAsync();
@@ -383,6 +385,12 @@ public class AbastecimentosController : ControllerBase
         if (!extensoesPermitidas.Contains(extensao))
             return "A foto da nota fiscal deve estar nos formatos JPG, JPEG, PNG ou WEBP.";
 
+        var contentTypesPermitidos = new[] { "image/jpeg", "image/png", "image/webp" };
+
+        if (string.IsNullOrWhiteSpace(arquivo.ContentType) ||
+            !contentTypesPermitidos.Contains(arquivo.ContentType.ToLowerInvariant()))
+            return "O tipo do arquivo enviado nao e uma imagem permitida.";
+
         const long tamanhoMaximo = 5 * 1024 * 1024;
 
         if (arquivo.Length > tamanhoMaximo)
@@ -397,10 +405,9 @@ public class AbastecimentosController : ControllerBase
         {
             var placa = resultado.Placa.Replace("-", "").ToUpperInvariant();
 
-            var veiculos = await _db.Veiculos.ToListAsync();
-
-            var veiculo = veiculos.FirstOrDefault(x =>
-                (x.Placa ?? string.Empty).Replace("-", "").ToUpperInvariant() == placa);
+            var veiculo = await _db.Veiculos
+                .AsNoTracking()
+                .FirstOrDefaultAsync(x => (x.Placa ?? string.Empty).Replace("-", "").ToUpper() == placa);
 
             resultado.VeiculoId = veiculo?.Id;
         }
@@ -409,10 +416,9 @@ public class AbastecimentosController : ControllerBase
         {
             var nome = resultado.Motorista.ToUpperInvariant();
 
-            var motoristas = await _db.Motoristas.ToListAsync();
-
-            var motorista = motoristas.FirstOrDefault(x =>
-                (x.Nome ?? string.Empty).ToUpperInvariant().Contains(nome));
+            var motorista = await _db.Motoristas
+                .AsNoTracking()
+                .FirstOrDefaultAsync(x => (x.Nome ?? string.Empty).ToUpper().Contains(nome));
 
             resultado.MotoristaId = motorista?.Id;
         }

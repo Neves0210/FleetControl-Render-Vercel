@@ -69,5 +69,20 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<Abastecimento>()
             .Property(x => x.FotoNotaFiscal)
             .HasColumnType("bytea");
+
+        modelBuilder.Entity<Abastecimento>()
+            .HasIndex(x => new { x.VeiculoId, x.DataAbastecimento });
+
+        modelBuilder.Entity<Abastecimento>()
+            .HasIndex(x => new { x.MotoristaId, x.DataAbastecimento });
+
+        modelBuilder.Entity<UsoVeiculo>()
+            .HasIndex(x => new { x.VeiculoId, x.DataInicio });
+
+        modelBuilder.Entity<UsoVeiculo>()
+            .HasIndex(x => new { x.MotoristaId, x.DataInicio });
+
+        modelBuilder.Entity<ManutencaoVeiculo>()
+            .HasIndex(x => new { x.VeiculoId, x.DataManutencao });
     }
 }

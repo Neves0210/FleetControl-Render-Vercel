@@ -18,9 +18,9 @@ public class TokenService
     public string GerarToken(Usuario usuario, IEnumerable<string>? permissoesExtras = null)
     {
         var jwtKey =
-            _configuration["Jwt:Key"]
-            ?? Environment.GetEnvironmentVariable("JWT__Key")
-            ?? "FleetControlRH_JWT_SECRET_LOCAL_DEVELOPMENT_KEY";
+            Environment.GetEnvironmentVariable("JWT_KEY")
+            ?? _configuration["Jwt:Key"]
+            ?? throw new InvalidOperationException("JWT key nao configurada.");
 
         var jwtIssuer =
             _configuration["Jwt:Issuer"]

@@ -1,4 +1,5 @@
 import logging
+import os
 import time
 from fastapi import FastAPI, UploadFile, File, HTTPException
 from fastapi.middleware.cors import CORSMiddleware
@@ -16,10 +17,16 @@ logger = logging.getLogger(__name__)
 
 app = FastAPI(title="FleetControlRH NFC-e Reader", version="2.2.0")
 
+allowed_origins = [
+    origin.strip()
+    for origin in os.getenv("ALLOWED_ORIGINS", "http://localhost:5173").split(",")
+    if origin.strip()
+]
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
-    allow_credentials=True,
+    allow_origins=allowed_origins,
+    allow_credentials=False,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -74,6 +81,8 @@ async def analisar_imagem(file: UploadFile = File(...)):
         raise HTTPException(status_code=400, detail="Envie uma imagem válida.")
 
     file_bytes = await file.read()
+    if len(file_bytes) > 5 * 1024 * 1024:
+        raise HTTPException(status_code=413, detail="A imagem deve ter no maximo 5 MB.")
 
     try:
         image = load_image_from_bytes(file_bytes)
