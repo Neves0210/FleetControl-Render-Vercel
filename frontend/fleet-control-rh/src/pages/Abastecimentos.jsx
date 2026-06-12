@@ -11,6 +11,40 @@ import { motoristaService } from '../services/motoristaService';
 import { emptyAbastecimento } from '../utils/constants';
 import { comprimirImagem } from '../utils/comprimirImagem';
 
+function numeroBr(value, casas = 3) {
+  const numero = Number(value);
+  if (!Number.isFinite(numero)) return '';
+  return numero.toLocaleString('pt-BR', {
+    minimumFractionDigits: casas,
+    maximumFractionDigits: casas
+  });
+}
+
+function moedaBr(value) {
+  const numero = Number(value);
+  if (!Number.isFinite(numero)) return '';
+  return numero.toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' });
+}
+
+function normalizarCombustiveis(data) {
+  const lista = data.combustiveis || data.dadosExtraidos?.combustiveis || [];
+  return Array.isArray(lista)
+    ? lista.filter(x => x?.tipo || x?.combustivel)
+    : [];
+}
+
+function descreverCombustiveis(combustiveis) {
+  return combustiveis.map(item => {
+    const partes = [
+      item.tipo || item.combustivel,
+      item.litros ? `${numeroBr(item.litros)} L` : '',
+      item.valorTotal ? moedaBr(item.valorTotal) : ''
+    ].filter(Boolean);
+
+    return partes.join(' - ');
+  }).join('; ');
+}
+
 export function Abastecimentos() {
   const [items, setItems] = useState([]);
   const [veiculos, setVeiculos] = useState([]);
@@ -50,13 +84,17 @@ export function Abastecimentos() {
   }, []);
 
   function aplicarDadosNfce(data, fallbackUrl = '') {
+    const combustiveis = normalizarCombustiveis(data);
+    const combustiveisTexto = descreverCombustiveis(combustiveis);
+
     setUrlConsulta(data.urlConsulta || fallbackUrl || '');
 
     setResultadoLeitura({
       metodo: data.metodo || 'URL',
       confianca: data.confianca,
       chaveAcesso: data.chaveAcesso,
-      urlConsulta: data.urlConsulta || fallbackUrl || ''
+      urlConsulta: data.urlConsulta || fallbackUrl || '',
+      combustiveis
     });
 
     setForm(f => ({
@@ -71,6 +109,7 @@ export function Abastecimentos() {
       observacao: [
         data.urlConsulta || fallbackUrl ? `URL NFC-e: ${data.urlConsulta || fallbackUrl}` : '',
         data.chaveAcesso ? `Chave NFC-e: ${data.chaveAcesso}` : '',
+        combustiveisTexto ? `Combustiveis: ${combustiveisTexto}` : '',
         data.combustivel ? `Combustível: ${data.combustivel}` : '',
         data.placa ? `Placa: ${data.placa}` : '',
         data.motorista ? `Motorista: ${data.motorista}` : '',
@@ -78,6 +117,10 @@ export function Abastecimentos() {
         data.confianca !== undefined && data.confianca !== null ? `Confiança: ${Math.round(Number(data.confianca) * 100)}%` : ''
       ].filter(Boolean).join('\n') || f.observacao
     }));
+
+    if (combustiveis.length > 1) {
+      toast.info(`${combustiveis.length} tipos de combustivel encontrados na NFC-e.`);
+    }
   }
 
   async function analisarPorUrl(url) {
@@ -330,6 +373,11 @@ export function Abastecimentos() {
                     {resultadoLeitura.chaveAcesso && (
                       <>
                         <strong>Chave:</strong> {resultadoLeitura.chaveAcesso}<br />
+                      </>
+                    )}
+                    {resultadoLeitura.combustiveis?.length > 0 && (
+                      <>
+                        <strong>Combustiveis:</strong> {descreverCombustiveis(resultadoLeitura.combustiveis)}<br />
                       </>
                     )}
                     {resultadoLeitura.urlConsulta && (

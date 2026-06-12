@@ -40,6 +40,9 @@ public class NfceDadosExtraidosDto
     [JsonPropertyName("combustivel")]
     public string? Combustivel { get; set; }
 
+    [JsonPropertyName("combustiveis")]
+    public List<NfceCombustivelDto> Combustiveis { get; set; } = new();
+
     [JsonPropertyName("textoBruto")]
     public string? TextoBruto { get; set; }
 
@@ -51,4 +54,16 @@ public class NfceDadosExtraidosDto
 
     [JsonPropertyName("tempoProcessamentoSegundos")]
     public double? TempoProcessamentoSegundos { get; set; }
+}
+
+public class NfceCombustivelDto
+{
+    [JsonPropertyName("tipo")]
+    public string Tipo { get; set; } = string.Empty;
+
+    [JsonPropertyName("litros")]
+    public decimal? Litros { get; set; }
+
+    [JsonPropertyName("valorTotal")]
+    public decimal? ValorTotal { get; set; }
 }

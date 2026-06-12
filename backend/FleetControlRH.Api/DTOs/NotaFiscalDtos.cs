@@ -15,6 +15,7 @@ public class NotaFiscalAnaliseDto
     public string? Motorista { get; set; }
     public string? Posto { get; set; }
     public string? Combustivel { get; set; }
+    public List<NotaFiscalCombustivelDto> Combustiveis { get; set; } = new();
 
     public decimal? Litros { get; set; }
     public decimal? ValorTotal { get; set; }
@@ -22,4 +23,11 @@ public class NotaFiscalAnaliseDto
     public DateTime? DataAbastecimento { get; set; }
 
     public string? TextoExtraido { get; set; }
+}
+
+public class NotaFiscalCombustivelDto
+{
+    public string Tipo { get; set; } = string.Empty;
+    public decimal? Litros { get; set; }
+    public decimal? ValorTotal { get; set; }
 }

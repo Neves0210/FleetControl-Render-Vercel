@@ -232,6 +232,14 @@ public class AbastecimentosController : ControllerBase
             ChaveAcesso = leitura.ChaveAcesso,
             Posto = leitura.DadosExtraidos.Posto,
             Combustivel = leitura.DadosExtraidos.Combustivel,
+            Combustiveis = leitura.DadosExtraidos.Combustiveis
+                .Select(x => new NotaFiscalCombustivelDto
+                {
+                    Tipo = x.Tipo,
+                    Litros = x.Litros,
+                    ValorTotal = x.ValorTotal
+                })
+                .ToList(),
             Litros = leitura.DadosExtraidos.Litros,
             ValorTotal = leitura.DadosExtraidos.ValorTotal,
             TextoExtraido = leitura.DadosExtraidos.TextoBruto ?? leitura.DadosExtraidos.TextoOcr
@@ -246,6 +254,8 @@ public class AbastecimentosController : ControllerBase
                 resultado.Sucesso = true;
                 resultado.Posto ??= dadosDoSite.Posto;
                 resultado.Combustivel ??= dadosDoSite.Combustivel;
+                if (resultado.Combustiveis.Count == 0 && dadosDoSite.Combustiveis.Count > 0)
+                    resultado.Combustiveis = dadosDoSite.Combustiveis;
                 resultado.Litros ??= dadosDoSite.Litros;
                 resultado.ValorTotal ??= dadosDoSite.ValorTotal;
                 resultado.KmAtual ??= dadosDoSite.KmAtual;
@@ -272,6 +282,7 @@ public class AbastecimentosController : ControllerBase
             resultado.Motorista,
             resultado.Posto,
             resultado.Combustivel,
+            resultado.Combustiveis,
             resultado.Litros,
             resultado.ValorTotal,
             resultado.KmAtual,
