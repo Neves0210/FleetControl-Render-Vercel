@@ -81,6 +81,41 @@ namespace FleetControlRH.Api.Migrations
                     b.ToTable("Abastecimentos");
                 });
 
+            modelBuilder.Entity("FleetControlRH.Api.Models.AbastecimentoCombustivel", b =>
+                {
+                    b.Property<int>("Id")
+                        .ValueGeneratedOnAdd()
+                        .HasColumnType("integer");
+
+                    NpgsqlPropertyBuilderExtensions.UseIdentityByDefaultColumn(b.Property<int>("Id"));
+
+                    b.Property<int>("AbastecimentoId")
+                        .HasColumnType("integer");
+
+                    b.Property<string>("DescricaoCombustivel")
+                        .IsRequired()
+                        .HasMaxLength(80)
+                        .HasColumnType("character varying(80)");
+
+                    b.Property<decimal>("Litros")
+                        .HasColumnType("decimal(10,3)");
+
+                    b.Property<int>("Ordem")
+                        .HasColumnType("integer");
+
+                    b.Property<decimal>("ValorTotal")
+                        .HasColumnType("decimal(10,2)");
+
+                    b.Property<decimal?>("ValorUnitario")
+                        .HasColumnType("decimal(10,3)");
+
+                    b.HasKey("Id");
+
+                    b.HasIndex("AbastecimentoId");
+
+                    b.ToTable("AbastecimentoCombustiveis");
+                });
+
             modelBuilder.Entity("FleetControlRH.Api.Models.ManutencaoVeiculo", b =>
                 {
                     b.Property<int>("Id")
@@ -337,6 +372,17 @@ namespace FleetControlRH.Api.Migrations
                     b.Navigation("Veiculo");
                 });
 
+            modelBuilder.Entity("FleetControlRH.Api.Models.AbastecimentoCombustivel", b =>
+                {
+                    b.HasOne("FleetControlRH.Api.Models.Abastecimento", "Abastecimento")
+                        .WithMany("Combustiveis")
+                        .HasForeignKey("AbastecimentoId")
+                        .OnDelete(DeleteBehavior.Cascade)
+                        .IsRequired();
+
+                    b.Navigation("Abastecimento");
+                });
+
             modelBuilder.Entity("FleetControlRH.Api.Models.ManutencaoVeiculo", b =>
                 {
                     b.HasOne("FleetControlRH.Api.Models.Veiculo", "Veiculo")
@@ -396,6 +442,11 @@ namespace FleetControlRH.Api.Migrations
             modelBuilder.Entity("FleetControlRH.Api.Models.Motorista", b =>
                 {
                     b.Navigation("Abastecimentos");
+                });
+
+            modelBuilder.Entity("FleetControlRH.Api.Models.Abastecimento", b =>
+                {
+                    b.Navigation("Combustiveis");
                 });
 
             modelBuilder.Entity("FleetControlRH.Api.Models.Usuario", b =>

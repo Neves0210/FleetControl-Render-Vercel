@@ -5,8 +5,6 @@ using Npgsql.EntityFrameworkCore.PostgreSQL.Metadata;
 
 namespace FleetControlRH.Api.Migrations
 {
-    /// <inheritdoc />
-    [Migration("20260613120000_AddAbastecimentoCombustiveis")]
     public partial class AddAbastecimentoCombustiveis : Migration
     {
         /// <inheritdoc />
