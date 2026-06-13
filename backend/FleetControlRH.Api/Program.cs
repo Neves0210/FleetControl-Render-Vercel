@@ -136,7 +136,7 @@ static string BuildDatabaseConnectionString(IConfiguration configuration)
 
     if (!string.IsNullOrWhiteSpace(databaseUrl))
     {
-        return ConvertDatabaseUrlToConnectionString(databaseUrl);
+        return BuildPostgresConnectionString(databaseUrl);
     }
 
     var postgresConnection = configuration.GetConnectionString("PostgresConnection");
@@ -147,6 +147,18 @@ static string BuildDatabaseConnectionString(IConfiguration configuration)
 
     return configuration.GetConnectionString("DefaultConnection")
         ?? throw new InvalidOperationException("Connection string nao configurada.");
+}
+
+static string BuildPostgresConnectionString(string value)
+{
+    var connection = value.Trim().Trim('"', '\'');
+
+    if (connection.Contains('=') || connection.Contains(';'))
+    {
+        return connection;
+    }
+
+    return ConvertDatabaseUrlToConnectionString(connection);
 }
 
 static string ConvertDatabaseUrlToConnectionString(string databaseUrl)
@@ -161,8 +173,7 @@ static string ConvertDatabaseUrlToConnectionString(string databaseUrl)
         Database = uri.AbsolutePath.TrimStart('/'),
         Username = Uri.UnescapeDataString(userInfo[0]),
         Password = userInfo.Length > 1 ? Uri.UnescapeDataString(userInfo[1]) : string.Empty,
-        SslMode = SslMode.Require,
-        TrustServerCertificate = true
+        SslMode = SslMode.Require
     };
 
     return builder.ConnectionString;
