@@ -36,11 +36,19 @@ public class VeiculosController : ControllerBase
             .Select(x => x.VeiculoId)
             .ToListAsync();
 
-        var alertas = CalcularStatusManutencao(await _db.ManutencoesVeiculos
-            .Include(x => x.Veiculo)
+        var manutencoesStatus = await _db.ManutencoesVeiculos
             .AsNoTracking()
             .Where(x => ids.Contains(x.VeiculoId))
-            .ToListAsync());
+            .Select(x => new ManutencaoStatusRow
+            {
+                VeiculoId = x.VeiculoId,
+                KmAtual = x.Veiculo != null ? x.Veiculo.KmAtual : 0,
+                ProximaManutencaoKm = x.ProximaManutencaoKm,
+                ProximaManutencaoData = x.ProximaManutencaoData
+            })
+            .ToListAsync();
+
+        var alertas = CalcularStatusManutencao(manutencoesStatus);
 
         return Ok(veiculos.Select(x =>
         {
@@ -144,8 +152,8 @@ public class VeiculosController : ControllerBase
                 x.Custo,
                 x.ProximaManutencaoKm,
                 x.ProximaManutencaoData,
-                x.AnexoNome,
-                temAnexo = x.AnexoArquivo != null
+                anexoNome = (string?)null,
+                temAnexo = false
             })
             .ToListAsync();
 
@@ -269,7 +277,7 @@ public class VeiculosController : ControllerBase
         return null;
     }
 
-    private static Dictionary<int, string> CalcularStatusManutencao(List<ManutencaoVeiculo> manutencoes)
+    private static Dictionary<int, string> CalcularStatusManutencao(List<ManutencaoStatusRow> manutencoes)
     {
         const int limiteKmProximo = 500;
         const int limiteDiasProximo = 7;
@@ -279,7 +287,7 @@ public class VeiculosController : ControllerBase
         foreach (var item in manutencoes)
         {
             int? kmRestante = item.ProximaManutencaoKm.HasValue
-                ? item.ProximaManutencaoKm.Value - (item.Veiculo?.KmAtual ?? 0)
+                ? item.ProximaManutencaoKm.Value - item.KmAtual
                 : null;
 
             int? diasRestantes = item.ProximaManutencaoData.HasValue
@@ -329,5 +337,13 @@ public class VeiculosController : ControllerBase
             .Replace(" ", "")
             .Trim()
             .ToUpperInvariant();
+    }
+
+    private class ManutencaoStatusRow
+    {
+        public int VeiculoId { get; set; }
+        public int KmAtual { get; set; }
+        public int? ProximaManutencaoKm { get; set; }
+        public DateTime? ProximaManutencaoData { get; set; }
     }
 }

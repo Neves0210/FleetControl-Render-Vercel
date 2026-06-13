@@ -28,7 +28,7 @@ public class ManutencoesController : ControllerBase
             return Forbid();
 
         var query = _db.ManutencoesVeiculos
-            .Include(x => x.Veiculo)
+            .AsNoTracking()
             .AsQueryable();
 
         if (veiculoId.HasValue)
@@ -36,6 +36,28 @@ public class ManutencoesController : ControllerBase
 
         var lista = await query
             .OrderByDescending(x => x.DataManutencao)
+            .Select(x => new ManutencaoConsultaRow
+            {
+                Id = x.Id,
+                VeiculoId = x.VeiculoId,
+                Veiculo = x.Veiculo == null ? null : new Veiculo
+                {
+                    Id = x.Veiculo.Id,
+                    Modelo = x.Veiculo.Modelo,
+                    Placa = x.Veiculo.Placa,
+                    KmAtual = x.Veiculo.KmAtual,
+                    TipoCombustivel = x.Veiculo.TipoCombustivel,
+                    Ativo = x.Veiculo.Ativo
+                },
+                Tipo = x.Tipo,
+                DataManutencao = x.DataManutencao,
+                KmManutencao = x.KmManutencao,
+                Descricao = x.Descricao,
+                Custo = x.Custo,
+                ProximaManutencaoKm = x.ProximaManutencaoKm,
+                ProximaManutencaoData = x.ProximaManutencaoData,
+                CriadoEm = x.CriadoEm
+            })
             .ToListAsync();
 
         if (!string.IsNullOrWhiteSpace(status))
@@ -62,8 +84,8 @@ public class ManutencoesController : ControllerBase
             x.ProximaManutencaoKm,
             x.ProximaManutencaoData,
             x.CriadoEm,
-            x.AnexoNome,
-            temAnexo = x.AnexoArquivo != null
+            anexoNome = (string?)null,
+            temAnexo = false
         }));
     }
 
@@ -74,8 +96,30 @@ public class ManutencoesController : ControllerBase
             return Forbid();
 
         var manutencoes = await _db.ManutencoesVeiculos
-            .Include(x => x.Veiculo)
+            .AsNoTracking()
             .Where(x => x.ProximaManutencaoKm.HasValue || x.ProximaManutencaoData.HasValue)
+            .Select(x => new ManutencaoConsultaRow
+            {
+                Id = x.Id,
+                VeiculoId = x.VeiculoId,
+                Veiculo = x.Veiculo == null ? null : new Veiculo
+                {
+                    Id = x.Veiculo.Id,
+                    Modelo = x.Veiculo.Modelo,
+                    Placa = x.Veiculo.Placa,
+                    KmAtual = x.Veiculo.KmAtual,
+                    TipoCombustivel = x.Veiculo.TipoCombustivel,
+                    Ativo = x.Veiculo.Ativo
+                },
+                Tipo = x.Tipo,
+                DataManutencao = x.DataManutencao,
+                KmManutencao = x.KmManutencao,
+                Descricao = x.Descricao,
+                Custo = x.Custo,
+                ProximaManutencaoKm = x.ProximaManutencaoKm,
+                ProximaManutencaoData = x.ProximaManutencaoData,
+                CriadoEm = x.CriadoEm
+            })
             .ToListAsync();
 
         var alertas = CalcularAlertas(manutencoes)
@@ -284,7 +328,7 @@ public class ManutencoesController : ControllerBase
         });
     }
 
-    private static List<AlertaManutencaoDto> CalcularAlertas(List<ManutencaoVeiculo> manutencoes)
+    private static List<AlertaManutencaoDto> CalcularAlertas(List<ManutencaoConsultaRow> manutencoes)
     {
         const int limiteKmProximo = 500;
         const int limiteDiasProximo = 7;
@@ -334,5 +378,20 @@ public class ManutencoesController : ControllerBase
                 DiasRestantes = diasRestantes
             };
         }).ToList();
+    }
+
+    private class ManutencaoConsultaRow
+    {
+        public int Id { get; set; }
+        public int VeiculoId { get; set; }
+        public Veiculo? Veiculo { get; set; }
+        public string Tipo { get; set; } = string.Empty;
+        public DateTime DataManutencao { get; set; }
+        public int KmManutencao { get; set; }
+        public string? Descricao { get; set; }
+        public decimal? Custo { get; set; }
+        public int? ProximaManutencaoKm { get; set; }
+        public DateTime? ProximaManutencaoData { get; set; }
+        public DateTime CriadoEm { get; set; }
     }
 }
