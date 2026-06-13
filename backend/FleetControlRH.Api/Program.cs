@@ -40,7 +40,7 @@ builder.Services.AddCors(options =>
     options.AddPolicy("ReactApp", policy =>
     {
         var origins = (builder.Configuration["AllowedOrigins"] ?? "http://localhost:5173")
-            .Split(",", StringSplitOptions.RemoveEmptyEntries);
+            .Split(",", StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
 
         policy.WithOrigins(origins)
               .AllowAnyHeader()
