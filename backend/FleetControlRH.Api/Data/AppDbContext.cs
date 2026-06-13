@@ -11,6 +11,7 @@ public class AppDbContext : DbContext
     public DbSet<Veiculo> Veiculos => Set<Veiculo>();
     public DbSet<Motorista> Motoristas => Set<Motorista>();
     public DbSet<Abastecimento> Abastecimentos => Set<Abastecimento>();
+    public DbSet<AbastecimentoCombustivel> AbastecimentoCombustiveis => Set<AbastecimentoCombustivel>();
     public DbSet<UsuarioPermissao> UsuarioPermissoes => Set<UsuarioPermissao>();
     public DbSet<UsoVeiculo> UsosVeiculos => Set<UsoVeiculo>();
     public DbSet<ManutencaoVeiculo> ManutencoesVeiculos => Set<ManutencaoVeiculo>();
@@ -32,6 +33,31 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<Abastecimento>()
             .Property(x => x.ValorTotal)   
             .HasColumnType("decimal(10,2)");
+
+        modelBuilder.Entity<AbastecimentoCombustivel>()
+            .Property(x => x.DescricaoCombustivel)
+            .HasMaxLength(80);
+
+        modelBuilder.Entity<AbastecimentoCombustivel>()
+            .Property(x => x.Litros)
+            .HasColumnType("decimal(10,3)");
+
+        modelBuilder.Entity<AbastecimentoCombustivel>()
+            .Property(x => x.ValorUnitario)
+            .HasColumnType("decimal(10,3)");
+
+        modelBuilder.Entity<AbastecimentoCombustivel>()
+            .Property(x => x.ValorTotal)
+            .HasColumnType("decimal(10,2)");
+
+        modelBuilder.Entity<AbastecimentoCombustivel>()
+            .HasOne(x => x.Abastecimento)
+            .WithMany(x => x.Combustiveis)
+            .HasForeignKey(x => x.AbastecimentoId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<AbastecimentoCombustivel>()
+            .HasIndex(x => x.AbastecimentoId);
 
         modelBuilder.Entity<UsuarioPermissao>()
             .HasIndex(x => new { x.UsuarioId, x.Permissao })

@@ -39,4 +39,6 @@ public class Abastecimento
 
     public byte[]? FotoNotaFiscal { get; set; }
     public string? FotoNotaFiscalContentType { get; set; }
+
+    public ICollection<AbastecimentoCombustivel> Combustiveis { get; set; } = new List<AbastecimentoCombustivel>();
 }

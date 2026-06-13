@@ -29,5 +29,6 @@ public class NotaFiscalCombustivelDto
 {
     public string Tipo { get; set; } = string.Empty;
     public decimal? Litros { get; set; }
+    public decimal? ValorUnitario { get; set; }
     public decimal? ValorTotal { get; set; }
 }

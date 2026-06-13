@@ -64,6 +64,9 @@ public class NfceCombustivelDto
     [JsonPropertyName("litros")]
     public decimal? Litros { get; set; }
 
+    [JsonPropertyName("valorUnitario")]
+    public decimal? ValorUnitario { get; set; }
+
     [JsonPropertyName("valorTotal")]
     public decimal? ValorTotal { get; set; }
 }

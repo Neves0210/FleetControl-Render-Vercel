@@ -31,6 +31,7 @@ public class AbastecimentosController : ControllerBase
         var query = _db.Abastecimentos
             .Include(x => x.Veiculo)
             .Include(x => x.Motorista)
+            .Include(x => x.Combustiveis)
             .AsNoTracking()
             .AsQueryable();
 
@@ -68,6 +69,18 @@ public class AbastecimentosController : ControllerBase
                 x.Observacao,
                 x.DataAbastecimento,
                 x.CriadoEm,
+                combustiveis = x.Combustiveis
+                    .OrderBy(c => c.Ordem)
+                    .Select(c => new
+                    {
+                        c.Id,
+                        c.DescricaoCombustivel,
+                        c.Litros,
+                        c.ValorUnitario,
+                        c.ValorTotal,
+                        c.Ordem
+                    })
+                    .ToList(),
                 temFoto = x.FotoNotaFiscal != null
             })
             .ToListAsync();
@@ -87,6 +100,8 @@ public class AbastecimentosController : ControllerBase
 
             model.MotoristaId = motoristaLogadoId.Value;
         }
+
+        NormalizarCombustiveis(model);
 
         var erro = await ValidarAbastecimentoAsync(model, fotoNotaFiscal, exigirFoto: true, abastecimentoIdIgnorado: null);
 
@@ -118,12 +133,16 @@ public class AbastecimentosController : ControllerBase
         if (!UsuarioPodeEditarAbastecimento())
             return Forbid();
 
-        var abastecimento = await _db.Abastecimentos.FindAsync(id);
+        var abastecimento = await _db.Abastecimentos
+            .Include(x => x.Combustiveis)
+            .FirstOrDefaultAsync(x => x.Id == id);
 
         if (abastecimento == null)
             return NotFound();
 
         var exigirFoto = abastecimento.FotoNotaFiscal == null || abastecimento.FotoNotaFiscal.Length == 0;
+
+        NormalizarCombustiveis(model);
 
         var erro = await ValidarAbastecimentoAsync(model, fotoNotaFiscal, exigirFoto, id);
 
@@ -140,6 +159,12 @@ public class AbastecimentosController : ControllerBase
         abastecimento.ValorTotal = model.ValorTotal;
         abastecimento.Posto = model.Posto?.Trim();
         abastecimento.Observacao = model.Observacao;
+        abastecimento.Combustiveis.Clear();
+
+        foreach (var combustivel in model.Combustiveis)
+        {
+            abastecimento.Combustiveis.Add(combustivel);
+        }
 
         if (fotoNotaFiscal is { Length: > 0 })
         {
@@ -237,6 +262,7 @@ public class AbastecimentosController : ControllerBase
                 {
                     Tipo = x.Tipo,
                     Litros = x.Litros,
+                    ValorUnitario = x.ValorUnitario,
                     ValorTotal = x.ValorTotal
                 })
                 .ToList(),
@@ -343,6 +369,27 @@ public class AbastecimentosController : ControllerBase
         if (model.ValorTotal <= 0)
             return "O valor total deve ser maior que zero.";
 
+        if (model.Combustiveis.Count == 0)
+            return "Informe ao menos um combustivel do abastecimento.";
+
+        foreach (var combustivel in model.Combustiveis)
+        {
+            if (string.IsNullOrWhiteSpace(combustivel.DescricaoCombustivel))
+                return "Informe o tipo de combustivel.";
+
+            if (combustivel.DescricaoCombustivel.Length > 80)
+                return "O tipo de combustivel deve ter no maximo 80 caracteres.";
+
+            if (combustivel.Litros <= 0)
+                return "A quantidade de litros do combustivel deve ser maior que zero.";
+
+            if (combustivel.ValorTotal <= 0)
+                return "O valor do combustivel deve ser maior que zero.";
+
+            if (combustivel.ValorUnitario.HasValue && combustivel.ValorUnitario <= 0)
+                return "O valor unitario do combustivel deve ser maior que zero.";
+        }
+
         if (model.KmAtual <= 0)
             return "O KM atual deve ser maior que zero.";
 
@@ -385,6 +432,45 @@ public class AbastecimentosController : ControllerBase
         }
 
         return null;
+    }
+
+    private static void NormalizarCombustiveis(Abastecimento model)
+    {
+        var combustiveis = model.Combustiveis
+            .Where(x => !string.IsNullOrWhiteSpace(x.DescricaoCombustivel) || x.Litros > 0 || x.ValorTotal > 0)
+            .Select((x, index) => new AbastecimentoCombustivel
+            {
+                DescricaoCombustivel = (x.DescricaoCombustivel ?? string.Empty).Trim().ToUpperInvariant(),
+                Litros = decimal.Round(x.Litros, 3),
+                ValorUnitario = x.ValorUnitario.HasValue ? decimal.Round(x.ValorUnitario.Value, 3) : CalcularValorUnitario(x.Litros, x.ValorTotal),
+                ValorTotal = decimal.Round(x.ValorTotal, 2),
+                Ordem = index + 1
+            })
+            .ToList();
+
+        if (combustiveis.Count == 0 && model.Litros > 0 && model.ValorTotal > 0)
+        {
+            combustiveis.Add(new AbastecimentoCombustivel
+            {
+                DescricaoCombustivel = "NAO INFORMADO",
+                Litros = decimal.Round(model.Litros, 3),
+                ValorUnitario = CalcularValorUnitario(model.Litros, model.ValorTotal),
+                ValorTotal = decimal.Round(model.ValorTotal, 2),
+                Ordem = 1
+            });
+        }
+
+        model.Combustiveis = combustiveis;
+        model.Litros = combustiveis.Sum(x => x.Litros);
+        model.ValorTotal = combustiveis.Sum(x => x.ValorTotal);
+    }
+
+    private static decimal? CalcularValorUnitario(decimal litros, decimal valorTotal)
+    {
+        if (litros <= 0 || valorTotal <= 0)
+            return null;
+
+        return decimal.Round(valorTotal / litros, 3);
     }
 
     private static string? ValidarFotoNotaFiscal(IFormFile arquivo)

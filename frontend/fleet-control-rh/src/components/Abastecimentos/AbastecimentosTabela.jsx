@@ -11,6 +11,14 @@ function extDoTipo(tipo) {
   return 'jpg';
 }
 
+function combustiveisTexto(item) {
+  if (!Array.isArray(item.combustiveis) || item.combustiveis.length === 0) return '-';
+
+  return item.combustiveis
+    .map(x => `${x.descricaoCombustivel}: ${litros(x.litros)} L`)
+    .join(' | ');
+}
+
 export function AbastecimentosTabela({ items, onEditar }) {
   const podeEditar = temPermissao('Abastecimentos.Editar');
   const [foto, setFoto] = useState(null); // { url, tipo, id }
@@ -62,6 +70,7 @@ export function AbastecimentosTabela({ items, onEditar }) {
             <th>Veículo</th>
             <th>Motorista</th>
             <th>KM</th>
+            <th>Combustiveis</th>
             <th>Litros</th>
             <th>Valor</th>
             <th>Nota</th>
@@ -77,6 +86,7 @@ export function AbastecimentosTabela({ items, onEditar }) {
                 <td>{x.veiculo?.placa}</td>
                 <td>{x.motorista?.nome}</td>
                 <td>{number(x.kmAtual)}</td>
+                <td>{combustiveisTexto(x)}</td>
                 <td>{litros(x.litros)}</td>
                 <td>{money(x.valorTotal)}</td>
                 <td>
@@ -104,7 +114,7 @@ export function AbastecimentosTabela({ items, onEditar }) {
             ))
           ) : (
             <tr>
-              <td colSpan={podeEditar ? 8 : 7} className="text-muted" style={{ textAlign: 'center', padding: '28px 12px' }}>
+              <td colSpan={podeEditar ? 9 : 8} className="text-muted" style={{ textAlign: 'center', padding: '28px 12px' }}>
                 Nenhum abastecimento encontrado.
               </td>
             </tr>

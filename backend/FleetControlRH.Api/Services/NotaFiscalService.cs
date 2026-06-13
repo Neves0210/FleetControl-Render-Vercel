@@ -176,7 +176,7 @@ public class NotaFiscalService
     public NotaFiscalAnaliseDto AnalisarTexto(string texto)
     {
         texto = NormalizarTexto(texto);
-        var combustiveis = ExtrairCombustiveis(texto);
+        var combustiveis = ExtrairCombustiveisDetalhado(texto);
 
         return new NotaFiscalAnaliseDto
         {
@@ -189,7 +189,7 @@ public class NotaFiscalService
             Combustivel = DescreverCombustiveis(combustiveis) ?? ExtrairCombustivel(texto),
             Combustiveis = combustiveis,
             Litros = combustiveis.Count > 0 ? combustiveis.Sum(x => x.Litros ?? 0) : ExtrairLitros(texto),
-            ValorTotal = ExtrairValorTotal(texto),
+            ValorTotal = ValorTotalCombustiveis(combustiveis) ?? ExtrairValorTotal(texto),
             KmAtual = ExtrairKm(texto),
             DataAbastecimento = ExtrairData(texto)
         };
@@ -249,6 +249,47 @@ public class NotaFiscalService
         return match.Success ? Limpar(match.Groups[1].Value).ToUpperInvariant() : null;
     }
 
+    private static List<NotaFiscalCombustivelDto> ExtrairCombustiveisDetalhado(string texto)
+    {
+        var itens = new List<NotaFiscalCombustivelDto>();
+        var fuelPattern = @"(?i)(ETANOL\s+COMUM|ETANOL|GASOLINA\s+COMUM|GASOLINA|DIESEL\s+S?10|DIESEL\s+S?500|DIESEL|ALCOOL|ÁLCOOL|ÃLCOOL)";
+        var matches = Regex.Matches(texto, fuelPattern).Cast<Match>().ToList();
+
+        for (var i = 0; i < matches.Count; i++)
+        {
+            var inicio = matches[i].Index;
+            var fim = i + 1 < matches.Count ? matches[i + 1].Index : Math.Min(texto.Length, inicio + 500);
+            var bloco = texto[inicio..fim];
+
+            var litrosMatch = Regex.Match(bloco, @"(?i)Qtde\.?\s*:\s*(\d{1,6}[,.]\d{1,3})\s*UN\s*:\s*L");
+            if (!litrosMatch.Success || !TryParseDecimalBr(litrosMatch.Groups[1].Value, out var litros) || litros <= 0)
+                continue;
+
+            decimal? valorUnitario = null;
+            var valorUnitarioMatch = Regex.Match(bloco, @"(?i)(?:Vl\.?\s*Unit\.?|Valor\s*Unit(?:ario|ário)?)\s*:?\s*(\d{1,4}[,.]\d{2,4})");
+            if (valorUnitarioMatch.Success && TryParseDecimalBr(valorUnitarioMatch.Groups[1].Value, out var unitario))
+                valorUnitario = unitario;
+
+            decimal? valorTotal = null;
+            var valorTotalMatch = Regex.Match(bloco, @"(?i)(?:Vl\.?\s*Total|Valor\s*Total)\s*:?\s*(\d{1,6}[,.]\d{2})");
+            if (valorTotalMatch.Success && TryParseDecimalBr(valorTotalMatch.Groups[1].Value, out var valor))
+                valorTotal = valor;
+
+            if (!valorTotal.HasValue && valorUnitario.HasValue)
+                valorTotal = decimal.Round(litros * valorUnitario.Value, 2);
+
+            itens.Add(new NotaFiscalCombustivelDto
+            {
+                Tipo = NormalizarCombustivel(matches[i].Groups[1].Value),
+                Litros = litros,
+                ValorUnitario = valorUnitario,
+                ValorTotal = valorTotal
+            });
+        }
+
+        return itens;
+    }
+
     private static List<NotaFiscalCombustivelDto> ExtrairCombustiveis(string texto)
     {
         var itens = new List<NotaFiscalCombustivelDto>();
@@ -280,6 +321,19 @@ public class NotaFiscalService
             return null;
 
         return string.Join(" + ", combustiveis.Select(x => x.Tipo).Distinct());
+    }
+
+    private static decimal? ValorTotalCombustiveis(List<NotaFiscalCombustivelDto> combustiveis)
+    {
+        if (combustiveis.Count == 0 || combustiveis.Any(x => !x.ValorTotal.HasValue))
+            return null;
+
+        return combustiveis.Sum(x => x.ValorTotal!.Value);
+    }
+
+    private static string NormalizarCombustivel(string valor)
+    {
+        return Limpar(valor).ToUpperInvariant().Replace("ÁLCOOL", "ALCOOL").Replace("ÃLCOOL", "ALCOOL");
     }
 
     private static decimal? ExtrairLitros(string texto)

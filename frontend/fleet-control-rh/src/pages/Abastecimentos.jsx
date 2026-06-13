@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'react-toastify';
-import { Fuel, Camera, Link2, ScanLine, Filter, RotateCcw, Search, ClipboardList } from 'lucide-react';
+import { Fuel, Camera, Link2, ScanLine, Filter, RotateCcw, Search, ClipboardList, Plus, Trash2 } from 'lucide-react';
 import { Header } from '../components/Layout/Header';
 import { Input } from '../components/Forms/Input';
 import { Select } from '../components/Forms/Select';
@@ -45,6 +45,20 @@ function descreverCombustiveis(combustiveis) {
   }).join('; ');
 }
 
+function valorNumerico(value) {
+  if (value === null || value === undefined || value === '') return 0;
+  return Number(String(value).replace(',', '.')) || 0;
+}
+
+function novoCombustivel(base = {}) {
+  return {
+    descricaoCombustivel: base.descricaoCombustivel || base.tipo || base.combustivel || '',
+    litros: base.litros ?? '',
+    valorUnitario: base.valorUnitario ?? '',
+    valorTotal: base.valorTotal ?? ''
+  };
+}
+
 export function Abastecimentos() {
   const [items, setItems] = useState([]);
   const [veiculos, setVeiculos] = useState([]);
@@ -54,6 +68,7 @@ export function Abastecimentos() {
   const [urlConsulta, setUrlConsulta] = useState('');
   const [analisandoNota, setAnalisandoNota] = useState(false);
   const [resultadoLeitura, setResultadoLeitura] = useState(null);
+  const [combustiveis, setCombustiveis] = useState([novoCombustivel()]);
   const [filtro, setFiltro] = useState({ veiculoId: '', motoristaId: '' });
   const [form, setForm] = useState(emptyAbastecimento());
   const [editandoId, setEditandoId] = useState(null);
@@ -86,8 +101,16 @@ export function Abastecimentos() {
   function aplicarDadosNfce(data, fallbackUrl = '') {
     const combustiveis = normalizarCombustiveis(data);
     const combustiveisTexto = descreverCombustiveis(combustiveis);
+    const itens = combustiveis.length > 0
+      ? combustiveis.map(novoCombustivel)
+      : [novoCombustivel({
+          descricaoCombustivel: data.combustivel || '',
+          litros: data.litros || '',
+          valorTotal: data.valorTotal || ''
+        })];
 
     setUrlConsulta(data.urlConsulta || fallbackUrl || '');
+    setCombustiveis(itens);
 
     setResultadoLeitura({
       metodo: data.metodo || 'URL',
@@ -121,6 +144,41 @@ export function Abastecimentos() {
     if (combustiveis.length > 1) {
       toast.info(`${combustiveis.length} tipos de combustivel encontrados na NFC-e.`);
     }
+  }
+
+  const totaisCombustiveis = useMemo(() => {
+    const litros = combustiveis.reduce((s, item) => s + valorNumerico(item.litros), 0);
+    const valorTotal = combustiveis.reduce((s, item) => s + valorNumerico(item.valorTotal), 0);
+
+    return {
+      litros: litros.toFixed(3),
+      valorTotal: valorTotal.toFixed(2)
+    };
+  }, [combustiveis]);
+
+  function atualizarCombustivel(index, campo, valor) {
+    setCombustiveis(lista => lista.map((item, i) => {
+      if (i !== index) return item;
+
+      const atualizado = { ...item, [campo]: valor };
+      if ((campo === 'litros' || campo === 'valorUnitario') && atualizado.litros && atualizado.valorUnitario) {
+        atualizado.valorTotal = (valorNumerico(atualizado.litros) * valorNumerico(atualizado.valorUnitario)).toFixed(2);
+      }
+
+      if (campo === 'valorTotal' && atualizado.litros && atualizado.valorTotal) {
+        atualizado.valorUnitario = (valorNumerico(atualizado.valorTotal) / valorNumerico(atualizado.litros)).toFixed(3);
+      }
+
+      return atualizado;
+    }));
+  }
+
+  function adicionarCombustivel() {
+    setCombustiveis(lista => [...lista, novoCombustivel()]);
+  }
+
+  function removerCombustivel(index) {
+    setCombustiveis(lista => lista.length === 1 ? lista : lista.filter((_, i) => i !== index));
   }
 
   async function analisarPorUrl(url) {
@@ -187,12 +245,27 @@ export function Abastecimentos() {
     if (!form.veiculoId) return toast.warning('Selecione um veículo.');
     if (!form.motoristaId) return toast.warning('Selecione um motorista/técnico.');
     if (Number(form.kmAtual) <= 0) return toast.warning('O KM atual deve ser maior que zero.');
-    if (Number(form.litros) <= 0) return toast.warning('A quantidade de litros deve ser maior que zero.');
-    if (Number(form.valorTotal) <= 0) return toast.warning('O valor total deve ser maior que zero.');
+    if (!combustiveis.length) return toast.warning('Informe ao menos um combustivel.');
+    if (combustiveis.some(item => !item.descricaoCombustivel?.trim())) return toast.warning('Informe o tipo de combustivel.');
+    if (combustiveis.some(item => valorNumerico(item.litros) <= 0)) return toast.warning('A quantidade de litros deve ser maior que zero.');
+    if (combustiveis.some(item => valorNumerico(item.valorTotal) <= 0)) return toast.warning('O valor do combustivel deve ser maior que zero.');
+    if (Number(totaisCombustiveis.litros) <= 0) return toast.warning('A quantidade de litros deve ser maior que zero.');
+    if (Number(totaisCombustiveis.valorTotal) <= 0) return toast.warning('O valor total deve ser maior que zero.');
     if (new Date(form.dataAbastecimento) > new Date()) return toast.warning('A data do abastecimento não pode ser futura.');
 
     const fd = new FormData();
-    Object.entries(form).forEach(([key, value]) => fd.append(key, value));
+    Object.entries({
+      ...form,
+      litros: totaisCombustiveis.litros,
+      valorTotal: totaisCombustiveis.valorTotal
+    }).forEach(([key, value]) => fd.append(key, value));
+    combustiveis.forEach((item, index) => {
+      fd.append(`Combustiveis[${index}].DescricaoCombustivel`, item.descricaoCombustivel.trim());
+      fd.append(`Combustiveis[${index}].Litros`, String(valorNumerico(item.litros)));
+      fd.append(`Combustiveis[${index}].ValorUnitario`, item.valorUnitario ? String(valorNumerico(item.valorUnitario)) : '');
+      fd.append(`Combustiveis[${index}].ValorTotal`, String(valorNumerico(item.valorTotal)));
+      fd.append(`Combustiveis[${index}].Ordem`, String(index + 1));
+    });
     if (foto) fd.append('fotoNotaFiscal', foto);
 
     try {
@@ -228,6 +301,16 @@ export function Abastecimentos() {
     setPreview('');
     setUrlConsulta('');
     setResultadoLeitura(null);
+    setCombustiveis(
+      Array.isArray(item.combustiveis) && item.combustiveis.length > 0
+        ? item.combustiveis.map(x => novoCombustivel({
+            descricaoCombustivel: x.descricaoCombustivel,
+            litros: x.litros,
+            valorUnitario: x.valorUnitario,
+            valorTotal: x.valorTotal
+          }))
+        : [novoCombustivel({ litros: item.litros ?? '', valorTotal: item.valorTotal ?? '' })]
+    );
 
     setAba('registrar');
     window.scrollTo({ top: 0, behavior: 'smooth' });
@@ -240,6 +323,7 @@ export function Abastecimentos() {
     setPreview('');
     setUrlConsulta('');
     setResultadoLeitura(null);
+    setCombustiveis([novoCombustivel()]);
   }
 
   async function fileChange(file) {
@@ -409,8 +493,80 @@ export function Abastecimentos() {
             <Select label="Motorista/Técnico" required value={form.motoristaId} onChange={v => setForm({ ...form, motoristaId: v })} items={motoristas} text={x => x.nome} />
             <Input label="Data" required type="datetime-local" value={form.dataAbastecimento} onChange={v => setForm({ ...form, dataAbastecimento: v })} />
             <Input label="KM atual" required type="number" min="1" value={form.kmAtual} onChange={v => setForm({ ...form, kmAtual: v })} />
-            <Input label="Litros" required type="number" min="0.001" step="0.001" value={form.litros} onChange={v => setForm({ ...form, litros: v })} />
-            <Input label="Valor total" required type="number" min="0.01" step="0.01" value={form.valorTotal} onChange={v => setForm({ ...form, valorTotal: v })} />
+            <Input label="Litros totais" required type="number" min="0.001" step="0.001" readOnly value={totaisCombustiveis.litros} onChange={() => {}} />
+            <Input label="Valor total" required type="number" min="0.01" step="0.01" readOnly value={totaisCombustiveis.valorTotal} onChange={() => {}} />
+            <div className="col-md-12 mb-3">
+              <div className="nfce-section">
+                <div className="section-label" style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 8, flexWrap: 'wrap' }}>
+                  <span style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
+                    <Fuel size={15} /> Combustiveis da nota
+                  </span>
+                  <button type="button" className="btn btn-sm btn-outline-primary" onClick={adicionarCombustivel}>
+                    <Plus size={14} /> Adicionar
+                  </button>
+                </div>
+
+                {combustiveis.map((item, index) => (
+                  <div key={index} className="row align-items-end" style={{ marginTop: 8 }}>
+                    <div className="col-md-4 mb-2">
+                      <label>Tipo</label>
+                      <input
+                        className="form-control"
+                        value={item.descricaoCombustivel}
+                        onChange={e => atualizarCombustivel(index, 'descricaoCombustivel', e.target.value)}
+                        placeholder="Ex: ETANOL COMUM"
+                        required
+                      />
+                    </div>
+                    <div className="col-md-2 mb-2">
+                      <label>Litros</label>
+                      <input
+                        className="form-control"
+                        type="number"
+                        min="0.001"
+                        step="0.001"
+                        value={item.litros}
+                        onChange={e => atualizarCombustivel(index, 'litros', e.target.value)}
+                        required
+                      />
+                    </div>
+                    <div className="col-md-2 mb-2">
+                      <label>Valor unit.</label>
+                      <input
+                        className="form-control"
+                        type="number"
+                        min="0.001"
+                        step="0.001"
+                        value={item.valorUnitario}
+                        onChange={e => atualizarCombustivel(index, 'valorUnitario', e.target.value)}
+                      />
+                    </div>
+                    <div className="col-md-2 mb-2">
+                      <label>Valor</label>
+                      <input
+                        className="form-control"
+                        type="number"
+                        min="0.01"
+                        step="0.01"
+                        value={item.valorTotal}
+                        onChange={e => atualizarCombustivel(index, 'valorTotal', e.target.value)}
+                        required
+                      />
+                    </div>
+                    <div className="col-md-2 mb-2">
+                      <button
+                        type="button"
+                        className="btn btn-outline-danger w-100"
+                        onClick={() => removerCombustivel(index)}
+                        disabled={combustiveis.length === 1}
+                      >
+                        <Trash2 size={14} /> Remover
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
             <Input label="Posto" value={form.posto} onChange={v => setForm({ ...form, posto: v })} />
           </div>
 
