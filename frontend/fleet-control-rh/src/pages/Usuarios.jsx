@@ -1,12 +1,16 @@
 import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'react-toastify';
-import { ClipboardList, Filter, RotateCcw, Search, ShieldCheck, UserCog } from 'lucide-react';
+import { ClipboardList, Download, Filter, RotateCcw, Search, ShieldCheck, UserCog } from 'lucide-react';
 import { Header } from '../components/Layout/Header';
 import { Input } from '../components/Forms/Input';
+import { Select } from '../components/Forms/Select';
+import { FiltrosSalvos } from '../components/Forms/FiltrosSalvos';
 import { usuarioService } from '../services/usuarioService';
+import { motoristaService } from '../services/motoristaService';
 import { TODAS_PERMISSOES } from '../utils/constants';
 import { perfil } from '../utils/formatters';
 import { PermissoesSelect } from '../components/Forms/PermissoesSelect';
+import { exportarCsv } from '../utils/exportCsv';
 
 const initialForm = {
   nome: '',
@@ -20,6 +24,7 @@ const initialForm = {
 
 export function Usuarios() {
   const [items, setItems] = useState([]);
+  const [motoristas, setMotoristas] = useState([]);
   const [aba, setAba] = useState('registrar');
   const [busca, setBusca] = useState('');
   const [filtro, setFiltro] = useState({ perfil: '', status: '' });
@@ -42,8 +47,12 @@ export function Usuarios() {
   }, [items, busca, filtro]);
 
   async function load() {
-    const r = await usuarioService.listar();
-    setItems(r.data);
+    const [usuariosRes, motoristasRes] = await Promise.all([
+      usuarioService.listar(),
+      motoristaService.listar()
+    ]);
+    setItems(usuariosRes.data);
+    setMotoristas(motoristasRes.data);
   }
 
   useEffect(() => {
@@ -121,6 +130,17 @@ export function Usuarios() {
     setFiltro({ perfil: '', status: '' });
   }
 
+  function exportar() {
+    exportarCsv('usuarios', [
+      { label: 'Nome', value: 'nome' },
+      { label: 'E-mail', value: 'email' },
+      { label: 'Perfil', value: x => perfil(x.perfil) },
+      { label: 'Motorista', value: x => x.motorista || x.motoristaId || '' },
+      { label: 'Status', value: x => x.ativo ? 'Ativo' : 'Inativo' },
+      { label: 'Permissoes', value: x => x.permissoes?.length || 0 }
+    ], filtered);
+  }
+
   return (
     <>
       <Header
@@ -161,7 +181,13 @@ export function Usuarios() {
                 </select>
               </div>
 
-              <Input label="MotoristaId" type="number" value={form.motoristaId} onChange={v => setForm({ ...form, motoristaId: v })} />
+              <Select
+                label="Motorista/Tecnico"
+                value={form.motoristaId}
+                onChange={v => setForm({ ...form, motoristaId: v })}
+                items={motoristas}
+                text={x => x.nome}
+              />
 
               <div className="col-md-2 mb-3">
                 <label>Status</label>
@@ -225,6 +251,15 @@ export function Usuarios() {
                 <input className="form-control" placeholder="Nome, e-mail, MotoristaId ou permissao" value={busca} onChange={e => setBusca(e.target.value)} />
               </div>
 
+              <FiltrosSalvos
+                storageKey="filtros-usuarios"
+                value={{ busca, filtro }}
+                onApply={v => {
+                  setBusca(v.busca || '');
+                  setFiltro(v.filtro || { perfil: '', status: '' });
+                }}
+              />
+
               <div className="col-md-3 d-flex align-items-end mb-3">
                 <button type="button" className="btn btn-primary w-100">
                   <Filter size={16} /> Filtrar
@@ -236,6 +271,12 @@ export function Usuarios() {
                   <RotateCcw size={16} /> Limpar
                 </button>
               </div>
+
+              <div className="col-md-3 d-flex align-items-end mb-3">
+                <button type="button" className="btn btn-success w-100" onClick={exportar}>
+                  <Download size={16} /> Exportar
+                </button>
+              </div>
             </div>
 
             <small className="text-muted" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -245,14 +286,14 @@ export function Usuarios() {
 
           <div className="card card-soft table-card">
             <table className="table table-hover">
-              <thead><tr><th>Nome</th><th>E-mail</th><th>Perfil</th><th>MotoristaId</th><th>Status</th><th>Permissoes</th><th></th></tr></thead>
+              <thead><tr><th>Nome</th><th>E-mail</th><th>Perfil</th><th>Motorista</th><th>Status</th><th>Permissoes</th><th></th></tr></thead>
               <tbody>
                 {filtered.map(x => (
                   <tr key={x.id}>
                     <td>{x.nome}</td>
                     <td>{x.email}</td>
                     <td>{chipPerfil(x.perfil)}</td>
-                    <td>{x.motoristaId || '-'}</td>
+                    <td>{x.motorista || x.motoristaId || '-'}</td>
                     <td><span className={`chip ${x.ativo ? 'chip-success' : 'chip-danger'}`}>{x.ativo ? 'Ativo' : 'Inativo'}</span></td>
                     <td><span className="badge-soft">{x.permissoes?.length || 0}</span></td>
                     <td>

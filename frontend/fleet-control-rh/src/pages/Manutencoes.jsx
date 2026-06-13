@@ -1,14 +1,16 @@
 import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'react-toastify';
-import { AlertTriangle, CalendarClock, ClipboardList, Filter, RotateCcw, Search, Wrench } from 'lucide-react';
+import { AlertTriangle, CalendarClock, ClipboardList, Download, Eye, Filter, Paperclip, RotateCcw, Search, Wrench } from 'lucide-react';
 import { Header } from '../components/Layout/Header';
 import { Input } from '../components/Forms/Input';
 import { Select } from '../components/Forms/Select';
+import { FiltrosSalvos } from '../components/Forms/FiltrosSalvos';
 import { Metric } from '../components/Dashboard/Metric';
 import { manutencaoService } from '../services/manutencaoService';
 import { veiculoService } from '../services/veiculoService';
 import { getUser } from '../utils/permissions';
 import { money, number } from '../utils/formatters';
+import { exportarCsv } from '../utils/exportCsv';
 
 const hoje = new Date().toISOString().slice(0, 10);
 
@@ -45,6 +47,7 @@ export function Manutencoes() {
   const [busca, setBusca] = useState('');
   const [periodo, setPeriodo] = useState({ de: '', ate: '' });
   const [form, setForm] = useState(initialForm);
+  const [anexo, setAnexo] = useState(null);
   const [edit, setEdit] = useState(null);
   const [filtro, setFiltro] = useState({
     veiculoId: '',
@@ -105,16 +108,16 @@ export function Manutencoes() {
       return;
     }
 
-    const payload = {
-      veiculoId: Number(form.veiculoId),
-      tipo: form.tipo,
-      dataManutencao: form.dataManutencao,
-      kmManutencao: Number(form.kmManutencao),
-      descricao: form.descricao,
-      custo: form.custo === '' ? null : Number(String(form.custo).replace(',', '.')),
-      proximaManutencaoKm: form.proximaManutencaoKm === '' ? null : Number(form.proximaManutencaoKm),
-      proximaManutencaoData: form.proximaManutencaoData || null
-    };
+    const payload = new FormData();
+    payload.append('veiculoId', Number(form.veiculoId));
+    payload.append('tipo', form.tipo);
+    payload.append('dataManutencao', form.dataManutencao);
+    payload.append('kmManutencao', Number(form.kmManutencao));
+    payload.append('descricao', form.descricao || '');
+    payload.append('custo', form.custo === '' ? '' : String(form.custo).replace(',', '.'));
+    payload.append('proximaManutencaoKm', form.proximaManutencaoKm === '' ? '' : Number(form.proximaManutencaoKm));
+    payload.append('proximaManutencaoData', form.proximaManutencaoData || '');
+    if (anexo) payload.append('anexo', anexo);
 
     try {
       if (edit) {
@@ -126,6 +129,7 @@ export function Manutencoes() {
       }
 
       setForm(initialForm);
+      setAnexo(null);
       setEdit(null);
       setAba('consultar');
       await load();
@@ -158,6 +162,7 @@ export function Manutencoes() {
       proximaManutencaoKm: item.proximaManutencaoKm ?? '',
       proximaManutencaoData: item.proximaManutencaoData?.substring(0, 10) || ''
     });
+    setAnexo(null);
     setAba('registrar');
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
@@ -165,6 +170,7 @@ export function Manutencoes() {
   function cancelarEdicao() {
     setEdit(null);
     setForm(initialForm);
+    setAnexo(null);
   }
 
   function aplicarFiltro() {
@@ -178,6 +184,30 @@ export function Manutencoes() {
     setBusca('');
     setPeriodo({ de: '', ate: '' });
     load(novo).catch(() => toast.error('Erro ao carregar manutencoes.'));
+  }
+
+  function exportar() {
+    exportarCsv('manutencoes', [
+      { label: 'Veiculo', value: x => `${x.veiculo?.modelo || ''} - ${x.veiculo?.placa || ''}` },
+      { label: 'Tipo', value: 'tipo' },
+      { label: 'Data', value: x => formatDate(x.dataManutencao) },
+      { label: 'KM', value: x => number(x.kmManutencao) },
+      { label: 'Custo', value: x => x.custo ? money(x.custo) : '' },
+      { label: 'Proximo KM', value: x => x.proximaManutencaoKm ? number(x.proximaManutencaoKm) : '' },
+      { label: 'Proxima data', value: x => formatDate(x.proximaManutencaoData) },
+      { label: 'Anexo', value: x => x.temAnexo ? (x.anexoNome || 'Sim') : '' }
+    ], itemsFiltrados);
+  }
+
+  async function abrirAnexo(item) {
+    try {
+      const resp = await manutencaoService.anexo(item.id);
+      const url = URL.createObjectURL(resp.data);
+      window.open(url, '_blank', 'noopener');
+      setTimeout(() => URL.revokeObjectURL(url), 30000);
+    } catch {
+      toast.error('Erro ao abrir anexo.');
+    }
   }
 
   return (
@@ -269,6 +299,19 @@ export function Manutencoes() {
                     value={form.descricao}
                     onChange={e => setForm({ ...form, descricao: e.target.value })}
                   />
+                </div>
+
+                <div className="col-md-12 mb-3">
+                  <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <Paperclip size={14} /> Anexo
+                  </label>
+                  <input
+                    className="form-control"
+                    type="file"
+                    accept="image/*,.pdf"
+                    onChange={e => setAnexo(e.target.files?.[0] || null)}
+                  />
+                  {edit && <small className="text-muted d-block mt-1">Envie um novo arquivo somente se quiser substituir o anexo atual.</small>}
                 </div>
               </div>
 
@@ -373,6 +416,16 @@ export function Manutencoes() {
                 />
               </div>
 
+              <FiltrosSalvos
+                storageKey="filtros-manutencoes"
+                value={{ busca, filtro, periodo }}
+                onApply={v => {
+                  setBusca(v.busca || '');
+                  setFiltro(v.filtro || { veiculoId: '', status: '' });
+                  setPeriodo(v.periodo || { de: '', ate: '' });
+                }}
+              />
+
               <div className="col-md-3 d-flex align-items-end mb-3">
                 <button type="button" className="btn btn-primary w-100" onClick={aplicarFiltro}>
                   <Filter size={16} /> Filtrar
@@ -382,6 +435,12 @@ export function Manutencoes() {
               <div className="col-md-3 d-flex align-items-end mb-3">
                 <button type="button" className="btn btn-outline-secondary w-100" onClick={limparConsulta}>
                   <RotateCcw size={16} /> Limpar
+                </button>
+              </div>
+
+              <div className="col-md-3 d-flex align-items-end mb-3">
+                <button type="button" className="btn btn-success w-100" onClick={exportar}>
+                  <Download size={16} /> Exportar
                 </button>
               </div>
             </div>
@@ -403,6 +462,7 @@ export function Manutencoes() {
                   <th>Custo</th>
                   <th>Proximo KM</th>
                   <th>Proxima data</th>
+                  <th>Anexo</th>
                   <th width="180"></th>
                 </tr>
               </thead>
@@ -417,6 +477,13 @@ export function Manutencoes() {
                     <td>{x.custo ? money(x.custo) : '-'}</td>
                     <td>{x.proximaManutencaoKm ? number(x.proximaManutencaoKm) : '-'}</td>
                     <td>{formatDate(x.proximaManutencaoData)}</td>
+                    <td>
+                      {x.temAnexo ? (
+                        <button className="btn btn-sm btn-outline-primary" onClick={() => abrirAnexo(x)}>
+                          <Eye size={14} /> Ver
+                        </button>
+                      ) : '-'}
+                    </td>
                     <td>
                       {podeGerenciar && (
                         <>
@@ -434,7 +501,7 @@ export function Manutencoes() {
                 ))}
 
                 {itemsFiltrados.length === 0 && (
-                  <tr><td colSpan="8" className="text-muted" style={{ textAlign: 'center', padding: 28 }}>Nenhuma manutencao encontrada.</td></tr>
+                  <tr><td colSpan="9" className="text-muted" style={{ textAlign: 'center', padding: 28 }}>Nenhuma manutencao encontrada.</td></tr>
                 )}
               </tbody>
             </table>

@@ -10,6 +10,7 @@ import { Header } from '../components/Layout/Header';
 import { AbastecimentosTabela } from '../components/Abastecimentos/AbastecimentosTabela';
 import { AreaChart, BarsVeiculo, Donut, Sparkline } from '../components/Dashboard/Charts';
 import { money, number, litros as litrosFmt, toNumber } from '../utils/formatters';
+import { calcularAlertasOperacionais } from '../utils/operationalAlerts';
 import '../components/Dashboard/dashboard.css';
 
 /* ── Configurações ───────────────────────────────────────────────────────── */
@@ -140,6 +141,8 @@ export function Dashboard() {
   const [dash, setDash] = useState(null);
   const [abastecimentos, setAbastecimentos] = useState([]);
   const [alertas, setAlertas] = useState([]);
+  const [usos, setUsos] = useState([]);
+  const [veiculos, setVeiculos] = useState([]);
   const [periodo, setPeriodo] = useState('12m');
   const [carregando, setCarregando] = useState(true);
 
@@ -148,14 +151,18 @@ export function Dashboard() {
 
     async function carregar() {
       try {
-        const [dashRes, abastRes] = await Promise.all([
+        const [dashRes, abastRes, veiculosRes, usosRes] = await Promise.all([
           api.get('/dashboard'),
-          api.get('/abastecimentos')
+          api.get('/abastecimentos'),
+          api.get('/veiculos', { params: { incluirInativos: true } }),
+          api.get('/usos-veiculos', { params: { somenteAtivos: true } })
         ]);
 
         if (cancelled) return;
         setDash(dashRes.data);
         setAbastecimentos(Array.isArray(abastRes.data) ? abastRes.data : []);
+        setVeiculos(Array.isArray(veiculosRes.data) ? veiculosRes.data : []);
+        setUsos(Array.isArray(usosRes.data) ? usosRes.data : []);
       } catch {
         if (!cancelled) toast.error('Erro ao carregar o dashboard.');
       } finally {
@@ -208,8 +215,8 @@ export function Dashboard() {
   );
 
   const alertasAtivos = useMemo(
-    () => alertas.filter(a => a.status === 'Vencida' || a.status === 'Próxima').slice(0, 4),
-    [alertas]
+    () => calcularAlertasOperacionais({ abastecimentos, usos, manutencoes: alertas, veiculos }),
+    [abastecimentos, usos, alertas, veiculos]
   );
 
   const recentes = useMemo(() => abastecimentos.slice(0, 5), [abastecimentos]);
@@ -312,7 +319,7 @@ export function Dashboard() {
         <div className="panel">
           <div className="panel-head">
             <div>
-              <h3>Alertas de manutenção</h3>
+              <h3>Alertas operacionais</h3>
               <span className="panel-sub">Requer atenção</span>
             </div>
             {alertasAtivos.length > 0 && (
@@ -321,17 +328,19 @@ export function Dashboard() {
           </div>
 
           {alertasAtivos.length === 0 ? (
-            <div className="alert-empty">Nenhum alerta de manutenção. 🎉</div>
+            <div className="alert-empty">Nenhum alerta operacional.</div>
           ) : (
             <div className="alert-list">
               {alertasAtivos.map((a, i) => (
-                <div className="alert-item" key={a.manutencaoId || i}>
-                  <span className={`status-dot ${a.status === 'Vencida' ? 'danger' : 'warn'}`} />
+                <div className="alert-item" key={`${a.titulo}-${i}`}>
+                  <span className={`status-dot ${a.tipo === 'danger' ? 'danger' : a.tipo === 'warn' ? 'warn' : ''}`} />
                   <div className="alert-info">
-                    <strong>{a.veiculo}{a.placa ? ` — ${a.placa}` : ''}</strong>
-                    <span>{a.tipo}</span>
+                    <strong>{a.titulo}</strong>
+                    <span>{a.detalhe}</span>
                   </div>
-                  <span className={`chip ${a.status === 'Vencida' ? 'chip-danger' : 'chip-warn'}`}>{a.status}</span>
+                  <span className={`chip ${a.tipo === 'danger' ? 'chip-danger' : a.tipo === 'warn' ? 'chip-warn' : 'chip-success'}`}>
+                    {a.tipo === 'danger' ? 'Urgente' : a.tipo === 'warn' ? 'Atencao' : 'Info'}
+                  </span>
                 </div>
               ))}
               <button className="alert-cta" onClick={() => navigate('/manutencoes')}>

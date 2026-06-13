@@ -19,11 +19,16 @@ public class MotoristasController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<IActionResult> Get()
+    public async Task<IActionResult> Get([FromQuery] bool incluirInativos = false)
     {
-        var motoristas = await _db.Motoristas
+        var query = _db.Motoristas
             .AsNoTracking()
-            .Where(x => x.Ativo)
+            .AsQueryable();
+
+        if (!incluirInativos)
+            query = query.Where(x => x.Ativo);
+
+        var motoristas = await query
             .OrderBy(x => x.Nome)
             .ToListAsync();
 

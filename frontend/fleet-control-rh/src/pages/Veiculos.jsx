@@ -1,11 +1,14 @@
 import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'react-toastify';
-import { Car, ClipboardList, Filter, RotateCcw, Search } from 'lucide-react';
+import { Car, ClipboardList, Download, Filter, History, RotateCcw, Search } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { Header } from '../components/Layout/Header';
 import { FormVeiculo } from '../components/Forms/FormVeiculo';
 import { Select } from '../components/Forms/Select';
+import { FiltrosSalvos } from '../components/Forms/FiltrosSalvos';
 import { veiculoService } from '../services/veiculoService';
 import { combustivel, number } from '../utils/formatters';
+import { exportarCsv } from '../utils/exportCsv';
 
 const initialForm = { modelo: '', placa: '', kmAtual: 0, tipoCombustivel: 2, ativo: true };
 const combustiveis = [
@@ -16,6 +19,7 @@ const combustiveis = [
 ];
 
 export function Veiculos() {
+  const navigate = useNavigate();
   const [items, setItems] = useState([]);
   const [aba, setAba] = useState('registrar');
   const [busca, setBusca] = useState('');
@@ -35,7 +39,7 @@ export function Veiculos() {
   }, [items, busca, filtro]);
 
   async function load() {
-    const r = await veiculoService.listar();
+    const r = await veiculoService.listar({ incluirInativos: true });
     setItems(r.data);
   }
 
@@ -87,6 +91,22 @@ export function Veiculos() {
   function limparConsulta() {
     setBusca('');
     setFiltro({ tipoCombustivel: '', status: '' });
+  }
+
+  function classeStatus(status) {
+    if (status === 'Manutencao vencida' || status === 'Inativo') return 'chip chip-danger';
+    if (status === 'Em uso' || status === 'Manutencao proxima') return 'chip chip-warn';
+    return 'chip chip-success';
+  }
+
+  function exportar() {
+    exportarCsv('veiculos', [
+      { label: 'Modelo', value: 'modelo' },
+      { label: 'Placa', value: 'placa' },
+      { label: 'KM atual', value: x => number(x.kmAtual) },
+      { label: 'Combustivel', value: x => combustivel(x.tipoCombustivel) },
+      { label: 'Status', value: x => x.statusOperacional || (x.ativo ? 'Ativo' : 'Inativo') }
+    ], filtered);
   }
 
   return (
@@ -141,6 +161,15 @@ export function Veiculos() {
                 <input className="form-control" placeholder="Modelo ou placa" value={busca} onChange={e => setBusca(e.target.value)} />
               </div>
 
+              <FiltrosSalvos
+                storageKey="filtros-veiculos"
+                value={{ busca, filtro }}
+                onApply={v => {
+                  setBusca(v.busca || '');
+                  setFiltro(v.filtro || { tipoCombustivel: '', status: '' });
+                }}
+              />
+
               <div className="col-md-3 d-flex align-items-end mb-3">
                 <button type="button" className="btn btn-primary w-100">
                   <Filter size={16} /> Filtrar
@@ -150,6 +179,12 @@ export function Veiculos() {
               <div className="col-md-3 d-flex align-items-end mb-3">
                 <button type="button" className="btn btn-outline-secondary w-100" onClick={limparConsulta}>
                   <RotateCcw size={16} /> Limpar
+                </button>
+              </div>
+
+              <div className="col-md-3 d-flex align-items-end mb-3">
+                <button type="button" className="btn btn-success w-100" onClick={exportar}>
+                  <Download size={16} /> Exportar
                 </button>
               </div>
             </div>
@@ -162,7 +197,7 @@ export function Veiculos() {
           <div className="card card-soft table-card">
             <table className="table table-hover">
               <thead>
-                <tr><th>Modelo</th><th>Placa</th><th>KM atual</th><th>Combustivel</th><th>Status</th><th width="180"></th></tr>
+                <tr><th>Modelo</th><th>Placa</th><th>KM atual</th><th>Combustivel</th><th>Status</th><th width="260"></th></tr>
               </thead>
               <tbody>
                 {filtered.map(x => (
@@ -171,8 +206,11 @@ export function Veiculos() {
                     <td><span className="badge-soft">{x.placa}</span></td>
                     <td>{number(x.kmAtual)}</td>
                     <td><span className="chip chip-success">{combustivel(x.tipoCombustivel)}</span></td>
-                    <td><span className={`chip ${x.ativo ? 'chip-success' : 'chip-danger'}`}>{x.ativo ? 'Ativo' : 'Inativo'}</span></td>
+                    <td><span className={classeStatus(x.statusOperacional)}>{x.statusOperacional || (x.ativo ? 'Ativo' : 'Inativo')}</span></td>
                     <td>
+                      <button className="btn btn-sm btn-outline-primary me-2" onClick={() => navigate(`/veiculos/${x.id}/historico`)}>
+                        <History size={14} /> Historico
+                      </button>
                       <button className="btn btn-sm btn-warning me-2" onClick={() => editar(x)}>Editar</button>
                       <button className="btn btn-sm btn-danger" onClick={() => del(x.id)}>Remover</button>
                     </td>

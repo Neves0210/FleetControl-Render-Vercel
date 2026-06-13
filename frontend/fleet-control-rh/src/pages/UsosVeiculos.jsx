@@ -1,14 +1,16 @@
 import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'react-toastify';
-import { ClipboardList, Edit3, Filter, KeyRound, PlayCircle, RotateCcw, Search, StopCircle } from 'lucide-react';
+import { ClipboardList, Download, Edit3, Filter, KeyRound, PlayCircle, RotateCcw, Search, StopCircle } from 'lucide-react';
 import { Header } from '../components/Layout/Header';
 import { Input } from '../components/Forms/Input';
 import { Select } from '../components/Forms/Select';
+import { FiltrosSalvos } from '../components/Forms/FiltrosSalvos';
 import { usoVeiculoService } from '../services/usoVeiculoService';
 import { veiculoService } from '../services/veiculoService';
 import { motoristaService } from '../services/motoristaService';
 import { getUser, temPermissao } from '../utils/permissions';
 import { number } from '../utils/formatters';
+import { exportarCsv } from '../utils/exportCsv';
 
 const initialForm = {
   veiculoId: '',
@@ -242,6 +244,20 @@ export function UsosVeiculos() {
     load(novo).catch(() => toast.error('Erro ao carregar uso de veiculos.'));
   }
 
+  function exportar() {
+    exportarCsv('uso-veiculos', [
+      { label: 'Status', value: x => emUso(x.status) ? 'Em uso' : 'Finalizado' },
+      { label: 'Veiculo', value: x => `${x.veiculo?.modelo || ''} - ${x.veiculo?.placa || ''}` },
+      { label: 'Tecnico', value: x => x.motorista?.nome || '' },
+      { label: 'Inicio', value: x => formatDate(x.dataInicio) },
+      { label: 'Fim', value: x => formatDate(x.dataFim) },
+      { label: 'Tempo', value: x => formatTempo(x.tempoUsoMinutos) },
+      { label: 'KM inicial', value: x => number(x.kmInicial) },
+      { label: 'KM final', value: x => x.kmFinal ? number(x.kmFinal) : '' },
+      { label: 'KM rodado', value: x => x.kmFinal ? number(x.kmFinal - x.kmInicial) : '' }
+    ], itemsFiltrados);
+  }
+
   return (
     <>
       <Header
@@ -471,6 +487,16 @@ export function UsosVeiculos() {
                 />
               </div>
 
+              <FiltrosSalvos
+                storageKey="filtros-usos-veiculos"
+                value={{ busca, filtro, periodo }}
+                onApply={v => {
+                  setBusca(v.busca || '');
+                  setFiltro(v.filtro || { veiculoId: '', motoristaId: '', somenteAtivos: false });
+                  setPeriodo(v.periodo || { de: '', ate: '' });
+                }}
+              />
+
               <div className="col-md-3 d-flex align-items-end mb-3">
                 <button type="button" className="btn btn-primary w-100" onClick={aplicarFiltro}>
                   <Filter size={16} /> Filtrar
@@ -480,6 +506,12 @@ export function UsosVeiculos() {
               <div className="col-md-3 d-flex align-items-end mb-3">
                 <button type="button" className="btn btn-outline-secondary w-100" onClick={limparConsulta}>
                   <RotateCcw size={16} /> Limpar
+                </button>
+              </div>
+
+              <div className="col-md-3 d-flex align-items-end mb-3">
+                <button type="button" className="btn btn-success w-100" onClick={exportar}>
+                  <Download size={16} /> Exportar
                 </button>
               </div>
             </div>

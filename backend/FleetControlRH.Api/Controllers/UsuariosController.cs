@@ -4,6 +4,7 @@ using FleetControlRH.Api.Models;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Security.Claims;
 
 namespace FleetControlRH.Api.Controllers;
 
@@ -89,6 +90,9 @@ public class UsuariosController : ControllerBase
 
         await _db.SaveChangesAsync();
 
+        RegistrarAuditoria("Usuario", usuario.Id, "Criar", $"{usuario.Nome} | {usuario.Email}");
+        await _db.SaveChangesAsync();
+
         return Ok(new
         {
             usuario.Id,
@@ -154,6 +158,9 @@ public class UsuariosController : ControllerBase
 
         await _db.SaveChangesAsync();
 
+        RegistrarAuditoria("Usuario", usuario.Id, "Editar", $"{usuario.Nome} | {usuario.Email}");
+        await _db.SaveChangesAsync();
+
         return Ok(new
         {
             usuario.Id,
@@ -204,5 +211,22 @@ public class UsuariosController : ControllerBase
             return "Selecione um perfil válido.";
 
         return null;
+    }
+
+    private void RegistrarAuditoria(string entidade, int entidadeId, string acao, string? resumo)
+    {
+        var usuarioIdClaim = User.Claims.FirstOrDefault(x => x.Type == "UsuarioId" || x.Type == ClaimTypes.NameIdentifier)?.Value;
+        var usuarioNome = User.Claims.FirstOrDefault(x => x.Type == ClaimTypes.Name)?.Value;
+
+        _db.AuditoriaEventos.Add(new AuditoriaEvento
+        {
+            Entidade = entidade,
+            EntidadeId = entidadeId,
+            Acao = acao,
+            UsuarioId = int.TryParse(usuarioIdClaim, out var usuarioId) ? usuarioId : null,
+            UsuarioNome = usuarioNome,
+            Resumo = resumo,
+            CriadoEm = DateTime.UtcNow
+        });
     }
 }

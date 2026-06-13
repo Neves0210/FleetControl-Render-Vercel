@@ -8,6 +8,8 @@ import { Usuarios } from '../pages/Usuarios';
 import { Relatorios } from '../pages/Relatorios';
 import { Manutencoes } from '../pages/Manutencoes';
 import { UsosVeiculos } from '../pages/UsosVeiculos';
+import { HistoricoVeiculo } from '../pages/HistoricoVeiculo';
+import { PerfilMotorista } from '../pages/PerfilMotorista';
 import { PermissionRoute } from './PermissionRoute';
 
 export function AppRoutes() {
@@ -18,7 +20,9 @@ export function AppRoutes() {
 
         <Route path="/" element={<PermissionRoute permissao="Dashboard.Visualizar"><Dashboard /></PermissionRoute>} />
         <Route path="/veiculos" element={<PermissionRoute permissao="Veiculos.Visualizar"><Veiculos /></PermissionRoute>} />
+        <Route path="/veiculos/:id/historico" element={<PermissionRoute permissao="Veiculos.Visualizar"><HistoricoVeiculo /></PermissionRoute>} />
         <Route path="/motoristas" element={<PermissionRoute permissao="Motoristas.Visualizar"><Motoristas /></PermissionRoute>} />
+        <Route path="/motoristas/:id/perfil" element={<PermissionRoute permissao="Motoristas.Visualizar"><PerfilMotorista /></PermissionRoute>} />
         <Route path="/abastecimentos" element={<PermissionRoute permissao="Abastecimentos.Visualizar"><Abastecimentos /></PermissionRoute>} />
         <Route path="/uso-veiculos" element={<PermissionRoute permissao="UsosVeiculos.Visualizar"><UsosVeiculos /></PermissionRoute>} />
         <Route path="/manutencoes" element={<PermissionRoute permissao="Manutencoes.Visualizar"><Manutencoes /></PermissionRoute>} />

@@ -6,6 +6,7 @@ using FleetControlRH.Api.Services;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
+using System.Security.Claims;
 
 namespace FleetControlRH.Api.Controllers;
 
@@ -124,6 +125,9 @@ public class AbastecimentosController : ControllerBase
 
         await _db.SaveChangesAsync();
 
+        RegistrarAuditoria("Abastecimento", model.Id, "Criar", $"Veiculo {model.VeiculoId} | Motorista {model.MotoristaId} | {model.ValorTotal:C}");
+        await _db.SaveChangesAsync();
+
         return Ok(model);
     }
 
@@ -178,6 +182,9 @@ public class AbastecimentosController : ControllerBase
         if (veiculoIdAnterior != model.VeiculoId)
             await RecalcularKmAtualVeiculoAsync(veiculoIdAnterior);
 
+        await _db.SaveChangesAsync();
+
+        RegistrarAuditoria("Abastecimento", abastecimento.Id, "Editar", $"Veiculo {abastecimento.VeiculoId} | Motorista {abastecimento.MotoristaId} | {abastecimento.ValorTotal:C}");
         await _db.SaveChangesAsync();
 
         return Ok(abastecimento);
@@ -565,5 +572,22 @@ public class AbastecimentosController : ControllerBase
         await arquivo.CopyToAsync(ms);
         var contentType = string.IsNullOrWhiteSpace(arquivo.ContentType) ? "image/jpeg" : arquivo.ContentType;
         return (ms.ToArray(), contentType);
+    }
+
+    private void RegistrarAuditoria(string entidade, int entidadeId, string acao, string? resumo)
+    {
+        var usuarioIdClaim = User.Claims.FirstOrDefault(x => x.Type == "UsuarioId" || x.Type == ClaimTypes.NameIdentifier)?.Value;
+        var usuarioNome = User.Claims.FirstOrDefault(x => x.Type == ClaimTypes.Name)?.Value;
+
+        _db.AuditoriaEventos.Add(new AuditoriaEvento
+        {
+            Entidade = entidade,
+            EntidadeId = entidadeId,
+            Acao = acao,
+            UsuarioId = int.TryParse(usuarioIdClaim, out var usuarioId) ? usuarioId : null,
+            UsuarioNome = usuarioNome,
+            Resumo = resumo,
+            CriadoEm = DateTime.UtcNow
+        });
     }
 }

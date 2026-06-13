@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using FleetControlRH.Api.Utils;
+using System.Security.Claims;
 
 namespace FleetControlRH.Api.Controllers;
 
@@ -142,6 +143,9 @@ public class UsosVeiculosController : ControllerBase
 
         await _db.SaveChangesAsync();
 
+        RegistrarAuditoria("UsoVeiculo", uso.Id, "Iniciar", $"Veiculo {uso.VeiculoId} | Motorista {uso.MotoristaId}");
+        await _db.SaveChangesAsync();
+
         return Ok(uso);
     }
 
@@ -180,6 +184,9 @@ public class UsosVeiculosController : ControllerBase
         if (uso.Veiculo != null && dto.KmFinal > uso.Veiculo.KmAtual)
             uso.Veiculo.KmAtual = dto.KmFinal;
 
+        await _db.SaveChangesAsync();
+
+        RegistrarAuditoria("UsoVeiculo", uso.Id, "Finalizar", $"Veiculo {uso.VeiculoId} | Motorista {uso.MotoristaId} | KM {uso.KmFinal}");
         await _db.SaveChangesAsync();
 
         return Ok(uso);
@@ -233,6 +240,9 @@ public class UsosVeiculosController : ControllerBase
         if (veiculoIdAnterior != uso.VeiculoId)
             await RecalcularKmAtualVeiculoAsync(veiculoIdAnterior);
 
+        await _db.SaveChangesAsync();
+
+        RegistrarAuditoria("UsoVeiculo", uso.Id, "Editar", $"Veiculo {uso.VeiculoId} | Motorista {uso.MotoristaId}");
         await _db.SaveChangesAsync();
 
         return Ok(uso);
@@ -347,5 +357,22 @@ public class UsosVeiculosController : ControllerBase
         return int.TryParse(usuarioIdClaim, out var usuarioId)
             ? usuarioId
             : null;
+    }
+
+    private void RegistrarAuditoria(string entidade, int entidadeId, string acao, string? resumo)
+    {
+        var usuarioIdClaim = User.Claims.FirstOrDefault(x => x.Type == "UsuarioId" || x.Type == ClaimTypes.NameIdentifier)?.Value;
+        var usuarioNome = User.Claims.FirstOrDefault(x => x.Type == ClaimTypes.Name)?.Value;
+
+        _db.AuditoriaEventos.Add(new AuditoriaEvento
+        {
+            Entidade = entidade,
+            EntidadeId = entidadeId,
+            Acao = acao,
+            UsuarioId = int.TryParse(usuarioIdClaim, out var usuarioId) ? usuarioId : null,
+            UsuarioNome = usuarioNome,
+            Resumo = resumo,
+            CriadoEm = DateTime.UtcNow
+        });
     }
 }

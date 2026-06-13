@@ -1,15 +1,18 @@
 import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'react-toastify';
-import { Fuel, Camera, Link2, ScanLine, Filter, RotateCcw, Search, ClipboardList, Plus, Trash2 } from 'lucide-react';
+import { Fuel, Camera, Link2, ScanLine, Filter, RotateCcw, Search, ClipboardList, Plus, Trash2, Download } from 'lucide-react';
 import { Header } from '../components/Layout/Header';
 import { Input } from '../components/Forms/Input';
 import { Select } from '../components/Forms/Select';
+import { FiltrosSalvos } from '../components/Forms/FiltrosSalvos';
 import { AbastecimentosTabela } from '../components/Abastecimentos/AbastecimentosTabela';
 import { abastecimentoService } from '../services/abastecimentoService';
 import { veiculoService } from '../services/veiculoService';
 import { motoristaService } from '../services/motoristaService';
 import { emptyAbastecimento } from '../utils/constants';
 import { comprimirImagem } from '../utils/comprimirImagem';
+import { dataHora, litros as litrosFmt, money, number } from '../utils/formatters';
+import { exportarCsv } from '../utils/exportCsv';
 
 function numeroBr(value, casas = 3) {
   const numero = Number(value);
@@ -356,6 +359,19 @@ export function Abastecimentos() {
     load(novo).catch(() => toast.error('Erro ao carregar abastecimentos.'));
   }
 
+  function exportar() {
+    exportarCsv('abastecimentos', [
+      { label: 'Data', value: x => dataHora(x.dataAbastecimento) },
+      { label: 'Veiculo', value: x => `${x.veiculo?.modelo || ''} - ${x.veiculo?.placa || ''}` },
+      { label: 'Motorista', value: x => x.motorista?.nome || '' },
+      { label: 'Posto', value: x => x.posto || '' },
+      { label: 'KM', value: x => number(x.kmAtual) },
+      { label: 'Litros', value: x => litrosFmt(x.litros) },
+      { label: 'Valor', value: x => money(x.valorTotal) },
+      { label: 'Nota', value: x => x.temFoto ? 'Sim' : '' }
+    ], itemsFiltrados);
+  }
+
   /* Refino client-side sobre o que já veio do servidor (busca + intervalo de datas). */
   const itemsFiltrados = useMemo(() => {
     const q = busca.trim().toLowerCase();
@@ -611,6 +627,16 @@ export function Abastecimentos() {
                 />
               </div>
 
+              <FiltrosSalvos
+                storageKey="filtros-abastecimentos"
+                value={{ busca, filtro, periodo }}
+                onApply={v => {
+                  setBusca(v.busca || '');
+                  setFiltro(v.filtro || { veiculoId: '', motoristaId: '' });
+                  setPeriodo(v.periodo || { de: '', ate: '' });
+                }}
+              />
+
               <div className="col-md-3 d-flex align-items-end mb-3">
                 <button type="button" className="btn btn-primary w-100" onClick={aplicarFiltroServidor}>
                   <Filter size={16} /> Filtrar
@@ -620,6 +646,12 @@ export function Abastecimentos() {
               <div className="col-md-3 d-flex align-items-end mb-3">
                 <button type="button" className="btn btn-outline-secondary w-100" onClick={limparConsulta}>
                   <RotateCcw size={16} /> Limpar
+                </button>
+              </div>
+
+              <div className="col-md-3 d-flex align-items-end mb-3">
+                <button type="button" className="btn btn-success w-100" onClick={exportar}>
+                  <Download size={16} /> Exportar
                 </button>
               </div>
             </div>

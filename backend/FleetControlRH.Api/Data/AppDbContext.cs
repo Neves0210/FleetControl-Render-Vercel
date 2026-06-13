@@ -15,6 +15,7 @@ public class AppDbContext : DbContext
     public DbSet<UsuarioPermissao> UsuarioPermissoes => Set<UsuarioPermissao>();
     public DbSet<UsoVeiculo> UsosVeiculos => Set<UsoVeiculo>();
     public DbSet<ManutencaoVeiculo> ManutencoesVeiculos => Set<ManutencaoVeiculo>();
+    public DbSet<AuditoriaEvento> AuditoriaEventos => Set<AuditoriaEvento>();
 
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
@@ -72,6 +73,10 @@ public class AppDbContext : DbContext
             .Property(x => x.Custo)
             .HasColumnType("decimal(10,2)");
 
+        modelBuilder.Entity<ManutencaoVeiculo>()
+            .Property(x => x.AnexoArquivo)
+            .HasColumnType("bytea");
+
         modelBuilder.Entity<UsoVeiculo>()
             .HasOne(x => x.Veiculo)
             .WithMany()
@@ -110,5 +115,8 @@ public class AppDbContext : DbContext
 
         modelBuilder.Entity<ManutencaoVeiculo>()
             .HasIndex(x => new { x.VeiculoId, x.DataManutencao });
+
+        modelBuilder.Entity<AuditoriaEvento>()
+            .HasIndex(x => new { x.Entidade, x.EntidadeId, x.CriadoEm });
     }
 }

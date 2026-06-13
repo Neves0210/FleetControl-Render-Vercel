@@ -1,13 +1,17 @@
 import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'react-toastify';
-import { ClipboardList, Filter, RotateCcw, Search, Users } from 'lucide-react';
+import { ClipboardList, Download, Filter, History, RotateCcw, Search, Users } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 import { Header } from '../components/Layout/Header';
 import { Input } from '../components/Forms/Input';
+import { FiltrosSalvos } from '../components/Forms/FiltrosSalvos';
 import { motoristaService } from '../services/motoristaService';
+import { exportarCsv } from '../utils/exportCsv';
 
 const initialForm = { nome: '', documento: '', telefone: '', cargo: 'Tecnico', ativo: true };
 
 export function Motoristas() {
+  const navigate = useNavigate();
   const [items, setItems] = useState([]);
   const [aba, setAba] = useState('registrar');
   const [busca, setBusca] = useState('');
@@ -33,7 +37,7 @@ export function Motoristas() {
   }, [items, busca, filtro]);
 
   async function load() {
-    const r = await motoristaService.listar();
+    const r = await motoristaService.listar({ incluirInativos: true });
     setItems(r.data);
   }
 
@@ -85,6 +89,16 @@ export function Motoristas() {
   function limparConsulta() {
     setBusca('');
     setFiltro({ cargo: '', status: '' });
+  }
+
+  function exportar() {
+    exportarCsv('motoristas', [
+      { label: 'Nome', value: 'nome' },
+      { label: 'Documento', value: 'documento' },
+      { label: 'Telefone', value: 'telefone' },
+      { label: 'Cargo', value: 'cargo' },
+      { label: 'Status', value: x => x.ativo ? 'Ativo' : 'Inativo' }
+    ], filtered);
   }
 
   return (
@@ -162,6 +176,15 @@ export function Motoristas() {
                 <input className="form-control" placeholder="Nome, documento, telefone ou cargo" value={busca} onChange={e => setBusca(e.target.value)} />
               </div>
 
+              <FiltrosSalvos
+                storageKey="filtros-motoristas"
+                value={{ busca, filtro }}
+                onApply={v => {
+                  setBusca(v.busca || '');
+                  setFiltro(v.filtro || { cargo: '', status: '' });
+                }}
+              />
+
               <div className="col-md-3 d-flex align-items-end mb-3">
                 <button type="button" className="btn btn-primary w-100">
                   <Filter size={16} /> Filtrar
@@ -171,6 +194,12 @@ export function Motoristas() {
               <div className="col-md-3 d-flex align-items-end mb-3">
                 <button type="button" className="btn btn-outline-secondary w-100" onClick={limparConsulta}>
                   <RotateCcw size={16} /> Limpar
+                </button>
+              </div>
+
+              <div className="col-md-3 d-flex align-items-end mb-3">
+                <button type="button" className="btn btn-success w-100" onClick={exportar}>
+                  <Download size={16} /> Exportar
                 </button>
               </div>
             </div>
@@ -190,6 +219,9 @@ export function Motoristas() {
                     <td>{x.cargo ? <span className="chip chip-success">{x.cargo}</span> : '-'}</td>
                     <td><span className={`chip ${x.ativo ? 'chip-success' : 'chip-danger'}`}>{x.ativo ? 'Ativo' : 'Inativo'}</span></td>
                     <td>
+                      <button className="btn btn-sm btn-outline-primary me-2" onClick={() => navigate(`/motoristas/${x.id}/perfil`)}>
+                        <History size={14} /> Perfil
+                      </button>
                       <button className="btn btn-sm btn-warning me-2" onClick={() => editar(x)}>Editar</button>
                       <button className="btn btn-sm btn-danger" onClick={() => del(x.id)}>Remover</button>
                     </td>

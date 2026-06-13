@@ -36,5 +36,13 @@ public class ManutencaoVeiculo
 
     public DateTime? ProximaManutencaoData { get; set; }
 
+    [MaxLength(180)]
+    public string? AnexoNome { get; set; }
+
+    [MaxLength(120)]
+    public string? AnexoContentType { get; set; }
+
+    public byte[]? AnexoArquivo { get; set; }
+
     public DateTime CriadoEm { get; set; } = DateTime.UtcNow;
 }

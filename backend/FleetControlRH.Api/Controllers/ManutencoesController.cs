@@ -1,3 +1,4 @@
+using System.Security.Claims;
 using FleetControlRH.Api.Data;
 using FleetControlRH.Api.DTOs;
 using FleetControlRH.Api.Extensions;
@@ -48,7 +49,22 @@ public class ManutencoesController : ControllerBase
             lista = lista.Where(x => ids.Contains(x.Id)).ToList();
         }
 
-        return Ok(lista);
+        return Ok(lista.Select(x => new
+        {
+            x.Id,
+            x.VeiculoId,
+            x.Veiculo,
+            x.Tipo,
+            x.DataManutencao,
+            x.KmManutencao,
+            x.Descricao,
+            x.Custo,
+            x.ProximaManutencaoKm,
+            x.ProximaManutencaoData,
+            x.CriadoEm,
+            x.AnexoNome,
+            temAnexo = x.AnexoArquivo != null
+        }));
     }
 
     [HttpGet("alertas")]
@@ -73,12 +89,12 @@ public class ManutencoesController : ControllerBase
     }
 
     [HttpPost]
-    public async Task<IActionResult> Create([FromBody] ManutencaoVeiculoDto dto)
+    public async Task<IActionResult> Create([FromForm] ManutencaoVeiculoDto dto, IFormFile? anexo)
     {
         if (!User.TemPermissao("Manutencoes.Gerenciar"))
             return Forbid();
 
-        var erro = await ValidarAsync(dto, null);
+        var erro = await ValidarAsync(dto, anexo);
 
         if (!string.IsNullOrWhiteSpace(erro))
             return BadRequest(new { mensagem = erro });
@@ -96,15 +112,20 @@ public class ManutencoesController : ControllerBase
             CriadoEm = DateTime.UtcNow
         };
 
-        _db.ManutencoesVeiculos.Add(model);
+        if (anexo is { Length: > 0 })
+            await AplicarAnexoAsync(model, anexo);
 
+        _db.ManutencoesVeiculos.Add(model);
+        await _db.SaveChangesAsync();
+
+        RegistrarAuditoria("ManutencaoVeiculo", model.Id, "Criar", $"{model.Tipo} | Veiculo {model.VeiculoId}");
         await _db.SaveChangesAsync();
 
         return Ok(model);
     }
 
     [HttpPut("{id:int}")]
-    public async Task<IActionResult> Update(int id, [FromBody] ManutencaoVeiculoDto dto)
+    public async Task<IActionResult> Update(int id, [FromForm] ManutencaoVeiculoDto dto, IFormFile? anexo)
     {
         if (!User.TemPermissao("Manutencoes.Gerenciar"))
             return Forbid();
@@ -114,7 +135,7 @@ public class ManutencoesController : ControllerBase
         if (model == null)
             return NotFound();
 
-        var erro = await ValidarAsync(dto, id);
+        var erro = await ValidarAsync(dto, anexo);
 
         if (!string.IsNullOrWhiteSpace(erro))
             return BadRequest(new { mensagem = erro });
@@ -128,9 +149,35 @@ public class ManutencoesController : ControllerBase
         model.ProximaManutencaoKm = dto.ProximaManutencaoKm;
         model.ProximaManutencaoData = dto.ProximaManutencaoData;
 
+        if (anexo is { Length: > 0 })
+            await AplicarAnexoAsync(model, anexo);
+
+        RegistrarAuditoria("ManutencaoVeiculo", model.Id, "Editar", $"{model.Tipo} | Veiculo {model.VeiculoId}");
+
         await _db.SaveChangesAsync();
 
         return Ok(model);
+    }
+
+    [HttpGet("{id:int}/anexo")]
+    public async Task<IActionResult> ObterAnexo(int id)
+    {
+        if (!User.TemPermissao("Manutencoes.Visualizar"))
+            return Forbid();
+
+        var anexo = await _db.ManutencoesVeiculos
+            .AsNoTracking()
+            .Where(x => x.Id == id)
+            .Select(x => new { x.AnexoArquivo, x.AnexoContentType, x.AnexoNome })
+            .FirstOrDefaultAsync();
+
+        if (anexo?.AnexoArquivo == null || anexo.AnexoArquivo.Length == 0)
+            return NotFound();
+
+        return File(
+            anexo.AnexoArquivo,
+            anexo.AnexoContentType ?? "application/octet-stream",
+            anexo.AnexoNome ?? $"manutencao-{id}");
     }
 
     [HttpDelete("{id:int}")]
@@ -144,6 +191,8 @@ public class ManutencoesController : ControllerBase
         if (model == null)
             return NotFound();
 
+        RegistrarAuditoria("ManutencaoVeiculo", model.Id, "Remover", $"{model.Tipo} | Veiculo {model.VeiculoId}");
+
         _db.ManutencoesVeiculos.Remove(model);
 
         await _db.SaveChangesAsync();
@@ -151,38 +200,88 @@ public class ManutencoesController : ControllerBase
         return Ok();
     }
 
-    private async Task<string?> ValidarAsync(ManutencaoVeiculoDto dto, int? idIgnorado)
+    private async Task<string?> ValidarAsync(ManutencaoVeiculoDto dto, IFormFile? anexo)
     {
         if (dto.VeiculoId <= 0)
-            return "Selecione um veículo.";
+            return "Selecione um veiculo.";
 
         var veiculo = await _db.Veiculos.FindAsync(dto.VeiculoId);
 
         if (veiculo == null || !veiculo.Ativo)
-            return "Veículo inválido.";
+            return "Veiculo invalido.";
 
         if (string.IsNullOrWhiteSpace(dto.Tipo))
-            return "Informe o tipo de manutenção.";
+            return "Informe o tipo de manutencao.";
 
         if (dto.DataManutencao > DateTime.Now.AddMinutes(5))
-            return "A data da manutenção não pode ser futura.";
+            return "A data da manutencao nao pode ser futura.";
 
         if (dto.KmManutencao < 0)
-            return "O KM da manutenção não pode ser negativo.";
+            return "O KM da manutencao nao pode ser negativo.";
 
         if (dto.KmManutencao > veiculo.KmAtual + 10000)
-            return $"O KM da manutenção parece muito acima do KM atual do veículo ({veiculo.KmAtual}).";
+            return $"O KM da manutencao parece muito acima do KM atual do veiculo ({veiculo.KmAtual}).";
 
         if (dto.Custo.HasValue && dto.Custo < 0)
-            return "O custo não pode ser negativo.";
+            return "O custo nao pode ser negativo.";
 
         if (dto.ProximaManutencaoKm.HasValue && dto.ProximaManutencaoKm.Value <= dto.KmManutencao)
-            return "O KM da próxima manutenção deve ser maior que o KM da manutenção atual.";
+            return "O KM da proxima manutencao deve ser maior que o KM da manutencao atual.";
 
         if (dto.ProximaManutencaoData.HasValue && dto.ProximaManutencaoData.Value.Date < dto.DataManutencao.Date)
-            return "A data da próxima manutenção não pode ser anterior à data da manutenção atual.";
+            return "A data da proxima manutencao nao pode ser anterior a data da manutencao atual.";
+
+        if (anexo is { Length: > 0 })
+        {
+            var erroAnexo = ValidarAnexo(anexo);
+            if (!string.IsNullOrWhiteSpace(erroAnexo))
+                return erroAnexo;
+        }
 
         return null;
+    }
+
+    private static string? ValidarAnexo(IFormFile arquivo)
+    {
+        const long tamanhoMaximo = 8 * 1024 * 1024;
+        if (arquivo.Length > tamanhoMaximo)
+            return "O anexo da manutencao deve ter no maximo 8 MB.";
+
+        var extensao = Path.GetExtension(arquivo.FileName).ToLowerInvariant();
+        var permitidas = new[] { ".jpg", ".jpeg", ".png", ".webp", ".pdf" };
+
+        if (!permitidas.Contains(extensao))
+            return "O anexo deve estar em JPG, PNG, WEBP ou PDF.";
+
+        return null;
+    }
+
+    private static async Task AplicarAnexoAsync(ManutencaoVeiculo model, IFormFile arquivo)
+    {
+        using var ms = new MemoryStream();
+        await arquivo.CopyToAsync(ms);
+        model.AnexoArquivo = ms.ToArray();
+        model.AnexoContentType = string.IsNullOrWhiteSpace(arquivo.ContentType)
+            ? "application/octet-stream"
+            : arquivo.ContentType;
+        model.AnexoNome = Path.GetFileName(arquivo.FileName);
+    }
+
+    private void RegistrarAuditoria(string entidade, int entidadeId, string acao, string? resumo)
+    {
+        var usuarioIdClaim = User.Claims.FirstOrDefault(x => x.Type == "UsuarioId" || x.Type == ClaimTypes.NameIdentifier)?.Value;
+        var usuarioNome = User.Claims.FirstOrDefault(x => x.Type == ClaimTypes.Name)?.Value;
+
+        _db.AuditoriaEventos.Add(new AuditoriaEvento
+        {
+            Entidade = entidade,
+            EntidadeId = entidadeId,
+            Acao = acao,
+            UsuarioId = int.TryParse(usuarioIdClaim, out var usuarioId) ? usuarioId : null,
+            UsuarioNome = usuarioNome,
+            Resumo = resumo,
+            CriadoEm = DateTime.UtcNow
+        });
     }
 
     private static List<AlertaManutencaoDto> CalcularAlertas(List<ManutencaoVeiculo> manutencoes)
@@ -217,7 +316,7 @@ public class ManutencoesController : ControllerBase
             var status = vencida
                 ? "Vencida"
                 : proxima
-                    ? "Próxima"
+                    ? "PrÃ³xima"
                     : "Em dia";
 
             return new AlertaManutencaoDto

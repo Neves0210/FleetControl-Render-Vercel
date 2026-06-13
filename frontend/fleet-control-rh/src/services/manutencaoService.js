@@ -5,5 +5,6 @@ export const manutencaoService = {
   alertas: () => api.get('/manutencoes/alertas'),
   criar: payload => api.post('/manutencoes', payload),
   atualizar: (id, payload) => api.put(`/manutencoes/${id}`, payload),
+  anexo: id => api.get(`/manutencoes/${id}/anexo`, { responseType: 'blob' }),
   remover: id => api.delete(`/manutencoes/${id}`)
 };
