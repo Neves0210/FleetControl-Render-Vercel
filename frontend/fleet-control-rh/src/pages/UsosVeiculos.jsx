@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'react-toastify';
-import { Edit3, KeyRound, PlayCircle, StopCircle } from 'lucide-react';
+import { ClipboardList, Edit3, Filter, KeyRound, PlayCircle, RotateCcw, Search, StopCircle } from 'lucide-react';
 import { Header } from '../components/Layout/Header';
 import { Input } from '../components/Forms/Input';
 import { Select } from '../components/Forms/Select';
@@ -50,6 +50,14 @@ function formatTempo(minutos) {
   return `${horas}h ${mins}min`;
 }
 
+function emUso(status) {
+  return status === 1 || status === 'EmUso';
+}
+
+function finalizado(status) {
+  return status === 2 || status === 'Finalizado';
+}
+
 export function UsosVeiculos() {
   const user = getUser();
 
@@ -57,6 +65,9 @@ export function UsosVeiculos() {
   const [veiculos, setVeiculos] = useState([]);
   const [veiculosDisponiveis, setVeiculosDisponiveis] = useState([]);
   const [motoristas, setMotoristas] = useState([]);
+  const [aba, setAba] = useState('registrar');
+  const [busca, setBusca] = useState('');
+  const [periodo, setPeriodo] = useState({ de: '', ate: '' });
   const [form, setForm] = useState(initialForm);
   const [finalizar, setFinalizar] = useState(initialFinalizar);
   const [editandoId, setEditandoId] = useState(null);
@@ -71,15 +82,35 @@ export function UsosVeiculos() {
   const podeEditar = user?.perfil === 1 || user?.perfil === 2 || temPermissao('UsosVeiculos.Editar');
 
   const usosAtivos = useMemo(
-    () => items.filter(x => x.status === 1 || x.status === 'EmUso'),
+    () => items.filter(x => emUso(x.status)),
     [items]
   );
 
-  async function load() {
+  const itemsFiltrados = useMemo(() => {
+    const q = busca.trim().toLowerCase();
+
+    return items.filter(x => {
+      if (q) {
+        const alvo = `${x.veiculo?.modelo || ''} ${x.veiculo?.placa || ''} ${x.motorista?.nome || ''} ${x.observacaoInicio || ''} ${x.observacaoFim || ''}`.toLowerCase();
+        if (!alvo.includes(q)) return false;
+      }
+
+      if (periodo.de || periodo.ate) {
+        const dia = String(x.dataInicio || '').slice(0, 10);
+        if (!dia) return false;
+        if (periodo.de && dia < periodo.de) return false;
+        if (periodo.ate && dia > periodo.ate) return false;
+      }
+
+      return true;
+    });
+  }, [items, busca, periodo]);
+
+  async function load(f = filtro) {
     const params = {
-      veiculoId: filtro.veiculoId || undefined,
-      motoristaId: filtro.motoristaId || undefined,
-      somenteAtivos: filtro.somenteAtivos || undefined
+      veiculoId: f.veiculoId || undefined,
+      motoristaId: f.motoristaId || undefined,
+      somenteAtivos: f.somenteAtivos || undefined
     };
 
     const [usosRes, veiculosRes, disponiveisRes, motoristasRes] = await Promise.all([
@@ -96,33 +127,11 @@ export function UsosVeiculos() {
   }
 
   useEffect(() => {
-    let cancelled = false;
-
-    async function carregar() {
-      try {
-        const [usosRes, veiculosRes, disponiveisRes, motoristasRes] = await Promise.all([
-          usoVeiculoService.listar({}),
-          veiculoService.listar(),
-          usoVeiculoService.veiculosDisponiveis(),
-          motoristaService.listar()
-        ]);
-
-        if (!cancelled) {
-          setItems(usosRes.data);
-          setVeiculos(veiculosRes.data);
-          setVeiculosDisponiveis(disponiveisRes.data);
-          setMotoristas(motoristasRes.data);
-        }
-      } catch {
-        if (!cancelled) toast.error('Erro ao carregar uso de veículos.');
-      }
-    }
-
-    carregar();
-
-    return () => {
-      cancelled = true;
-    };
+    load({
+      veiculoId: '',
+      motoristaId: '',
+      somenteAtivos: false
+    }).catch(() => toast.error('Erro ao carregar uso de veiculos.'));
   }, []);
 
   async function iniciarUso(e) {
@@ -140,13 +149,12 @@ export function UsosVeiculos() {
 
       await usoVeiculoService.iniciar(payload);
 
-      toast.success('Uso do veículo iniciado.');
-
+      toast.success('Uso do veiculo iniciado.');
       setForm(initialForm);
-
+      setAba('consultar');
       await load();
     } catch (err) {
-      toast.error(err.response?.data?.mensagem || 'Erro ao iniciar uso do veículo.');
+      toast.error(err.response?.data?.mensagem || 'Erro ao iniciar uso do veiculo.');
     }
   }
 
@@ -164,13 +172,12 @@ export function UsosVeiculos() {
         observacaoFim: finalizar.observacaoFim
       });
 
-      toast.success('Uso do veículo finalizado.');
-
+      toast.success('Uso do veiculo finalizado.');
       setFinalizar(initialFinalizar);
-
+      setAba('consultar');
       await load();
     } catch (err) {
-      toast.error(err.response?.data?.mensagem || 'Erro ao finalizar uso do veículo.');
+      toast.error(err.response?.data?.mensagem || 'Erro ao finalizar uso do veiculo.');
     }
   }
 
@@ -186,6 +193,7 @@ export function UsosVeiculos() {
       status: uso.status
     });
 
+    setAba('registrar');
     window.scrollTo({ top: 0, behavior: 'smooth' });
   }
 
@@ -214,270 +222,323 @@ export function UsosVeiculos() {
       toast.success('Uso do veiculo atualizado.');
 
       cancelarEdicao();
+      setAba('consultar');
       await load();
     } catch (err) {
       toast.error(err.response?.data?.mensagem || 'Erro ao atualizar uso do veiculo.');
     }
   }
 
-  function usoFinalizado(status) {
-    return status === 2 || status === 'Finalizado';
+  function aplicarFiltro() {
+    setAba('consultar');
+    load(filtro).catch(() => toast.error('Erro ao filtrar usos de veiculos.'));
+  }
+
+  function limparConsulta() {
+    const novo = { veiculoId: '', motoristaId: '', somenteAtivos: false };
+    setFiltro(novo);
+    setBusca('');
+    setPeriodo({ de: '', ate: '' });
+    load(novo).catch(() => toast.error('Erro ao carregar uso de veiculos.'));
   }
 
   return (
     <>
       <Header
-        title="Uso de Veículos"
-        subtitle="Controle de disponibilidade, bloqueio e tempo de uso da frota"
-        actions={<span className="badge-soft">{usosAtivos.length} em uso</span>}
+        title="Uso de Veiculos"
+        subtitle={aba === 'registrar' ? 'Inicie, finalize ou edite o uso da frota' : 'Consulte disponibilidade, bloqueio e tempo de uso'}
+        actions={editandoId && aba === 'registrar'
+          ? <button type="button" className="btn btn-secondary" onClick={cancelarEdicao}>Cancelar edicao</button>
+          : <span className="badge-soft">{usosAtivos.length} em uso</span>}
       />
 
-      <div className="row">
-        <div className="col-lg-6">
-          <form className="card card-soft p-3 mb-3" onSubmit={iniciarUso}>
-            <h5 style={{ display: 'flex', alignItems: 'center', gap: 8 }}><PlayCircle size={17} /> Iniciar uso</h5>
+      <div className="segmented" style={{ marginBottom: 18 }}>
+        <button className={`seg ${aba === 'registrar' ? 'active' : ''}`} onClick={() => setAba('registrar')}>
+          Registro
+        </button>
+        <button className={`seg ${aba === 'consultar' ? 'active' : ''}`} onClick={() => setAba('consultar')}>
+          Consulta
+        </button>
+      </div>
+
+      {aba === 'registrar' && (
+        <>
+          <div className="row">
+            <div className="col-lg-6">
+              <form className="card card-soft p-3 mb-3" onSubmit={iniciarUso}>
+                <h5 style={{ display: 'flex', alignItems: 'center', gap: 8 }}><PlayCircle size={17} /> Iniciar uso</h5>
+
+                <div className="row">
+                  <Select
+                    label="Veiculo disponivel"
+                    value={form.veiculoId}
+                    onChange={v => setForm({ ...form, veiculoId: v })}
+                    items={veiculosDisponiveis}
+                    text={x => `${x.modelo} - ${x.placa} | KM ${number(x.kmAtual)}`}
+                  />
+
+                  {!usuarioTecnico && (
+                    <Select
+                      label="Motorista/Tecnico"
+                      value={form.motoristaId}
+                      onChange={v => setForm({ ...form, motoristaId: v })}
+                      items={motoristas}
+                      text={x => x.nome}
+                    />
+                  )}
+
+                  <Input
+                    label="KM inicial"
+                    type="number"
+                    value={form.kmInicial}
+                    onChange={v => setForm({ ...form, kmInicial: v })}
+                  />
+
+                  <div className="col-md-12 mb-3">
+                    <label>Observacao de inicio</label>
+                    <textarea
+                      className="form-control"
+                      rows="2"
+                      value={form.observacaoInicio}
+                      onChange={e => setForm({ ...form, observacaoInicio: e.target.value })}
+                    />
+                  </div>
+                </div>
+
+                <button className="btn btn-success">Iniciar uso do veiculo</button>
+              </form>
+            </div>
+
+            <div className="col-lg-6">
+              <form className="card card-soft p-3 mb-3" onSubmit={finalizarUso}>
+                <h5 style={{ display: 'flex', alignItems: 'center', gap: 8 }}><StopCircle size={17} /> Finalizar uso</h5>
+
+                <div className="row">
+                  <Select
+                    label="Uso ativo"
+                    value={finalizar.usoId || ''}
+                    onChange={v => setFinalizar({ ...finalizar, usoId: v })}
+                    items={usosAtivos}
+                    text={x => `${x.veiculo?.placa || ''} - ${x.motorista?.nome || ''} | Inicio ${formatDate(x.dataInicio)}`}
+                  />
+
+                  <Input
+                    label="KM final"
+                    type="number"
+                    value={finalizar.kmFinal}
+                    onChange={v => setFinalizar({ ...finalizar, kmFinal: v })}
+                  />
+
+                  <div className="col-md-12 mb-3">
+                    <label>Observacao de fim</label>
+                    <textarea
+                      className="form-control"
+                      rows="2"
+                      value={finalizar.observacaoFim}
+                      onChange={e => setFinalizar({ ...finalizar, observacaoFim: e.target.value })}
+                    />
+                  </div>
+                </div>
+
+                <button className="btn btn-primary">Finalizar uso</button>
+              </form>
+            </div>
+          </div>
+
+          {editandoId && (
+            <form className="card card-soft p-3 mb-3" onSubmit={salvarEdicao}>
+              <h5 style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <Edit3 size={17} /> Editar uso
+              </h5>
+
+              <div className="row">
+                <Select
+                  label="Veiculo"
+                  value={editForm.veiculoId}
+                  onChange={v => setEditForm({ ...editForm, veiculoId: v })}
+                  items={veiculos}
+                  text={x => `${x.modelo} - ${x.placa} | KM ${number(x.kmAtual)}`}
+                />
+
+                {!usuarioTecnico && (
+                  <Select
+                    label="Motorista/Tecnico"
+                    value={editForm.motoristaId}
+                    onChange={v => setEditForm({ ...editForm, motoristaId: v })}
+                    items={motoristas}
+                    text={x => x.nome}
+                  />
+                )}
+
+                <Input
+                  label="KM inicial"
+                  type="number"
+                  value={editForm.kmInicial}
+                  onChange={v => setEditForm({ ...editForm, kmInicial: v })}
+                />
+
+                {finalizado(editForm.status) && (
+                  <Input
+                    label="KM final"
+                    type="number"
+                    value={editForm.kmFinal}
+                    onChange={v => setEditForm({ ...editForm, kmFinal: v })}
+                  />
+                )}
+
+                <div className="col-md-6 mb-3">
+                  <label>Observacao de inicio</label>
+                  <textarea
+                    className="form-control"
+                    rows="2"
+                    value={editForm.observacaoInicio}
+                    onChange={e => setEditForm({ ...editForm, observacaoInicio: e.target.value })}
+                  />
+                </div>
+
+                <div className="col-md-6 mb-3">
+                  <label>Observacao de fim</label>
+                  <textarea
+                    className="form-control"
+                    rows="2"
+                    value={editForm.observacaoFim}
+                    onChange={e => setEditForm({ ...editForm, observacaoFim: e.target.value })}
+                  />
+                </div>
+
+                <div className="col-md-3 d-flex align-items-end mb-3">
+                  <button className="btn btn-success w-100">Atualizar uso</button>
+                </div>
+
+                <div className="col-md-3 d-flex align-items-end mb-3">
+                  <button type="button" className="btn btn-outline-secondary w-100" onClick={cancelarEdicao}>Cancelar</button>
+                </div>
+              </div>
+            </form>
+          )}
+        </>
+      )}
+
+      {aba === 'consultar' && (
+        <>
+          <div className="card card-soft p-3 mb-3">
+            <h5 style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}><KeyRound size={17} /> Filtros</h5>
 
             <div className="row">
               <Select
-                label="Veículo disponível"
-                value={form.veiculoId}
-                onChange={v => setForm({ ...form, veiculoId: v })}
-                items={veiculosDisponiveis}
-                text={x => `${x.modelo} - ${x.placa} | KM ${number(x.kmAtual)}`}
+                label="Veiculo"
+                value={filtro.veiculoId}
+                onChange={v => setFiltro({ ...filtro, veiculoId: v })}
+                items={veiculos}
+                text={x => `${x.modelo} - ${x.placa}`}
               />
 
               {!usuarioTecnico && (
                 <Select
-                  label="Motorista/Técnico"
-                  value={form.motoristaId}
-                  onChange={v => setForm({ ...form, motoristaId: v })}
+                  label="Motorista/Tecnico"
+                  value={filtro.motoristaId}
+                  onChange={v => setFiltro({ ...filtro, motoristaId: v })}
                   items={motoristas}
                   text={x => x.nome}
                 />
               )}
 
-              <Input
-                label="KM inicial"
-                type="number"
-                value={form.kmInicial}
-                onChange={v => setForm({ ...form, kmInicial: v })}
-              />
+              <Input label="De" type="date" value={periodo.de} onChange={v => setPeriodo({ ...periodo, de: v })} />
+              <Input label="Ate" type="date" value={periodo.ate} onChange={v => setPeriodo({ ...periodo, ate: v })} />
+
+              <div className="col-md-3 mb-3 d-flex align-items-end">
+                <div className="form-check">
+                  <input
+                    className="form-check-input"
+                    type="checkbox"
+                    checked={filtro.somenteAtivos}
+                    onChange={e => setFiltro({ ...filtro, somenteAtivos: e.target.checked })}
+                    id="somenteAtivos"
+                  />
+                  <label className="form-check-label" htmlFor="somenteAtivos">
+                    Somente em uso
+                  </label>
+                </div>
+              </div>
 
               <div className="col-md-12 mb-3">
-                <label>Observação de início</label>
-                <textarea
+                <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}><Search size={14} /> Buscar</label>
+                <input
                   className="form-control"
-                  rows="2"
-                  value={form.observacaoInicio}
-                  onChange={e => setForm({ ...form, observacaoInicio: e.target.value })}
+                  placeholder="Placa, modelo, tecnico ou observacao"
+                  value={busca}
+                  onChange={e => setBusca(e.target.value)}
                 />
+              </div>
+
+              <div className="col-md-3 d-flex align-items-end mb-3">
+                <button type="button" className="btn btn-primary w-100" onClick={aplicarFiltro}>
+                  <Filter size={16} /> Filtrar
+                </button>
+              </div>
+
+              <div className="col-md-3 d-flex align-items-end mb-3">
+                <button type="button" className="btn btn-outline-secondary w-100" onClick={limparConsulta}>
+                  <RotateCcw size={16} /> Limpar
+                </button>
               </div>
             </div>
 
-            <button className="btn btn-success">Iniciar uso do veículo</button>
-          </form>
-        </div>
-
-        <div className="col-lg-6">
-          <form className="card card-soft p-3 mb-3" onSubmit={finalizarUso}>
-            <h5 style={{ display: 'flex', alignItems: 'center', gap: 8 }}><StopCircle size={17} /> Finalizar uso</h5>
-
-            <div className="row">
-              <Select
-                label="Uso ativo"
-                value={finalizar.usoId || ''}
-                onChange={v => setFinalizar({ ...finalizar, usoId: v })}
-                items={usosAtivos}
-                text={x => `${x.veiculo?.placa || ''} - ${x.motorista?.nome || ''} | Início ${formatDate(x.dataInicio)}`}
-              />
-
-              <Input
-                label="KM final"
-                type="number"
-                value={finalizar.kmFinal}
-                onChange={v => setFinalizar({ ...finalizar, kmFinal: v })}
-              />
-
-              <div className="col-md-12 mb-3">
-                <label>Observação de fim</label>
-                <textarea
-                  className="form-control"
-                  rows="2"
-                  value={finalizar.observacaoFim}
-                  onChange={e => setFinalizar({ ...finalizar, observacaoFim: e.target.value })}
-                />
-              </div>
-            </div>
-
-            <button className="btn btn-primary">Finalizar uso</button>
-          </form>
-        </div>
-      </div>
-
-      {editandoId && (
-        <form className="card card-soft p-3 mb-3" onSubmit={salvarEdicao}>
-          <h5 style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <Edit3 size={17} /> Editar uso
-          </h5>
-
-          <div className="row">
-            <Select
-              label="Veiculo"
-              value={editForm.veiculoId}
-              onChange={v => setEditForm({ ...editForm, veiculoId: v })}
-              items={veiculos}
-              text={x => `${x.modelo} - ${x.placa} | KM ${number(x.kmAtual)}`}
-            />
-
-            {!usuarioTecnico && (
-              <Select
-                label="Motorista/Tecnico"
-                value={editForm.motoristaId}
-                onChange={v => setEditForm({ ...editForm, motoristaId: v })}
-                items={motoristas}
-                text={x => x.nome}
-              />
-            )}
-
-            <Input
-              label="KM inicial"
-              type="number"
-              value={editForm.kmInicial}
-              onChange={v => setEditForm({ ...editForm, kmInicial: v })}
-            />
-
-            {usoFinalizado(editForm.status) && (
-              <Input
-                label="KM final"
-                type="number"
-                value={editForm.kmFinal}
-                onChange={v => setEditForm({ ...editForm, kmFinal: v })}
-              />
-            )}
-
-            <div className="col-md-6 mb-3">
-              <label>Observacao de inicio</label>
-              <textarea
-                className="form-control"
-                rows="2"
-                value={editForm.observacaoInicio}
-                onChange={e => setEditForm({ ...editForm, observacaoInicio: e.target.value })}
-              />
-            </div>
-
-            <div className="col-md-6 mb-3">
-              <label>Observacao de fim</label>
-              <textarea
-                className="form-control"
-                rows="2"
-                value={editForm.observacaoFim}
-                onChange={e => setEditForm({ ...editForm, observacaoFim: e.target.value })}
-              />
-            </div>
-
-            <div className="col-md-3 d-flex align-items-end mb-3">
-              <button className="btn btn-success w-100">Atualizar uso</button>
-            </div>
-
-            <div className="col-md-3 d-flex align-items-end mb-3">
-              <button type="button" className="btn btn-outline-secondary w-100" onClick={cancelarEdicao}>Cancelar</button>
-            </div>
-          </div>
-        </form>
-      )}
-
-      <div className="card card-soft p-3 mb-3">
-        <h5 style={{ display: 'flex', alignItems: 'center', gap: 8 }}><KeyRound size={17} /> Filtros</h5>
-
-        <div className="row">
-          <Select
-            label="Veículo"
-            value={filtro.veiculoId}
-            onChange={v => setFiltro({ ...filtro, veiculoId: v })}
-            items={veiculos}
-            text={x => `${x.modelo} - ${x.placa}`}
-          />
-
-          {!usuarioTecnico && (
-            <Select
-              label="Motorista/Técnico"
-              value={filtro.motoristaId}
-              onChange={v => setFiltro({ ...filtro, motoristaId: v })}
-              items={motoristas}
-              text={x => x.nome}
-            />
-          )}
-
-          <div className="col-md-3 mb-3 d-flex align-items-end">
-            <div className="form-check">
-              <input
-                className="form-check-input"
-                type="checkbox"
-                checked={filtro.somenteAtivos}
-                onChange={e => setFiltro({ ...filtro, somenteAtivos: e.target.checked })}
-                id="somenteAtivos"
-              />
-              <label className="form-check-label" htmlFor="somenteAtivos">
-                Somente em uso
-              </label>
-            </div>
+            <small className="text-muted" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+              <ClipboardList size={14} /> Exibindo {itemsFiltrados.length} de {items.length} uso(s).
+              Veiculo, motorista e ativos filtram no servidor; busca e datas refinam a lista carregada.
+            </small>
           </div>
 
-          <div className="col-md-2 d-flex align-items-end mb-3">
-            <button className="btn btn-outline-primary w-100" onClick={load}>
-              Filtrar
-            </button>
-          </div>
-        </div>
-      </div>
+          <div className="card card-soft table-card">
+            <table className="table table-hover">
+              <thead>
+                <tr>
+                  <th>Status</th>
+                  <th>Veiculo</th>
+                  <th>Tecnico</th>
+                  <th>Inicio</th>
+                  <th>Fim</th>
+                  <th>Tempo</th>
+                  <th>KM inicial</th>
+                  <th>KM final</th>
+                  <th>KM rodado</th>
+                  {podeEditar && <th width="100"></th>}
+                </tr>
+              </thead>
 
-      <div className="card card-soft table-card">
-        <table className="table table-hover">
-          <thead>
-            <tr>
-              <th>Status</th>
-              <th>Veículo</th>
-              <th>Técnico</th>
-              <th>Início</th>
-              <th>Fim</th>
-              <th>Tempo</th>
-              <th>KM inicial</th>
-              <th>KM final</th>
-              <th>KM rodado</th>
-              {podeEditar && <th width="100"></th>}
-            </tr>
-          </thead>
+              <tbody>
+                {itemsFiltrados.map(x => (
+                  <tr key={x.id}>
+                    <td>
+                      <span className={emUso(x.status) ? 'badge bg-warning text-dark' : 'badge bg-success'}>
+                        {emUso(x.status) ? 'Em uso' : 'Finalizado'}
+                      </span>
+                    </td>
+                    <td>{x.veiculo?.modelo} - {x.veiculo?.placa}</td>
+                    <td>{x.motorista?.nome}</td>
+                    <td>{formatDate(x.dataInicio)}</td>
+                    <td>{formatDate(x.dataFim)}</td>
+                    <td>{formatTempo(x.tempoUsoMinutos)}</td>
+                    <td>{number(x.kmInicial)}</td>
+                    <td>{x.kmFinal ? number(x.kmFinal) : '-'}</td>
+                    <td>{x.kmFinal ? number(x.kmFinal - x.kmInicial) : '-'}</td>
+                    {podeEditar && (
+                      <td>
+                        <button className="btn btn-sm btn-warning" onClick={() => abrirEdicao(x)}>Editar</button>
+                      </td>
+                    )}
+                  </tr>
+                ))}
 
-          <tbody>
-            {items.map(x => (
-              <tr key={x.id}>
-                <td>
-                  <span className={x.status === 1 || x.status === 'EmUso' ? 'badge bg-warning text-dark' : 'badge bg-success'}>
-                    {x.status === 1 || x.status === 'EmUso' ? 'Em uso' : 'Finalizado'}
-                  </span>
-                </td>
-                <td>{x.veiculo?.modelo} - {x.veiculo?.placa}</td>
-                <td>{x.motorista?.nome}</td>
-                <td>{formatDate(x.dataInicio)}</td>
-                <td>{formatDate(x.dataFim)}</td>
-                <td>{formatTempo(x.tempoUsoMinutos)}</td>
-                <td>{number(x.kmInicial)}</td>
-                <td>{x.kmFinal ? number(x.kmFinal) : '-'}</td>
-                <td>{x.kmFinal ? number(x.kmFinal - x.kmInicial) : '-'}</td>
-                {podeEditar && (
-                  <td>
-                    <button className="btn btn-sm btn-warning" onClick={() => abrirEdicao(x)}>Editar</button>
-                  </td>
+                {itemsFiltrados.length === 0 && (
+                  <tr><td colSpan={podeEditar ? 10 : 9} className="text-muted" style={{ textAlign: 'center', padding: 28 }}>Nenhum uso encontrado.</td></tr>
                 )}
-              </tr>
-            ))}
-
-            {items.length === 0 && (
-              <tr><td colSpan={podeEditar ? 10 : 9} className="text-muted" style={{ textAlign: 'center', padding: 28 }}>Nenhum uso encontrado.</td></tr>
-            )}
-          </tbody>
-        </table>
-      </div>
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
     </>
   );
 }

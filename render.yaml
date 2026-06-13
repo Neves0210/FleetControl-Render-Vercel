@@ -11,7 +11,7 @@ services:
       - key: JWT_KEY
         generateValue: true
       - key: AllowedOrigins
-        value: https://SEU-FRONTEND.vercel.app
+        value: https://fleet-control-render-vercel.vercel.app
       - key: DATABASE_URL
         fromDatabase:
           name: fleetcontrolrh-db
