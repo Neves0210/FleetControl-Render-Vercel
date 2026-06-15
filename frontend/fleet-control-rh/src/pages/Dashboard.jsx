@@ -3,8 +3,12 @@ import { toast } from 'react-toastify';
 import {
   AlertTriangle,
   ChevronRight,
+  Eye,
+  EyeOff,
   FileBarChart,
   Fuel,
+  RotateCcw,
+  Settings2,
   Plus,
   ShieldCheck,
   Truck,
@@ -17,6 +21,7 @@ import { AbastecimentosTabela } from '../components/Abastecimentos/Abastecimento
 import { AreaChart, Sparkline } from '../components/Dashboard/Charts';
 import { money, number, litros as litrosFmt, toNumber } from '../utils/formatters';
 import { calcularAlertasOperacionais } from '../utils/operationalAlerts';
+import { getUser } from '../utils/permissions';
 import '../components/Dashboard/dashboard.css';
 
 const PERIODOS = [
@@ -24,6 +29,61 @@ const PERIODOS = [
   { id: '12m', label: '12 meses', meses: 12 },
   { id: 'all', label: 'Tudo', meses: null }
 ];
+
+const DASHBOARD_SECTIONS = [
+  { id: 'kpis', label: 'Indicadores principais' },
+  { id: 'charts', label: 'Gráficos operacionais' },
+  { id: 'maintenance', label: 'Manutenção preventiva' },
+  { id: 'recent', label: 'Últimos abastecimentos' }
+];
+
+const DEFAULT_DASHBOARD_CONFIG = {
+  order: ['kpis', 'charts', 'maintenance', 'recent'],
+  visible: {
+    kpis: true,
+    charts: true,
+    maintenance: true,
+    recent: true
+  },
+  kpiColumns: 3,
+  density: 'normal',
+  accent: '#f36b21'
+};
+
+function podePersonalizarDashboard(user) {
+  return user?.perfil === 1 || user?.perfil === 2 || user?.perfil === 'Master' || user?.perfil === 'RH';
+}
+
+function dashboardConfigKey(user) {
+  return `fleet-dashboard-config-${user?.id || user?.email || 'local'}`;
+}
+
+function normalizarConfig(config) {
+  const visible = { ...DEFAULT_DASHBOARD_CONFIG.visible, ...(config?.visible || {}) };
+  const order = Array.isArray(config?.order)
+    ? [
+        ...config.order.filter(id => DASHBOARD_SECTIONS.some(section => section.id === id)),
+        ...DEFAULT_DASHBOARD_CONFIG.order.filter(id => !config.order.includes(id))
+      ]
+    : DEFAULT_DASHBOARD_CONFIG.order;
+
+  return {
+    ...DEFAULT_DASHBOARD_CONFIG,
+    ...config,
+    visible,
+    order,
+    kpiColumns: Number(config?.kpiColumns) || DEFAULT_DASHBOARD_CONFIG.kpiColumns
+  };
+}
+
+function carregarConfigDashboard(user) {
+  try {
+    const salvo = localStorage.getItem(dashboardConfigKey(user));
+    return normalizarConfig(salvo ? JSON.parse(salvo) : DEFAULT_DASHBOARD_CONFIG);
+  } catch {
+    return DEFAULT_DASHBOARD_CONFIG;
+  }
+}
 
 function parseData(s) {
   const d = new Date(s);
@@ -112,6 +172,8 @@ function IndustrialKpi({ icon, label, value, meta, children, accent = 'green' })
 
 export function Dashboard() {
   const navigate = useNavigate();
+  const user = getUser();
+  const podeCustomizar = podePersonalizarDashboard(user);
   const [dash, setDash] = useState(null);
   const [abastecimentos, setAbastecimentos] = useState([]);
   const [alertas, setAlertas] = useState([]);
@@ -119,6 +181,13 @@ export function Dashboard() {
   const [veiculos, setVeiculos] = useState([]);
   const [periodo, setPeriodo] = useState('12m');
   const [carregando, setCarregando] = useState(true);
+  const [editandoPainel, setEditandoPainel] = useState(false);
+  const [dashboardConfig, setDashboardConfig] = useState(() => carregarConfigDashboard(user));
+
+  useEffect(() => {
+    if (!podeCustomizar) return;
+    localStorage.setItem(dashboardConfigKey(user), JSON.stringify(dashboardConfig));
+  }, [dashboardConfig, podeCustomizar, user]);
 
   useEffect(() => {
     let cancelled = false;
@@ -212,8 +281,260 @@ export function Dashboard() {
     { label: 'Gasto total', value: money(dash?.totalValor ?? 0) }
   ];
 
+  function atualizarConfig(parcial) {
+    setDashboardConfig(config => normalizarConfig({ ...config, ...parcial }));
+  }
+
+  function toggleSection(id) {
+    setDashboardConfig(config => normalizarConfig({
+      ...config,
+      visible: { ...config.visible, [id]: !config.visible[id] }
+    }));
+  }
+
+  function moverSecao(id, direcao) {
+    setDashboardConfig(config => {
+      const order = [...config.order];
+      const index = order.indexOf(id);
+      const nextIndex = index + direcao;
+      if (index < 0 || nextIndex < 0 || nextIndex >= order.length) return config;
+      [order[index], order[nextIndex]] = [order[nextIndex], order[index]];
+      return normalizarConfig({ ...config, order });
+    });
+  }
+
+  function resetarPainel() {
+    setDashboardConfig(DEFAULT_DASHBOARD_CONFIG);
+  }
+
+  const editorPainel = podeCustomizar && editandoPainel && (
+    <section className="dashboard-customizer">
+      <div className="customizer-head">
+        <div>
+          <p className="panel-kicker">Modo de montagem</p>
+          <h3>Personalizar painel</h3>
+        </div>
+        <button className="btn btn-outline-secondary btn-sm" onClick={resetarPainel}>
+          <RotateCcw size={14} /> Restaurar padrão
+        </button>
+      </div>
+
+      <div className="customizer-grid">
+        <div className="customizer-group">
+          <label>Blocos do painel</label>
+          <div className="section-builder-list">
+            {dashboardConfig.order.map((id, index) => {
+              const section = DASHBOARD_SECTIONS.find(item => item.id === id);
+              if (!section) return null;
+
+              return (
+                <div className="section-builder-item" key={id}>
+                  <button
+                    className={`icon-toggle ${dashboardConfig.visible[id] ? 'active' : ''}`}
+                    onClick={() => toggleSection(id)}
+                    title={dashboardConfig.visible[id] ? 'Ocultar bloco' : 'Mostrar bloco'}
+                    type="button"
+                  >
+                    {dashboardConfig.visible[id] ? <Eye size={15} /> : <EyeOff size={15} />}
+                  </button>
+                  <span>{section.label}</span>
+                  <div className="move-actions">
+                    <button type="button" onClick={() => moverSecao(id, -1)} disabled={index === 0}>↑</button>
+                    <button type="button" onClick={() => moverSecao(id, 1)} disabled={index === dashboardConfig.order.length - 1}>↓</button>
+                  </div>
+                </div>
+              );
+            })}
+          </div>
+        </div>
+
+        <div className="customizer-group">
+          <label>Colunas dos indicadores</label>
+          <div className="segmented customizer-segmented">
+            {[1, 2, 3].map(value => (
+              <button
+                className={`seg ${dashboardConfig.kpiColumns === value ? 'active' : ''}`}
+                key={value}
+                onClick={() => atualizarConfig({ kpiColumns: value })}
+                type="button"
+              >
+                {value}
+              </button>
+            ))}
+          </div>
+
+          <label>Densidade</label>
+          <div className="segmented customizer-segmented">
+            {[
+              { id: 'compact', label: 'Compacta' },
+              { id: 'normal', label: 'Normal' }
+            ].map(item => (
+              <button
+                className={`seg ${dashboardConfig.density === item.id ? 'active' : ''}`}
+                key={item.id}
+                onClick={() => atualizarConfig({ density: item.id })}
+                type="button"
+              >
+                {item.label}
+              </button>
+            ))}
+          </div>
+        </div>
+
+        <div className="customizer-group">
+          <label>Cor de destaque</label>
+          <div className="accent-swatches">
+            {[
+              { label: 'Segurança', value: '#f36b21' },
+              { label: 'Petróleo', value: '#10323a' },
+              { label: 'Operação', value: '#16a34a' },
+              { label: 'Crítico', value: '#dc2626' }
+            ].map(color => (
+              <button
+                className={dashboardConfig.accent === color.value ? 'selected' : ''}
+                key={color.value}
+                onClick={() => atualizarConfig({ accent: color.value })}
+                style={{ '--swatch': color.value }}
+                title={color.label}
+                type="button"
+              />
+            ))}
+          </div>
+        </div>
+      </div>
+    </section>
+  );
+
+  const sections = {
+    kpis: (
+      <section
+        className="industrial-kpi-grid"
+        style={{ '--kpi-columns': dashboardConfig.kpiColumns }}
+        key="kpis"
+      >
+        <IndustrialKpi
+          icon={<Truck size={21} />}
+          label="Veículos ativos"
+          value={number(veiculosAtivos)}
+          meta="Disponibilidade da frota"
+          accent="green"
+        >
+          <div className="health-track"><span style={{ width: `${Math.min(veiculosAtivos, 100)}%` }} /></div>
+        </IndustrialKpi>
+
+        <IndustrialKpi
+          icon={<Fuel size={21} />}
+          label="Eficiência de combustível"
+          value={`${eficiencia.toFixed(2).replace('.', ',')} R$/L`}
+          meta="Média móvel"
+          accent="teal"
+        >
+          <Sparkline data={sparkFuel} cor="#10323a" />
+        </IndustrialKpi>
+
+        <IndustrialKpi
+          icon={<ShieldCheck size={21} />}
+          label="Pontuação do operador"
+          value={`${operadorScore}%`}
+          meta="Comportamento dos condutores"
+          accent="orange"
+        >
+          <MiniBars values={barrasPontuacao} />
+        </IndustrialKpi>
+      </section>
+    ),
+    charts: (
+      <section className="cockpit-chart-grid" key="charts">
+        <article className="panel panel-technical">
+          <div className="panel-head">
+            <div>
+              <p className="panel-kicker">KPIs mensais</p>
+              <h3>Consumo financeiro por mês</h3>
+            </div>
+            <div className="segmented">
+              {PERIODOS.map(p => (
+                <button
+                  key={p.id}
+                  type="button"
+                  className={`seg ${periodo === p.id ? 'active' : ''}`}
+                  onClick={() => setPeriodo(p.id)}
+                >
+                  {p.label}
+                </button>
+              ))}
+            </div>
+          </div>
+          <MonthlyColumns data={mensal} />
+        </article>
+
+        <article className="panel panel-technical">
+          <div className="panel-head">
+            <div>
+              <p className="panel-kicker">Histórico de performance</p>
+              <h3>Histórico de performance</h3>
+            </div>
+            <span className="panel-total">{money(totalGastoPeriodo)}</span>
+          </div>
+          <AreaChart serie={serieGasto} />
+        </article>
+      </section>
+    ),
+    maintenance: (
+      <section className="maintenance-panel" key="maintenance">
+        <div className="maintenance-head">
+          <div>
+            <p className="panel-kicker">Alertas de manutenção preventiva</p>
+            <h2>Alertas de manutenção preventiva</h2>
+          </div>
+          <button className="alert-cta" onClick={() => navigate('/manutencoes')}>
+            Abrir manutenções <ChevronRight size={15} />
+          </button>
+        </div>
+
+        <div className="maintenance-grid">
+          <article className="maintenance-stat">
+            <Truck size={26} />
+            <span>Veículos em urgência</span>
+            <strong>{number(avisosCriticos)}</strong>
+          </article>
+          <article className="maintenance-stat">
+            <Wrench size={26} />
+            <span>Avisos críticos</span>
+            <strong>{number(alertasAtivos.length)}</strong>
+          </article>
+
+          <div className="urgent-list">
+            {(alertasAtivos.length ? alertasAtivos : [
+              { titulo: 'Sistema em condição normal', detalhe: 'Nenhuma manutenção preventiva urgente no momento.', tipo: 'success' },
+              { titulo: 'Inspeção programada', detalhe: 'Continue monitorando pneus, fluidos e revisões por quilometragem.', tipo: 'warn' }
+            ]).slice(0, 5).map((alerta, index) => (
+              <div className="urgent-row" key={`${alerta.titulo}-${index}`}>
+                <AlertTriangle size={18} />
+                <div>
+                  <strong>{alerta.titulo}</strong>
+                  <span>{alerta.detalhe}</span>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+    ),
+    recent: (
+      <div className="card card-soft table-card" key="recent">
+        <div className="card-body">
+          <h5>Últimos abastecimentos</h5>
+        </div>
+        <AbastecimentosTabela items={recentes} />
+      </div>
+    )
+  };
+
   return (
-    <>
+    <div
+      className={`dashboard-workspace density-${dashboardConfig.density}`}
+      style={{ '--dashboard-accent': dashboardConfig.accent }}
+    >
       <Header
         title="Painel"
         subtitle={`Resumo operacional de ${hoje}`}
@@ -230,6 +551,25 @@ export function Dashboard() {
         }
       />
 
+      {podeCustomizar && (
+        <div className="dashboard-admin-toolbar">
+          <button
+            className={`btn ${editandoPainel ? 'btn-dark' : 'btn-outline-secondary'}`}
+            onClick={() => setEditandoPainel(value => !value)}
+          >
+            <Settings2 size={16} /> {editandoPainel ? 'Concluir personalização' : 'Personalizar painel'}
+          </button>
+        </div>
+      )}
+
+      {editorPainel}
+
+      {dashboardConfig.order
+        .filter(id => dashboardConfig.visible[id])
+        .map(id => sections[id])}
+
+      {false && (
+      <>
       <section className="industrial-kpi-grid">
         <IndustrialKpi
           icon={<Truck size={21} />}
@@ -343,6 +683,8 @@ export function Dashboard() {
         </div>
         <AbastecimentosTabela items={recentes} />
       </div>
-    </>
+      </>
+      )}
+    </div>
   );
 }
