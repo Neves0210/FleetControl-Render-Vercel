@@ -120,7 +120,7 @@ public class AbastecimentosController : ControllerBase
         }
 
         veiculo!.KmAtual = model.KmAtual;
-        model.CriadoEm = DateTime.UtcNow;
+        model.CriadoEm = DataHoraBrasil.Agora();
 
         _db.Abastecimentos.Add(model);
 
@@ -401,7 +401,7 @@ public class AbastecimentosController : ControllerBase
         if (model.KmAtual <= 0)
             return "O KM atual deve ser maior que zero.";
 
-        if (model.DataAbastecimento > DateTime.Now.AddMinutes(5))
+        if (model.DataAbastecimento > DataHoraBrasil.Agora().AddMinutes(5))
             return "A data do abastecimento não pode ser futura.";
 
         var veiculo = await _db.Veiculos.FindAsync(model.VeiculoId);

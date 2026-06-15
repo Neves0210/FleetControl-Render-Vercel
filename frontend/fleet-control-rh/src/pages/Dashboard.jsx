@@ -23,6 +23,7 @@ import { AbastecimentosTabela } from '../components/Abastecimentos/Abastecimento
 import { AreaChart, Sparkline } from '../components/Dashboard/Charts';
 import { money, number, litros as litrosFmt, toNumber } from '../utils/formatters';
 import { getUser } from '../utils/permissions';
+import { dataBrasilParaDate, hojeExtensoBrasil, subtrairMesesBrasil } from '../utils/dataBrasil';
 import '../components/Dashboard/dashboard.css';
 
 const PERIODOS = [
@@ -103,19 +104,18 @@ function carregarConfigDashboard(user) {
 }
 
 function parseData(value) {
-  const data = new Date(value);
-  return Number.isNaN(data.getTime()) ? null : data;
+  const data = dataBrasilParaDate(value);
+  return !data || Number.isNaN(data.getTime()) ? null : data;
 }
 
 function dentroDoPeriodo(data, meses) {
   if (meses == null) return true;
-  const limite = new Date();
-  limite.setMonth(limite.getMonth() - meses);
+  const limite = subtrairMesesBrasil(meses);
   return data >= limite;
 }
 
 function rotuloMes(data) {
-  const label = data.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '');
+  const label = data.toLocaleDateString('pt-BR', { month: 'short', timeZone: 'America/Sao_Paulo' }).replace('.', '');
   return label.charAt(0).toUpperCase() + label.slice(1, 3);
 }
 
@@ -341,7 +341,7 @@ export function Dashboard() {
   const totalAbastecimentosPeriodo = listaFiltrada.length;
 
   const hoje = useMemo(
-    () => new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long' }),
+    () => hojeExtensoBrasil(),
     []
   );
 

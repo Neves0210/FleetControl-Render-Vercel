@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using FleetControlRH.Api.Utils;
 
 namespace FleetControlRH.Api.Models;
 
@@ -33,9 +34,9 @@ public class Abastecimento
 
     public string? FotoNotaFiscalPath { get; set; }
 
-    public DateTime DataAbastecimento { get; set; } = DateTime.UtcNow;
+    public DateTime DataAbastecimento { get; set; } = DataHoraBrasil.Agora();
 
-    public DateTime CriadoEm { get; set; } = DateTime.UtcNow;
+    public DateTime CriadoEm { get; set; } = DataHoraBrasil.Agora();
 
     public byte[]? FotoNotaFiscal { get; set; }
     public string? FotoNotaFiscalContentType { get; set; }

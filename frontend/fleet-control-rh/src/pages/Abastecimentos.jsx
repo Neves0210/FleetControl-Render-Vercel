@@ -13,6 +13,7 @@ import { emptyAbastecimento } from '../utils/constants';
 import { comprimirImagem } from '../utils/comprimirImagem';
 import { dataHora, litros as litrosFmt, money, number } from '../utils/formatters';
 import { exportarCsv } from '../utils/exportCsv';
+import { dataHoraInputBrasil } from '../utils/dataBrasil';
 
 function numeroBr(value, casas = 3) {
   const numero = Number(value);
@@ -254,7 +255,7 @@ export function Abastecimentos() {
     if (combustiveis.some(item => valorNumerico(item.valorTotal) <= 0)) return toast.warning('O valor do combustivel deve ser maior que zero.');
     if (Number(totaisCombustiveis.litros) <= 0) return toast.warning('A quantidade de litros deve ser maior que zero.');
     if (Number(totaisCombustiveis.valorTotal) <= 0) return toast.warning('O valor total deve ser maior que zero.');
-    if (new Date(form.dataAbastecimento) > new Date()) return toast.warning('A data do abastecimento não pode ser futura.');
+    if (form.dataAbastecimento > dataHoraInputBrasil()) return toast.warning('A data do abastecimento não pode ser futura.');
 
     const fd = new FormData();
     Object.entries({

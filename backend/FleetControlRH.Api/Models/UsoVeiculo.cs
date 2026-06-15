@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using FleetControlRH.Api.Utils;
 
 namespace FleetControlRH.Api.Models;
 
@@ -23,7 +24,7 @@ public class UsoVeiculo
     public int? UsuarioId { get; set; }
     public Usuario? Usuario { get; set; }
 
-    public DateTime DataInicio { get; set; } = DateTime.Now;
+    public DateTime DataInicio { get; set; } = DataHoraBrasil.Agora();
     public DateTime? DataFim { get; set; }
 
     [Range(0, int.MaxValue)]

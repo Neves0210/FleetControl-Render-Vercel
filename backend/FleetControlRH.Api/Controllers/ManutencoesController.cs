@@ -154,7 +154,7 @@ public class ManutencoesController : ControllerBase
             Custo = dto.Custo,
             ProximaManutencaoKm = dto.ProximaManutencaoKm,
             ProximaManutencaoData = dto.ProximaManutencaoData,
-            CriadoEm = DateTime.UtcNow
+            CriadoEm = DataHoraBrasil.Agora()
         };
 
         if (anexo is { Length: > 0 })
@@ -258,7 +258,7 @@ public class ManutencoesController : ControllerBase
         if (string.IsNullOrWhiteSpace(dto.Tipo))
             return "Informe o tipo de manutencao.";
 
-        if (dto.DataManutencao > DateTime.Now.AddMinutes(5))
+        if (dto.DataManutencao > DataHoraBrasil.Agora().AddMinutes(5))
             return "A data da manutencao nao pode ser futura.";
 
         if (dto.KmManutencao < 0)
@@ -334,7 +334,7 @@ public class ManutencoesController : ControllerBase
         const int limiteKmProximo = 500;
         const int limiteDiasProximo = 7;
 
-        var hoje = DateTime.Now.Date;
+        var hoje = DataHoraBrasil.Hoje();
 
         return manutencoes.Select(x =>
         {

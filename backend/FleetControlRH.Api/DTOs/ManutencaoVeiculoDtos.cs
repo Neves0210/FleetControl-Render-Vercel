@@ -1,10 +1,12 @@
+using FleetControlRH.Api.Utils;
+
 namespace FleetControlRH.Api.DTOs;
 
 public class ManutencaoVeiculoDto
 {
     public int VeiculoId { get; set; }
     public string Tipo { get; set; } = string.Empty;
-    public DateTime DataManutencao { get; set; } = DateTime.Now;
+    public DateTime DataManutencao { get; set; } = DataHoraBrasil.Agora();
     public int KmManutencao { get; set; }
     public string? Descricao { get; set; }
     public decimal? Custo { get; set; }

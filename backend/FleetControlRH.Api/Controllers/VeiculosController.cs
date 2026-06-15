@@ -282,7 +282,7 @@ public class VeiculosController : ControllerBase
     {
         const int limiteKmProximo = 500;
         const int limiteDiasProximo = 7;
-        var hoje = DateTime.Now.Date;
+        var hoje = DataHoraBrasil.Hoje();
         var resultado = new Dictionary<int, string>();
 
         foreach (var item in manutencoes)

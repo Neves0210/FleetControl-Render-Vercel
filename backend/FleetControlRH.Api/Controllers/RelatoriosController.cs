@@ -1,5 +1,6 @@
 using FleetControlRH.Api.Data;
 using FleetControlRH.Api.Extensions;
+using FleetControlRH.Api.Utils;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -97,7 +98,7 @@ public class RelatoriosController : ControllerBase
             .OrderByDescending(x => x.DataManutencao)
             .ToListAsync();
 
-        var hoje = DateTime.Now.Date;
+        var hoje = DataHoraBrasil.Hoje();
 
         var manutencoesAlertas = manutencoes
             .Select(x =>

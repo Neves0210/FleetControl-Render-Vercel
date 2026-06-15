@@ -11,8 +11,9 @@ import { veiculoService } from '../services/veiculoService';
 import { getUser } from '../utils/permissions';
 import { money, number } from '../utils/formatters';
 import { exportarCsv } from '../utils/exportCsv';
+import { dataBrasil, dataInputBrasil } from '../utils/dataBrasil';
 
-const hoje = new Date().toISOString().slice(0, 10);
+const hoje = dataInputBrasil();
 
 const initialForm = {
   veiculoId: '',
@@ -26,8 +27,7 @@ const initialForm = {
 };
 
 function formatDate(value) {
-  if (!value) return '-';
-  return new Date(value).toLocaleDateString('pt-BR');
+  return dataBrasil(value);
 }
 
 function statusClass(status) {

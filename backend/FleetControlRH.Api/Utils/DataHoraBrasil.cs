@@ -21,6 +21,11 @@ public static class DataHoraBrasil
         }
     }
 
+    public static DateTime Hoje()
+    {
+        return Agora().Date;
+    }
+
     private static TimeZoneInfo ObterFuso()
     {
         try { return TimeZoneInfo.FindSystemTimeZoneById("America/Sao_Paulo"); }      // Linux/Render

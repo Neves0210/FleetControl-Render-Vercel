@@ -1,9 +1,12 @@
 import { toNumber } from './formatters';
+import { dataBrasilParaDate, dataInputBrasil } from './dataBrasil';
 
 function dataDiasAtras(value) {
-  const data = new Date(value);
-  if (Number.isNaN(data.getTime())) return null;
-  return Math.floor((Date.now() - data.getTime()) / 86400000);
+  const data = dataBrasilParaDate(value);
+  if (!data || Number.isNaN(data.getTime())) return null;
+
+  const hoje = dataBrasilParaDate(dataInputBrasil());
+  return Math.floor((hoje.getTime() - data.getTime()) / 86400000);
 }
 
 export function calcularAlertasOperacionais({ abastecimentos = [], usos = [], manutencoes = [], veiculos = [] }) {
@@ -41,7 +44,11 @@ export function calcularAlertasOperacionais({ abastecimentos = [], usos = [], ma
   });
 
   porVeiculo.forEach(lista => {
-    const ordenados = [...lista].sort((a, b) => new Date(b.dataAbastecimento) - new Date(a.dataAbastecimento));
+    const ordenados = [...lista].sort((a, b) => {
+      const dataB = dataBrasilParaDate(b.dataAbastecimento)?.getTime() || 0;
+      const dataA = dataBrasilParaDate(a.dataAbastecimento)?.getTime() || 0;
+      return dataB - dataA;
+    });
     const ultimo = ordenados[0];
     const dias = dataDiasAtras(ultimo?.dataAbastecimento);
 

@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using FleetControlRH.Api.Utils;
 
 namespace FleetControlRH.Api.Models;
 
@@ -21,7 +22,7 @@ public class ManutencaoVeiculo
     [MaxLength(120)]
     public string Tipo { get; set; } = string.Empty;
 
-    public DateTime DataManutencao { get; set; } = DateTime.Now;
+    public DateTime DataManutencao { get; set; } = DataHoraBrasil.Agora();
 
     [Range(0, int.MaxValue, ErrorMessage = "O KM da manutenção não pode ser negativo.")]
     public int KmManutencao { get; set; }
@@ -44,5 +45,5 @@ public class ManutencaoVeiculo
 
     public byte[]? AnexoArquivo { get; set; }
 
-    public DateTime CriadoEm { get; set; } = DateTime.UtcNow;
+    public DateTime CriadoEm { get; set; } = DataHoraBrasil.Agora();
 }

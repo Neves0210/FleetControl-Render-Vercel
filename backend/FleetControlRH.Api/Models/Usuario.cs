@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using FleetControlRH.Api.Utils;
 
 namespace FleetControlRH.Api.Models;
 
@@ -22,6 +23,6 @@ public class Usuario
 
     public bool Ativo { get; set; } = true;
 
-    public DateTime CriadoEm { get; set; } = DateTime.UtcNow;
+    public DateTime CriadoEm { get; set; } = DataHoraBrasil.Agora();
     public List<UsuarioPermissao> Permissoes { get; set; } = new();
 }

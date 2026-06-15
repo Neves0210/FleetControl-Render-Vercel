@@ -7,12 +7,10 @@ import { Metric } from '../components/Dashboard/Metric';
 import { veiculoService } from '../services/veiculoService';
 import { combustivel, dataHora, litros, money, number } from '../utils/formatters';
 import { exportarCsv } from '../utils/exportCsv';
+import { dataBrasil } from '../utils/dataBrasil';
 
 function data(value) {
-  if (!value) return '-';
-  const d = new Date(value);
-  if (Number.isNaN(d.getTime())) return '-';
-  return d.toLocaleDateString('pt-BR');
+  return dataBrasil(value);
 }
 
 function statusUso(status) {

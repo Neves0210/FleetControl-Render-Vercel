@@ -8,16 +8,16 @@ import { relatorioService } from '../services/relatorioService';
 import { veiculoService } from '../services/veiculoService';
 import { motoristaService } from '../services/motoristaService';
 import { combustivel, dataHora, litros, money, number } from '../utils/formatters';
+import { dataBrasil, dataInputBrasil } from '../utils/dataBrasil';
 
-const hoje = new Date().toISOString().slice(0, 10);
+const hoje = dataInputBrasil();
 
 function formatDate(value) {
   return dataHora(value);
 }
 
 function formatDateOnly(value) {
-  if (!value) return '-';
-  return new Date(value).toLocaleDateString('pt-BR');
+  return dataBrasil(value);
 }
 
 function formatTempo(minutos) {
@@ -262,7 +262,7 @@ export function Relatorios() {
       ])
     ));
 
-    baixarArquivo(`relatorio-fleetcontrol-${new Date().toISOString().slice(0, 10)}.csv`, partes.join('\n\n'));
+    baixarArquivo(`relatorio-fleetcontrol-${dataInputBrasil()}.csv`, partes.join('\n\n'));
   }
 
   const resumo = dados?.resumo || {

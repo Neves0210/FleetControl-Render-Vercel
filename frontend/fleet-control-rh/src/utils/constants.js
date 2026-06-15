@@ -1,3 +1,5 @@
+import { dataHoraInputBrasil } from './dataBrasil';
+
 export const TODAS_PERMISSOES = [
   'Dashboard.Visualizar',
   'Dashboard.Personalizar',
@@ -22,7 +24,7 @@ export function emptyAbastecimento() {
   return {
     veiculoId: '',
     motoristaId: '',
-    dataAbastecimento: new Date().toISOString().slice(0, 16),
+    dataAbastecimento: dataHoraInputBrasil(),
     kmAtual: '',
     litros: '',
     valorTotal: '',
