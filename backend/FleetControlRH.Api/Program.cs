@@ -39,8 +39,7 @@ builder.Services.AddCors(options =>
 {
     options.AddPolicy("ReactApp", policy =>
     {
-        var origins = (builder.Configuration["AllowedOrigins"] ?? "http://localhost:5173")
-            .Split(",", StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+        var origins = BuildAllowedOrigins(builder.Configuration);
 
         policy.WithOrigins(origins)
               .AllowAnyHeader()
@@ -147,6 +146,25 @@ static string BuildDatabaseConnectionString(IConfiguration configuration)
 
     return configuration.GetConnectionString("DefaultConnection")
         ?? throw new InvalidOperationException("Connection string nao configurada.");
+}
+
+static string[] BuildAllowedOrigins(IConfiguration configuration)
+{
+    var configuredOrigins = (configuration["AllowedOrigins"] ?? string.Empty)
+        .Split(",", StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
+
+    var origins = new HashSet<string>(StringComparer.OrdinalIgnoreCase)
+    {
+        "http://localhost:5173",
+        "https://fleet-control-render-vercel.vercel.app"
+    };
+
+    foreach (var origin in configuredOrigins)
+    {
+        origins.Add(origin);
+    }
+
+    return origins.ToArray();
 }
 
 static string BuildPostgresConnectionString(string value)
