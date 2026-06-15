@@ -1,5 +1,6 @@
 export const TODAS_PERMISSOES = [
   'Dashboard.Visualizar',
+  'Dashboard.Personalizar',
   'Veiculos.Visualizar',
   'Motoristas.Visualizar',
   'Abastecimentos.Visualizar',

@@ -38,11 +38,17 @@ public class AuthController : ControllerBase
             });
         }
 
-        var permissoes = usuario.Perfil switch
+        var permissoesSalvas = usuario.Permissoes
+            .Select(x => x.Permissao)
+            .Distinct()
+            .ToList();
+
+        var permissoes = permissoesSalvas.Any() ? permissoesSalvas : usuario.Perfil switch
         {
             PerfilUsuario.Master => new List<string>
             {
                 "Dashboard.Visualizar",
+                "Dashboard.Personalizar",
                 "Veiculos.Visualizar",
                 "Motoristas.Visualizar",
                 "Abastecimentos.Visualizar",
@@ -62,6 +68,7 @@ public class AuthController : ControllerBase
             PerfilUsuario.RH => new List<string>
             {
                 "Dashboard.Visualizar",
+                "Dashboard.Personalizar",
                 "Veiculos.Visualizar",
                 "Motoristas.Visualizar",
                 "Abastecimentos.Visualizar",
@@ -88,12 +95,6 @@ public class AuthController : ControllerBase
             },
             _ => usuario.Permissoes.Select(x => x.Permissao).ToList()
         };
-
-        foreach (var permissao in usuario.Permissoes.Select(x => x.Permissao))
-        {
-            if (!permissoes.Contains(permissao))
-                permissoes.Add(permissao);
-        }
 
         var token = _tokenService.GerarToken(usuario, permissoes);
 

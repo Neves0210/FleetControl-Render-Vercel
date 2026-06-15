@@ -67,7 +67,9 @@ const DEFAULT_DASHBOARD_CONFIG = {
 };
 
 function podePersonalizarDashboard(user) {
-  return user?.perfil === 1 || user?.perfil === 2 || user?.perfil === 'Master' || user?.perfil === 'RH';
+  return user?.perfil === 1 ||
+    user?.perfil === 'Master' ||
+    user?.permissoes?.includes('Dashboard.Personalizar');
 }
 
 function dashboardConfigKey(user) {

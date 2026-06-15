@@ -89,7 +89,7 @@ export function Usuarios() {
 
     if (perfilNumero === 1) permissoesPadrao = TODAS_PERMISSOES;
     if (perfilNumero === 2) permissoesPadrao = [
-      'Dashboard.Visualizar', 'Veiculos.Visualizar', 'Motoristas.Visualizar',
+      'Dashboard.Visualizar', 'Dashboard.Personalizar', 'Veiculos.Visualizar', 'Motoristas.Visualizar',
       'Abastecimentos.Visualizar', 'Abastecimentos.Criar', 'Abastecimentos.Editar',
       'Relatorios.Visualizar', 'Relatorios.Exportar'
     ];

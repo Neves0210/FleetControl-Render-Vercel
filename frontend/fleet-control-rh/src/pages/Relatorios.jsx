@@ -4,11 +4,10 @@ import { Filter, RotateCcw, Download } from 'lucide-react';
 import { Header } from '../components/Layout/Header';
 import { Select } from '../components/Forms/Select';
 import { Input } from '../components/Forms/Input';
-import { AbastecimentosTabela } from '../components/Abastecimentos/AbastecimentosTabela';
 import { relatorioService } from '../services/relatorioService';
 import { veiculoService } from '../services/veiculoService';
 import { motoristaService } from '../services/motoristaService';
-import { dataHora, litros, money, number } from '../utils/formatters';
+import { combustivel, dataHora, litros, money, number } from '../utils/formatters';
 
 const hoje = new Date().toISOString().slice(0, 10);
 
@@ -171,11 +170,12 @@ export function Relatorios() {
 
     partes.push(criarCsv(
       'ABASTECIMENTOS DETALHADOS',
-      ['Data', 'Veículo', 'Motorista', 'KM', 'Litros', 'Valor', 'Posto'],
+      ['Data', 'Veículo', 'Motorista', 'Tipo de combustível', 'KM', 'Litros', 'Valor', 'Posto'],
       (dados.abastecimentos?.itens || []).map(x => [
         formatDate(x.dataAbastecimento),
         `${x.veiculo?.modelo || ''} ${x.veiculo?.placa || ''}`,
         x.motorista?.nome || '',
+        combustivel(x.veiculo?.tipoCombustivel) || '',
         x.kmAtual,
         x.litros,
         x.valorTotal,
@@ -414,7 +414,7 @@ export function Relatorios() {
           <h5>Abastecimentos detalhados</h5>
         </div>
 
-        <AbastecimentosTabela items={dados?.abastecimentos?.itens || []} />
+        <TabelaAbastecimentosDetalhados items={dados?.abastecimentos?.itens || []} />
       </div>
 
       <TabelaManutencoes
@@ -470,6 +470,46 @@ function TabelaResumo({ titulo, colunas, linhas }) {
         </table>
       </div>
     </div>
+  );
+}
+
+function TabelaAbastecimentosDetalhados({ items }) {
+  return (
+    <table className="table table-hover">
+      <thead>
+        <tr>
+          <th>Data</th>
+          <th>Veículo</th>
+          <th>Motorista</th>
+          <th>Tipo de combustível</th>
+          <th>KM</th>
+          <th>Litros</th>
+          <th>Valor</th>
+          <th>Posto</th>
+        </tr>
+      </thead>
+
+      <tbody>
+        {items.map(x => (
+          <tr key={x.id}>
+            <td>{formatDate(x.dataAbastecimento)}</td>
+            <td>{x.veiculo ? `${x.veiculo.modelo || ''} - ${x.veiculo.placa || ''}` : '-'}</td>
+            <td>{x.motorista?.nome || '-'}</td>
+            <td>{combustivel(x.veiculo?.tipoCombustivel) || '-'}</td>
+            <td>{number(x.kmAtual)}</td>
+            <td>{litros(x.litros)}</td>
+            <td>{money(x.valorTotal)}</td>
+            <td>{x.posto || '-'}</td>
+          </tr>
+        ))}
+
+        {items.length === 0 && (
+          <tr>
+            <td colSpan="8" className="text-muted">Nenhum abastecimento encontrado.</td>
+          </tr>
+        )}
+      </tbody>
+    </table>
   );
 }
 
