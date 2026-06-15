@@ -1,12 +1,22 @@
-import { BarChart3, Car, Fuel, KeyRound, LayoutDashboard, LogOut, Users, UserCog, Wrench } from 'lucide-react';
+import {
+  BarChart3,
+  Fuel,
+  Gauge,
+  LayoutDashboard,
+  LogOut,
+  Route,
+  Truck,
+  UserCog,
+  Users,
+  Wrench
+} from 'lucide-react';
 import { ToastContainer } from 'react-toastify';
 import { useNavigate } from 'react-router-dom';
-import { getUser, podeVerTela } from '../../utils/permissions';
+import { podeVerTela } from '../../utils/permissions';
 import { NavItem } from './NavItem';
 
 export function Layout({ children }) {
   const navigate = useNavigate();
-  const user = getUser();
 
   function logout() {
     localStorage.clear();
@@ -16,32 +26,34 @@ export function Layout({ children }) {
   return (
     <div className="app-shell">
       <aside className="sidebar">
-        <div className="brand">FleetControlRH</div>
-
-        {podeVerTela('Dashboard.Visualizar') && <NavItem to="/" icon={<LayoutDashboard size={18} />} label="Dashboard" />}
-        {podeVerTela('Veiculos.Visualizar') && <NavItem to="/veiculos" icon={<Car size={18} />} label="Veículos" />}
-        {podeVerTela('Motoristas.Visualizar') && <NavItem to="/motoristas" icon={<Users size={18} />} label="Motoristas" />}
-        {podeVerTela('Abastecimentos.Visualizar') && <NavItem to="/abastecimentos" icon={<Fuel size={18} />} label="Abastecimentos" />}
-        {podeVerTela('UsosVeiculos.Visualizar') && <NavItem to="/uso-veiculos" icon={<KeyRound size={18} />} label="Uso de Veículos" />}
-        {podeVerTela('Manutencoes.Visualizar') && <NavItem to="/manutencoes" icon={<Wrench size={18} />} label="Manutenções" />}
-        {podeVerTela('Relatorios.Visualizar') && <NavItem to="/relatorios" icon={<BarChart3 size={18} />} label="Relatórios" />}
-        {podeVerTela('Usuarios.Visualizar') && <NavItem to="/usuarios" icon={<UserCog size={18} />} label="Usuários" />}
-      </aside>
-
-      <section className="content">
-        <div className="topbar">
-          <div>
-            <strong>{user?.nome}</strong>
-            <div className="text-muted small">{user?.email}</div>
-          </div>
-
-          <button className="btn btn-outline-danger btn-sm" onClick={logout}>
-            <LogOut size={16} /> Sair
-          </button>
+        <div className="brand">
+          <Truck size={22} />
+          <span>FleetControlRH</span>
         </div>
 
-        {children}
-      </section>
+        <nav className="sidebar-nav" aria-label="Navegacao principal">
+          {podeVerTela('Dashboard.Visualizar') && <NavItem to="/" icon={<LayoutDashboard size={18} />} label="Dashboard" />}
+          {podeVerTela('Veiculos.Visualizar') && <NavItem to="/veiculos" icon={<Truck size={18} />} label="Veiculos" />}
+          {podeVerTela('Motoristas.Visualizar') && <NavItem to="/motoristas" icon={<Users size={18} />} label="Motoristas" />}
+          {podeVerTela('Abastecimentos.Visualizar') && <NavItem to="/abastecimentos" icon={<Fuel size={18} />} label="Abastecimentos" />}
+          {podeVerTela('UsosVeiculos.Visualizar') && <NavItem to="/uso-veiculos" icon={<Route size={18} />} label="Uso de Veiculos" />}
+          {podeVerTela('Manutencoes.Visualizar') && <NavItem to="/manutencoes" icon={<Wrench size={18} />} label="Manutencoes" />}
+          {podeVerTela('Relatorios.Visualizar') && <NavItem to="/relatorios" icon={<BarChart3 size={18} />} label="Relatorios" />}
+          {podeVerTela('Usuarios.Visualizar') && <NavItem to="/usuarios" icon={<UserCog size={18} />} label="Usuarios" />}
+        </nav>
+
+        <div className="sidebar-status">
+          <Gauge size={15} />
+          <span>Industrial Cockpit</span>
+        </div>
+
+        <button className="sidebar-logout" onClick={logout}>
+          <LogOut size={16} />
+          <span>Sair</span>
+        </button>
+      </aside>
+
+      <section className="content">{children}</section>
 
       <ToastContainer position="top-right" autoClose={2500} />
     </div>

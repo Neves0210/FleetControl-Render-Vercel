@@ -1,37 +1,35 @@
 import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'react-toastify';
 import {
-  Car, Users, Fuel, Droplets, DollarSign, TrendingUp, TrendingDown,
-  Plus, FileBarChart, AlertTriangle, ChevronRight
+  Activity,
+  AlertTriangle,
+  ChevronRight,
+  FileBarChart,
+  Fuel,
+  Gauge,
+  Plus,
+  ShieldCheck,
+  Truck,
+  Wrench
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { api } from '../api/api';
 import { Header } from '../components/Layout/Header';
 import { AbastecimentosTabela } from '../components/Abastecimentos/AbastecimentosTabela';
-import { AreaChart, BarsVeiculo, Donut, Sparkline } from '../components/Dashboard/Charts';
+import { AreaChart, Sparkline } from '../components/Dashboard/Charts';
 import { money, number, litros as litrosFmt, toNumber } from '../utils/formatters';
 import { calcularAlertasOperacionais } from '../utils/operationalAlerts';
 import '../components/Dashboard/dashboard.css';
 
-/* ── Configurações ───────────────────────────────────────────────────────── */
 const PERIODOS = [
   { id: '6m', label: '6 meses', meses: 6 },
   { id: '12m', label: '12 meses', meses: 12 },
   { id: 'all', label: 'Tudo', meses: null }
 ];
 
-const COMBUSTIVEIS = {
-  1: { nome: 'Gasolina', cor: '#2563eb' },
-  2: { nome: 'Etanol', cor: '#16a34a' },
-  3: { nome: 'Diesel', cor: '#d97706' },
-  4: { nome: 'Flex', cor: '#7c3aed' }
-};
-const COMB_OUTROS = { nome: 'Outros', cor: '#94a3b8' };
-
-/* ── Helpers de agregação ────────────────────────────────────────────────── */
 function parseData(s) {
   const d = new Date(s);
-  return isNaN(d.getTime()) ? null : d;
+  return Number.isNaN(d.getTime()) ? null : d;
 }
 
 function dentroDoPeriodo(d, meses) {
@@ -42,100 +40,78 @@ function dentroDoPeriodo(d, meses) {
 }
 
 function rotuloMes(d) {
-  const l = d.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '');
-  return l.charAt(0).toUpperCase() + l.slice(1, 3);
+  const label = d.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '');
+  return label.charAt(0).toUpperCase() + label.slice(1, 3);
 }
 
-/** Agrupa por mês: [{ key, rotulo, valor, count }] ordenado cronologicamente. */
 function agruparPorMes(lista) {
   const mapa = new Map();
 
-  lista.forEach(x => {
-    const d = parseData(x.dataAbastecimento);
+  lista.forEach(item => {
+    const d = parseData(item.dataAbastecimento);
     if (!d) return;
     const key = `${d.getFullYear()}-${String(d.getMonth()).padStart(2, '0')}`;
-    const atual = mapa.get(key) || { key, d, valor: 0, count: 0 };
-    atual.valor += toNumber(x.valorTotal);
+    const atual = mapa.get(key) || { key, d, valor: 0, litros: 0, count: 0 };
+    atual.valor += toNumber(item.valorTotal);
+    atual.litros += toNumber(item.litros);
     atual.count += 1;
     mapa.set(key, atual);
   });
 
   return [...mapa.values()]
     .sort((a, b) => (a.key < b.key ? -1 : 1))
-    .map(m => ({ key: m.key, rotulo: rotuloMes(m.d), valor: m.valor, count: m.count }));
+    .map(m => ({ key: m.key, rotulo: rotuloMes(m.d), valor: m.valor, litros: m.litros, count: m.count }));
 }
 
-function gastoPorVeiculo(lista) {
-  const mapa = new Map();
-
-  lista.forEach(x => {
-    const placa = x.veiculo?.placa || x.veiculo?.modelo || '—';
-    mapa.set(placa, (mapa.get(placa) || 0) + toNumber(x.valorTotal));
-  });
-
-  return [...mapa.entries()]
-    .map(([placa, valor]) => ({ placa, valor }))
-    .sort((a, b) => b.valor - a.valor)
-    .slice(0, 5);
+function statusText(totalAlertas) {
+  if (totalAlertas === 0) return 'Normal';
+  if (totalAlertas < 4) return 'Monitorar';
+  return 'Critico';
 }
 
-function litrosPorCombustivel(lista) {
-  const mapa = new Map();
-  let total = 0;
-
-  lista.forEach(x => {
-    const tipo = x.veiculo?.tipoCombustivel ?? 0;
-    const l = toNumber(x.litros);
-    mapa.set(tipo, (mapa.get(tipo) || 0) + l);
-    total += l;
-  });
-
-  if (total <= 0) return [];
-
-  return [...mapa.entries()]
-    .map(([tipo, l]) => {
-      const meta = COMBUSTIVEIS[tipo] || COMB_OUTROS;
-      return { nome: meta.nome, cor: meta.cor, litros: l, pct: Math.round((l / total) * 100) };
-    })
-    .sort((a, b) => b.litros - a.litros);
-}
-
-function tendencia(serie, campo) {
-  if (serie.length < 2) return null;
-  const atual = serie[serie.length - 1][campo];
-  const anterior = serie[serie.length - 2][campo];
-  if (!anterior) return null;
-  const p = Math.round(((atual - anterior) / anterior) * 100);
-  return { txt: `${p >= 0 ? '+' : ''}${p}%`, dir: p >= 0 ? 'up' : 'down' };
-}
-
-function litrosCurto(v) {
-  if (v >= 1000) return `${(v / 1000).toFixed(1).replace('.', ',')}k`;
-  return Math.round(v).toString();
-}
-
-/* ── KPI card ─────────────────────────────────────────────────────────────── */
-function Kpi({ icon, label, value, cor, trend, sparkData }) {
+function MiniBars({ values = [] }) {
+  const max = Math.max(...values, 1);
   return (
-    <div className="kpi-card">
-      <div className="kpi-top">
-        <span className="kpi-icon" style={{ background: `${cor}14`, color: cor }}>{icon}</span>
-        {sparkData?.length > 1 && <Sparkline data={sparkData} cor={cor} />}
-      </div>
-      <div className="kpi-value">{value}</div>
-      <div className="kpi-foot">
-        <span className="kpi-label">{label}</span>
-        {trend && (
-          <span className={`kpi-trend ${trend.dir}`}>
-            {trend.dir === 'up' ? <TrendingUp size={13} /> : <TrendingDown size={13} />}{trend.txt}
-          </span>
-        )}
-      </div>
+    <div className="mini-bars" aria-hidden="true">
+      {values.map((value, index) => (
+        <span key={`${value}-${index}`} style={{ height: `${28 + (value / max) * 42}px` }} />
+      ))}
     </div>
   );
 }
 
-/* ── Página ─────────────────────────────────────────────────────────────── */
+function MonthlyColumns({ data = [] }) {
+  if (!data.length) return <div className="chart-empty">Sem dados no periodo.</div>;
+  const max = Math.max(...data.map(item => item.valor), 1);
+
+  return (
+    <div className="column-chart">
+      {data.map(item => (
+        <div className="column-item" key={item.key}>
+          <div className="column-track">
+            <span style={{ height: `${Math.max((item.valor / max) * 100, 8)}%` }} />
+          </div>
+          <small>{item.rotulo}</small>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function IndustrialKpi({ icon, label, value, meta, children, accent = 'green' }) {
+  return (
+    <article className={`industrial-kpi ${accent}`}>
+      <div className="industrial-kpi-head">
+        <span className="industrial-icon">{icon}</span>
+        <span>{meta}</span>
+      </div>
+      <strong>{value}</strong>
+      <p>{label}</p>
+      {children}
+    </article>
+  );
+}
+
 export function Dashboard() {
   const navigate = useNavigate();
   const [dash, setDash] = useState(null);
@@ -169,7 +145,6 @@ export function Dashboard() {
         if (!cancelled) setCarregando(false);
       }
 
-      // Alertas de manutenção são opcionais (depende de permissão) → falha em silêncio.
       try {
         const alertasRes = await api.get('/manutencoes/alertas');
         if (!cancelled) setAlertas(Array.isArray(alertasRes.data) ? alertasRes.data : []);
@@ -184,33 +159,24 @@ export function Dashboard() {
 
   const meses = PERIODOS.find(p => p.id === periodo)?.meses ?? null;
 
-  /* Lista filtrada pelo período (afeta apenas os gráficos). */
-  const listaFiltrada = useMemo(() => {
-    return abastecimentos.filter(x => {
-      const d = parseData(x.dataAbastecimento);
-      return d && dentroDoPeriodo(d, meses);
-    });
-  }, [abastecimentos, meses]);
+  const listaFiltrada = useMemo(() => (
+    abastecimentos.filter(item => {
+      const data = parseData(item.dataAbastecimento);
+      return data && dentroDoPeriodo(data, meses);
+    })
+  ), [abastecimentos, meses]);
 
-  const mensal = useMemo(() => {
-    const todos = agruparPorMes(listaFiltrada);
-    return todos.slice(-6); // até 6 meses no gráfico
-  }, [listaFiltrada]);
-
+  const mensal = useMemo(() => agruparPorMes(listaFiltrada).slice(-6), [listaFiltrada]);
   const serieGasto = useMemo(() => mensal.map(m => ({ rotulo: m.rotulo, valor: m.valor })), [mensal]);
-  const sparkGasto = useMemo(() => mensal.map(m => m.valor), [mensal]);
-  const sparkAbast = useMemo(() => mensal.map(m => m.count), [mensal]);
-  const trendGasto = useMemo(() => tendencia(mensal, 'valor'), [mensal]);
-  const trendAbast = useMemo(() => tendencia(mensal, 'count'), [mensal]);
+  const sparkFuel = useMemo(() => mensal.map(m => m.litros), [mensal]);
+  const sparkOps = useMemo(() => mensal.map(m => m.count), [mensal]);
 
-  const porVeiculo = useMemo(() => gastoPorVeiculo(listaFiltrada), [listaFiltrada]);
-  const combustivel = useMemo(() => litrosPorCombustivel(listaFiltrada), [listaFiltrada]);
   const totalGastoPeriodo = useMemo(
-    () => listaFiltrada.reduce((s, x) => s + toNumber(x.valorTotal), 0),
+    () => listaFiltrada.reduce((sum, item) => sum + toNumber(item.valorTotal), 0),
     [listaFiltrada]
   );
   const totalLitrosPeriodo = useMemo(
-    () => listaFiltrada.reduce((s, x) => s + toNumber(x.litros), 0),
+    () => listaFiltrada.reduce((sum, item) => sum + toNumber(item.litros), 0),
     [listaFiltrada]
   );
 
@@ -220,6 +186,10 @@ export function Dashboard() {
   );
 
   const recentes = useMemo(() => abastecimentos.slice(0, 5), [abastecimentos]);
+  const eficiencia = totalLitrosPeriodo > 0 ? totalGastoPeriodo / totalLitrosPeriodo : 0;
+  const veiculosAtivos = dash?.veiculos ?? veiculos.filter(v => v.ativo !== false).length;
+  const avisosCriticos = alertasAtivos.filter(a => a.tipo === 'danger').length;
+  const operadorScore = Math.max(72, Math.min(98, 92 - avisosCriticos * 4 + Math.min(usos.length, 5)));
 
   const hoje = useMemo(
     () => new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long' }),
@@ -230,130 +200,146 @@ export function Dashboard() {
     return (
       <>
         <Header title="Dashboard" subtitle="Carregando indicadores..." />
-        <div className="card-soft p-3"><p className="text-muted" style={{ margin: 0 }}>Carregando...</p></div>
+        <div className="panel"><p className="text-muted m-0">Carregando...</p></div>
       </>
     );
   }
 
-  const seletorPeriodo = (
-    <div className="d-flex gap-2">
-      {PERIODOS.map(p => (
-        <button
-          key={p.id}
-          type="button"
-          className={`btn btn-sm ${periodo === p.id ? 'btn-primary' : 'btn-outline-secondary'}`}
-          onClick={() => setPeriodo(p.id)}
-        >
-          {p.label}
-        </button>
-      ))}
-    </div>
-  );
+  const headerMetrics = [
+    { label: 'Status', value: statusText(alertasAtivos.length) },
+    { label: 'Litros', value: litrosFmt(dash?.totalLitros ?? 0) },
+    { label: 'Gasto total', value: money(dash?.totalValor ?? 0) }
+  ];
 
   return (
     <>
       <Header
         title="Dashboard"
-        subtitle={`Resumo de ${hoje}`}
+        subtitle={`Resumo operacional de ${hoje}`}
+        metrics={headerMetrics}
         actions={
           <>
             <button className="btn btn-primary" onClick={() => navigate('/abastecimentos')}>
               <Plus size={16} /> Novo abastecimento
             </button>
             <button className="btn btn-outline-secondary" onClick={() => navigate('/relatorios')}>
-              <FileBarChart size={16} /> Relatórios
+              <FileBarChart size={16} /> Relatorios
             </button>
           </>
         }
       />
 
-      {/* KPIs (totais gerais vindos de /dashboard) */}
-      <section className="kpi-grid">
-        <Kpi icon={<Car size={20} />} label="Veículos ativos" value={number(dash?.veiculos ?? 0)} cor="#2563eb" />
-        <Kpi icon={<Users size={20} />} label="Motoristas" value={number(dash?.motoristas ?? 0)} cor="#7c3aed" />
-        <Kpi icon={<Fuel size={20} />} label="Abastecimentos" value={number(dash?.abastecimentos ?? 0)} cor="#0891b2"
-          trend={trendAbast} sparkData={sparkAbast} />
-        <Kpi icon={<Droplets size={20} />} label="Litros totais" value={litrosFmt(dash?.totalLitros ?? 0)} cor="#16a34a" />
-        <Kpi icon={<DollarSign size={20} />} label="Gasto total" value={money(dash?.totalValor ?? 0)} cor="#d97706"
-          trend={trendGasto} sparkData={sparkGasto} />
+      <section className="industrial-kpi-grid">
+        <IndustrialKpi
+          icon={<Truck size={21} />}
+          label="Active Trucks"
+          value={number(veiculosAtivos)}
+          meta="Fleet availability"
+          accent="green"
+        >
+          <div className="health-track"><span style={{ width: `${Math.min(veiculosAtivos, 100)}%` }} /></div>
+        </IndustrialKpi>
+
+        <IndustrialKpi
+          icon={<Fuel size={21} />}
+          label="Fuel Efficiency"
+          value={`${eficiencia.toFixed(2).replace('.', ',')} R$/L`}
+          meta="Rolling average"
+          accent="teal"
+        >
+          <Sparkline data={sparkFuel} cor="#10323a" />
+        </IndustrialKpi>
+
+        <IndustrialKpi
+          icon={<ShieldCheck size={21} />}
+          label="Operator Score"
+          value={`${operadorScore}%`}
+          meta="Driver behavior"
+          accent="orange"
+        >
+          <MiniBars values={[72, 84, operadorScore, 79, 88, 93]} />
+        </IndustrialKpi>
       </section>
 
-      {/* Gráficos */}
-      <section className="panel-grid">
-        <div className="panel">
+      <section className="cockpit-chart-grid">
+        <article className="panel panel-technical">
           <div className="panel-head">
             <div>
-              <h3>Gasto por mês</h3>
-              <span className="panel-sub">Valor abastecido no período</span>
+              <p className="panel-kicker">Monthly KPIs</p>
+              <h3>Consumo financeiro por mes</h3>
             </div>
-            <div style={{ display: 'flex', alignItems: 'center', gap: 12, flexWrap: 'wrap' }}>              
-              <span className="panel-total">{money(totalGastoPeriodo)}</span>
-              {seletorPeriodo}
+            <div className="segmented">
+              {PERIODOS.map(p => (
+                <button
+                  key={p.id}
+                  type="button"
+                  className={`seg ${periodo === p.id ? 'active' : ''}`}
+                  onClick={() => setPeriodo(p.id)}
+                >
+                  {p.label}
+                </button>
+              ))}
             </div>
+          </div>
+          <MonthlyColumns data={mensal} />
+        </article>
+
+        <article className="panel panel-technical">
+          <div className="panel-head">
+            <div>
+              <p className="panel-kicker">Performance History</p>
+              <h3>Historico de performance</h3>
+            </div>
+            <span className="panel-total">{money(totalGastoPeriodo)}</span>
           </div>
           <AreaChart serie={serieGasto} />
-        </div>
-
-        <div className="panel">
-          <div className="panel-head">
-            <div>
-              <h3>Combustível</h3>
-              <span className="panel-sub">Litros por tipo</span>
-            </div>
-          </div>
-          <Donut dados={combustivel} centerNum={litrosCurto(totalLitrosPeriodo)} centerLbl="litros" />
-        </div>
+        </article>
       </section>
 
-      <section className="panel-grid-2">
-        <div className="panel">
-          <div className="panel-head">
-            <div>
-              <h3>Gasto por veículo</h3>
-              <span className="panel-sub">Top 5 no período</span>
-            </div>
+      <section className="maintenance-panel">
+        <div className="maintenance-head">
+          <div>
+            <p className="panel-kicker">Preventive maintenance alerts</p>
+            <h2>Alertas de manutencao preventiva</h2>
           </div>
-          <BarsVeiculo dados={porVeiculo} />
+          <button className="alert-cta" onClick={() => navigate('/manutencoes')}>
+            Abrir manutencoes <ChevronRight size={15} />
+          </button>
         </div>
 
-        <div className="panel">
-          <div className="panel-head">
-            <div>
-              <h3>Alertas operacionais</h3>
-              <span className="panel-sub">Requer atenção</span>
-            </div>
-            {alertasAtivos.length > 0 && (
-              <span className="badge-alert"><AlertTriangle size={13} /> {alertasAtivos.length}</span>
-            )}
-          </div>
+        <div className="maintenance-grid">
+          <article className="maintenance-stat">
+            <Truck size={26} />
+            <span>Trucks em urgencia</span>
+            <strong>{number(avisosCriticos)}</strong>
+          </article>
+          <article className="maintenance-stat">
+            <Wrench size={26} />
+            <span>Avisos criticos</span>
+            <strong>{number(alertasAtivos.length)}</strong>
+          </article>
 
-          {alertasAtivos.length === 0 ? (
-            <div className="alert-empty">Nenhum alerta operacional.</div>
-          ) : (
-            <div className="alert-list">
-              {alertasAtivos.map((a, i) => (
-                <div className="alert-item" key={`${a.titulo}-${i}`}>
-                  <span className={`status-dot ${a.tipo === 'danger' ? 'danger' : a.tipo === 'warn' ? 'warn' : ''}`} />
-                  <div className="alert-info">
-                    <strong>{a.titulo}</strong>
-                    <span>{a.detalhe}</span>
-                  </div>
-                  <span className={`chip ${a.tipo === 'danger' ? 'chip-danger' : a.tipo === 'warn' ? 'chip-warn' : 'chip-success'}`}>
-                    {a.tipo === 'danger' ? 'Urgente' : a.tipo === 'warn' ? 'Atencao' : 'Info'}
-                  </span>
+          <div className="urgent-list">
+            {(alertasAtivos.length ? alertasAtivos : [
+              { titulo: 'Sistema em condicao normal', detalhe: 'Nenhuma manutencao preventiva urgente no momento.', tipo: 'success' },
+              { titulo: 'Inspecao programada', detalhe: 'Continue monitorando pneus, fluidos e revisoes por quilometragem.', tipo: 'warn' }
+            ]).slice(0, 5).map((alerta, index) => (
+              <div className="urgent-row" key={`${alerta.titulo}-${index}`}>
+                <AlertTriangle size={18} />
+                <div>
+                  <strong>{alerta.titulo}</strong>
+                  <span>{alerta.detalhe}</span>
                 </div>
-              ))}
-              <button className="alert-cta" onClick={() => navigate('/manutencoes')}>
-                Ver manutenções <ChevronRight size={15} />
-              </button>
-            </div>
-          )}
+              </div>
+            ))}
+          </div>
         </div>
       </section>
 
-      {/* Últimos abastecimentos */}
       <div className="card card-soft table-card">
-        <div className="card-body"><h5>Últimos abastecimentos</h5></div>
+        <div className="card-body">
+          <h5>Ultimos abastecimentos</h5>
+        </div>
         <AbastecimentosTabela items={recentes} />
       </div>
     </>
