@@ -10,7 +10,7 @@ export function Header({ title, subtitle, metrics = [], actions }) {
 
       <div className="cockpit-title-row">
         <div>
-          <p className="eyebrow">Fleet operations</p>
+          <p className="eyebrow">Operação da frota</p>
           <h1>{title}</h1>
           {subtitle && <span className="cockpit-subtitle">{subtitle}</span>}
         </div>

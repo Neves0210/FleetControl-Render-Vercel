@@ -1,12 +1,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'react-toastify';
 import {
-  Activity,
   AlertTriangle,
   ChevronRight,
   FileBarChart,
   Fuel,
-  Gauge,
   Plus,
   ShieldCheck,
   Truck,
@@ -66,7 +64,7 @@ function agruparPorMes(lista) {
 function statusText(totalAlertas) {
   if (totalAlertas === 0) return 'Normal';
   if (totalAlertas < 4) return 'Monitorar';
-  return 'Critico';
+  return 'Crítico';
 }
 
 function MiniBars({ values = [] }) {
@@ -169,7 +167,6 @@ export function Dashboard() {
   const mensal = useMemo(() => agruparPorMes(listaFiltrada).slice(-6), [listaFiltrada]);
   const serieGasto = useMemo(() => mensal.map(m => ({ rotulo: m.rotulo, valor: m.valor })), [mensal]);
   const sparkFuel = useMemo(() => mensal.map(m => m.litros), [mensal]);
-  const sparkOps = useMemo(() => mensal.map(m => m.count), [mensal]);
 
   const totalGastoPeriodo = useMemo(
     () => listaFiltrada.reduce((sum, item) => sum + toNumber(item.valorTotal), 0),
@@ -190,6 +187,10 @@ export function Dashboard() {
   const veiculosAtivos = dash?.veiculos ?? veiculos.filter(v => v.ativo !== false).length;
   const avisosCriticos = alertasAtivos.filter(a => a.tipo === 'danger').length;
   const operadorScore = Math.max(72, Math.min(98, 92 - avisosCriticos * 4 + Math.min(usos.length, 5)));
+  const barrasPontuacao = useMemo(
+    () => [72, 84, operadorScore, Math.max(70, operadorScore - 6), 88, Math.min(98, operadorScore + 4)],
+    [operadorScore]
+  );
 
   const hoje = useMemo(
     () => new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long' }),
@@ -199,7 +200,7 @@ export function Dashboard() {
   if (carregando && !dash) {
     return (
       <>
-        <Header title="Dashboard" subtitle="Carregando indicadores..." />
+        <Header title="Painel" subtitle="Carregando indicadores..." />
         <div className="panel"><p className="text-muted m-0">Carregando...</p></div>
       </>
     );
@@ -214,7 +215,7 @@ export function Dashboard() {
   return (
     <>
       <Header
-        title="Dashboard"
+        title="Painel"
         subtitle={`Resumo operacional de ${hoje}`}
         metrics={headerMetrics}
         actions={
@@ -223,7 +224,7 @@ export function Dashboard() {
               <Plus size={16} /> Novo abastecimento
             </button>
             <button className="btn btn-outline-secondary" onClick={() => navigate('/relatorios')}>
-              <FileBarChart size={16} /> Relatorios
+              <FileBarChart size={16} /> Relatórios
             </button>
           </>
         }
@@ -232,9 +233,9 @@ export function Dashboard() {
       <section className="industrial-kpi-grid">
         <IndustrialKpi
           icon={<Truck size={21} />}
-          label="Active Trucks"
+          label="Veículos ativos"
           value={number(veiculosAtivos)}
-          meta="Fleet availability"
+          meta="Disponibilidade da frota"
           accent="green"
         >
           <div className="health-track"><span style={{ width: `${Math.min(veiculosAtivos, 100)}%` }} /></div>
@@ -242,9 +243,9 @@ export function Dashboard() {
 
         <IndustrialKpi
           icon={<Fuel size={21} />}
-          label="Fuel Efficiency"
+          label="Eficiência de combustível"
           value={`${eficiencia.toFixed(2).replace('.', ',')} R$/L`}
-          meta="Rolling average"
+          meta="Média móvel"
           accent="teal"
         >
           <Sparkline data={sparkFuel} cor="#10323a" />
@@ -252,12 +253,12 @@ export function Dashboard() {
 
         <IndustrialKpi
           icon={<ShieldCheck size={21} />}
-          label="Operator Score"
+          label="Pontuação do operador"
           value={`${operadorScore}%`}
-          meta="Driver behavior"
+          meta="Comportamento dos condutores"
           accent="orange"
         >
-          <MiniBars values={[72, 84, operadorScore, 79, 88, 93]} />
+          <MiniBars values={barrasPontuacao} />
         </IndustrialKpi>
       </section>
 
@@ -265,7 +266,7 @@ export function Dashboard() {
         <article className="panel panel-technical">
           <div className="panel-head">
             <div>
-              <p className="panel-kicker">Monthly KPIs</p>
+              <p className="panel-kicker">KPIs mensais</p>
               <h3>Consumo financeiro por mes</h3>
             </div>
             <div className="segmented">
@@ -287,8 +288,8 @@ export function Dashboard() {
         <article className="panel panel-technical">
           <div className="panel-head">
             <div>
-              <p className="panel-kicker">Performance History</p>
-              <h3>Historico de performance</h3>
+              <p className="panel-kicker">Histórico de performance</p>
+              <h3>Histórico de performance</h3>
             </div>
             <span className="panel-total">{money(totalGastoPeriodo)}</span>
           </div>
@@ -299,30 +300,30 @@ export function Dashboard() {
       <section className="maintenance-panel">
         <div className="maintenance-head">
           <div>
-            <p className="panel-kicker">Preventive maintenance alerts</p>
-            <h2>Alertas de manutencao preventiva</h2>
+            <p className="panel-kicker">Alertas de manutenção preventiva</p>
+            <h2>Alertas de manutenção preventiva</h2>
           </div>
           <button className="alert-cta" onClick={() => navigate('/manutencoes')}>
-            Abrir manutencoes <ChevronRight size={15} />
+            Abrir manutenções <ChevronRight size={15} />
           </button>
         </div>
 
         <div className="maintenance-grid">
           <article className="maintenance-stat">
             <Truck size={26} />
-            <span>Trucks em urgencia</span>
+            <span>Veículos em urgência</span>
             <strong>{number(avisosCriticos)}</strong>
           </article>
           <article className="maintenance-stat">
             <Wrench size={26} />
-            <span>Avisos criticos</span>
+            <span>Avisos críticos</span>
             <strong>{number(alertasAtivos.length)}</strong>
           </article>
 
           <div className="urgent-list">
             {(alertasAtivos.length ? alertasAtivos : [
-              { titulo: 'Sistema em condicao normal', detalhe: 'Nenhuma manutencao preventiva urgente no momento.', tipo: 'success' },
-              { titulo: 'Inspecao programada', detalhe: 'Continue monitorando pneus, fluidos e revisoes por quilometragem.', tipo: 'warn' }
+              { titulo: 'Sistema em condição normal', detalhe: 'Nenhuma manutenção preventiva urgente no momento.', tipo: 'success' },
+              { titulo: 'Inspeção programada', detalhe: 'Continue monitorando pneus, fluidos e revisões por quilometragem.', tipo: 'warn' }
             ]).slice(0, 5).map((alerta, index) => (
               <div className="urgent-row" key={`${alerta.titulo}-${index}`}>
                 <AlertTriangle size={18} />
@@ -338,7 +339,7 @@ export function Dashboard() {
 
       <div className="card card-soft table-card">
         <div className="card-body">
-          <h5>Ultimos abastecimentos</h5>
+          <h5>Últimos abastecimentos</h5>
         </div>
         <AbastecimentosTabela items={recentes} />
       </div>
