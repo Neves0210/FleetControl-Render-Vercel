@@ -133,6 +133,12 @@ public class RelatoriosController : ControllerBase
             })
             .ToList();
 
+        var kmRodadoPorVeiculo = usos
+            .GroupBy(x => x.VeiculoId)
+            .ToDictionary(
+                g => g.Key,
+                g => g.Sum(x => x.KmFinal.HasValue ? x.KmFinal.Value - x.KmInicial : 0));
+
         var porVeiculo = abastecimentos
             .GroupBy(x => new
             {
@@ -147,7 +153,11 @@ public class RelatoriosController : ControllerBase
                 totalLitros = g.Sum(x => x.Litros),
                 totalValor = g.Sum(x => x.ValorTotal),
                 mediaLitros = g.Any() ? g.Average(x => x.Litros) : 0,
-                mediaValor = g.Any() ? g.Average(x => x.ValorTotal) : 0
+                mediaValor = g.Any() ? g.Average(x => x.ValorTotal) : 0,
+                kmRodado = kmRodadoPorVeiculo.GetValueOrDefault(g.Key.VeiculoId, 0),
+                autonomiaKmPorLitro = g.Sum(x => x.Litros) > 0
+                    ? kmRodadoPorVeiculo.GetValueOrDefault(g.Key.VeiculoId, 0) / g.Sum(x => x.Litros)
+                    : 0
             })
             .OrderByDescending(x => x.totalValor)
             .ToList();

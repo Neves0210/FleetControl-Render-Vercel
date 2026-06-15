@@ -2,15 +2,17 @@ import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'react-toastify';
 import {
   AlertTriangle,
+  BarChart3,
   ChevronRight,
   Eye,
   EyeOff,
   FileBarChart,
   Fuel,
+  ListChecks,
+  Plus,
   RotateCcw,
   Settings2,
-  Plus,
-  ShieldCheck,
+  Table2,
   Truck,
   Wrench
 } from 'lucide-react';
@@ -20,7 +22,6 @@ import { Header } from '../components/Layout/Header';
 import { AbastecimentosTabela } from '../components/Abastecimentos/AbastecimentosTabela';
 import { AreaChart, Sparkline } from '../components/Dashboard/Charts';
 import { money, number, litros as litrosFmt, toNumber } from '../utils/formatters';
-import { calcularAlertasOperacionais } from '../utils/operationalAlerts';
 import { getUser } from '../utils/permissions';
 import '../components/Dashboard/dashboard.css';
 
@@ -30,18 +31,33 @@ const PERIODOS = [
   { id: 'all', label: 'Tudo', meses: null }
 ];
 
+const COMBUSTIVEIS = {
+  1: 'Gasolina',
+  2: 'Etanol',
+  3: 'Diesel',
+  4: 'Flex'
+};
+
 const DASHBOARD_SECTIONS = [
   { id: 'kpis', label: 'Indicadores principais' },
-  { id: 'charts', label: 'Gráficos operacionais' },
+  { id: 'monthlyCostBars', label: 'Gasto mensal em colunas' },
+  { id: 'monthlyCostLine', label: 'Histórico financeiro em linha' },
+  { id: 'monthlyLiters', label: 'Litros por mês' },
+  { id: 'vehicleRanking', label: 'Ranking por veículo' },
+  { id: 'fuelTable', label: 'Tabela de combustível' },
   { id: 'maintenance', label: 'Manutenção preventiva' },
   { id: 'recent', label: 'Últimos abastecimentos' }
 ];
 
 const DEFAULT_DASHBOARD_CONFIG = {
-  order: ['kpis', 'charts', 'maintenance', 'recent'],
+  order: ['kpis', 'monthlyCostBars', 'monthlyCostLine', 'monthlyLiters', 'vehicleRanking', 'fuelTable', 'maintenance', 'recent'],
   visible: {
     kpis: true,
-    charts: true,
+    monthlyCostBars: true,
+    monthlyCostLine: true,
+    monthlyLiters: false,
+    vehicleRanking: true,
+    fuelTable: false,
     maintenance: true,
     recent: true
   },
@@ -60,12 +76,11 @@ function dashboardConfigKey(user) {
 
 function normalizarConfig(config) {
   const visible = { ...DEFAULT_DASHBOARD_CONFIG.visible, ...(config?.visible || {}) };
-  const order = Array.isArray(config?.order)
-    ? [
-        ...config.order.filter(id => DASHBOARD_SECTIONS.some(section => section.id === id)),
-        ...DEFAULT_DASHBOARD_CONFIG.order.filter(id => !config.order.includes(id))
-      ]
-    : DEFAULT_DASHBOARD_CONFIG.order;
+  const savedOrder = Array.isArray(config?.order) ? config.order : DEFAULT_DASHBOARD_CONFIG.order;
+  const order = [
+    ...savedOrder.filter(id => DASHBOARD_SECTIONS.some(section => section.id === id)),
+    ...DEFAULT_DASHBOARD_CONFIG.order.filter(id => !savedOrder.includes(id))
+  ];
 
   return {
     ...DEFAULT_DASHBOARD_CONFIG,
@@ -85,20 +100,20 @@ function carregarConfigDashboard(user) {
   }
 }
 
-function parseData(s) {
-  const d = new Date(s);
-  return Number.isNaN(d.getTime()) ? null : d;
+function parseData(value) {
+  const data = new Date(value);
+  return Number.isNaN(data.getTime()) ? null : data;
 }
 
-function dentroDoPeriodo(d, meses) {
+function dentroDoPeriodo(data, meses) {
   if (meses == null) return true;
   const limite = new Date();
   limite.setMonth(limite.getMonth() - meses);
-  return d >= limite;
+  return data >= limite;
 }
 
-function rotuloMes(d) {
-  const label = d.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '');
+function rotuloMes(data) {
+  const label = data.toLocaleDateString('pt-BR', { month: 'short' }).replace('.', '');
   return label.charAt(0).toUpperCase() + label.slice(1, 3);
 }
 
@@ -106,10 +121,10 @@ function agruparPorMes(lista) {
   const mapa = new Map();
 
   lista.forEach(item => {
-    const d = parseData(item.dataAbastecimento);
-    if (!d) return;
-    const key = `${d.getFullYear()}-${String(d.getMonth()).padStart(2, '0')}`;
-    const atual = mapa.get(key) || { key, d, valor: 0, litros: 0, count: 0 };
+    const data = parseData(item.dataAbastecimento);
+    if (!data) return;
+    const key = `${data.getFullYear()}-${String(data.getMonth()).padStart(2, '0')}`;
+    const atual = mapa.get(key) || { key, data, valor: 0, litros: 0, count: 0 };
     atual.valor += toNumber(item.valorTotal);
     atual.litros += toNumber(item.litros);
     atual.count += 1;
@@ -118,13 +133,45 @@ function agruparPorMes(lista) {
 
   return [...mapa.values()]
     .sort((a, b) => (a.key < b.key ? -1 : 1))
-    .map(m => ({ key: m.key, rotulo: rotuloMes(m.d), valor: m.valor, litros: m.litros, count: m.count }));
+    .map(item => ({ ...item, rotulo: rotuloMes(item.data) }));
 }
 
-function statusText(totalAlertas) {
-  if (totalAlertas === 0) return 'Normal';
-  if (totalAlertas < 4) return 'Monitorar';
-  return 'Crítico';
+function agruparPorVeiculo(lista) {
+  const mapa = new Map();
+
+  lista.forEach(item => {
+    const nome = item.veiculo?.placa || item.veiculo?.modelo || 'Sem veículo';
+    const atual = mapa.get(nome) || { nome, valor: 0, litros: 0, count: 0 };
+    atual.valor += toNumber(item.valorTotal);
+    atual.litros += toNumber(item.litros);
+    atual.count += 1;
+    mapa.set(nome, atual);
+  });
+
+  return [...mapa.values()].sort((a, b) => b.valor - a.valor).slice(0, 8);
+}
+
+function agruparCombustivel(lista) {
+  const mapa = new Map();
+
+  lista.forEach(item => {
+    const tipo = item.veiculo?.tipoCombustivel ?? 0;
+    const nome = COMBUSTIVEIS[tipo] || 'Outros';
+    const atual = mapa.get(nome) || { nome, valor: 0, litros: 0, count: 0 };
+    atual.valor += toNumber(item.valorTotal);
+    atual.litros += toNumber(item.litros);
+    atual.count += 1;
+    mapa.set(nome, atual);
+  });
+
+  return [...mapa.values()].sort((a, b) => b.litros - a.litros);
+}
+
+function statusManutencao(status = '') {
+  const s = String(status).toLowerCase();
+  if (s.includes('vencida')) return 'danger';
+  if (s.includes('pr') || s.includes('proxima')) return 'warn';
+  return 'info';
 }
 
 function MiniBars({ values = [] }) {
@@ -138,20 +185,58 @@ function MiniBars({ values = [] }) {
   );
 }
 
-function MonthlyColumns({ data = [] }) {
-  if (!data.length) return <div className="chart-empty">Sem dados no periodo.</div>;
-  const max = Math.max(...data.map(item => item.valor), 1);
+function ColumnChart({ data = [], valueKey = 'valor', empty = 'Sem dados no período.' }) {
+  if (!data.length) return <div className="chart-empty">{empty}</div>;
+  const max = Math.max(...data.map(item => item[valueKey]), 1);
 
   return (
     <div className="column-chart">
       {data.map(item => (
-        <div className="column-item" key={item.key}>
+        <div className="column-item" key={item.key || item.nome}>
           <div className="column-track">
-            <span style={{ height: `${Math.max((item.valor / max) * 100, 8)}%` }} />
+            <span style={{ height: `${Math.max((item[valueKey] / max) * 100, 8)}%` }} />
           </div>
-          <small>{item.rotulo}</small>
+          <small>{item.rotulo || item.nome}</small>
         </div>
       ))}
+    </div>
+  );
+}
+
+function RankingBars({ data = [], valueKey = 'valor', format = money }) {
+  if (!data.length) return <div className="chart-empty">Sem dados no período.</div>;
+  const max = Math.max(...data.map(item => item[valueKey]), 1);
+
+  return (
+    <div className="ranking-bars">
+      {data.map(item => (
+        <div className="ranking-row" key={item.nome}>
+          <span>{item.nome}</span>
+          <div><strong style={{ width: `${Math.max((item[valueKey] / max) * 100, 5)}%` }} /></div>
+          <b>{format(item[valueKey])}</b>
+        </div>
+      ))}
+    </div>
+  );
+}
+
+function DataTable({ columns, data, empty = 'Sem dados no período.' }) {
+  if (!data.length) return <div className="chart-empty">{empty}</div>;
+
+  return (
+    <div className="dashboard-table-wrap">
+      <table className="dashboard-mini-table">
+        <thead>
+          <tr>{columns.map(column => <th key={column.key}>{column.label}</th>)}</tr>
+        </thead>
+        <tbody>
+          {data.map((item, index) => (
+            <tr key={item.nome || item.key || index}>
+              {columns.map(column => <td key={column.key}>{column.render(item)}</td>)}
+            </tr>
+          ))}
+        </tbody>
+      </table>
     </div>
   );
 }
@@ -177,7 +262,6 @@ export function Dashboard() {
   const [dash, setDash] = useState(null);
   const [abastecimentos, setAbastecimentos] = useState([]);
   const [alertas, setAlertas] = useState([]);
-  const [usos, setUsos] = useState([]);
   const [veiculos, setVeiculos] = useState([]);
   const [periodo, setPeriodo] = useState('12m');
   const [carregando, setCarregando] = useState(true);
@@ -194,18 +278,16 @@ export function Dashboard() {
 
     async function carregar() {
       try {
-        const [dashRes, abastRes, veiculosRes, usosRes] = await Promise.all([
+        const [dashRes, abastRes, veiculosRes] = await Promise.all([
           api.get('/dashboard'),
           api.get('/abastecimentos'),
-          api.get('/veiculos', { params: { incluirInativos: true } }),
-          api.get('/usos-veiculos', { params: { somenteAtivos: true } })
+          api.get('/veiculos', { params: { incluirInativos: true } })
         ]);
 
         if (cancelled) return;
         setDash(dashRes.data);
         setAbastecimentos(Array.isArray(abastRes.data) ? abastRes.data : []);
         setVeiculos(Array.isArray(veiculosRes.data) ? veiculosRes.data : []);
-        setUsos(Array.isArray(usosRes.data) ? usosRes.data : []);
       } catch {
         if (!cancelled) toast.error('Erro ao carregar o dashboard.');
       } finally {
@@ -224,7 +306,7 @@ export function Dashboard() {
     return () => { cancelled = true; };
   }, []);
 
-  const meses = PERIODOS.find(p => p.id === periodo)?.meses ?? null;
+  const meses = PERIODOS.find(item => item.id === periodo)?.meses ?? null;
 
   const listaFiltrada = useMemo(() => (
     abastecimentos.filter(item => {
@@ -234,8 +316,12 @@ export function Dashboard() {
   ), [abastecimentos, meses]);
 
   const mensal = useMemo(() => agruparPorMes(listaFiltrada).slice(-6), [listaFiltrada]);
-  const serieGasto = useMemo(() => mensal.map(m => ({ rotulo: m.rotulo, valor: m.valor })), [mensal]);
-  const sparkFuel = useMemo(() => mensal.map(m => m.litros), [mensal]);
+  const serieGasto = useMemo(() => mensal.map(item => ({ rotulo: item.rotulo, valor: item.valor })), [mensal]);
+  const sparkLitros = useMemo(() => mensal.map(item => item.litros), [mensal]);
+  const sparkAbastecimentos = useMemo(() => mensal.map(item => item.count), [mensal]);
+  const porVeiculo = useMemo(() => agruparPorVeiculo(listaFiltrada), [listaFiltrada]);
+  const porCombustivel = useMemo(() => agruparCombustivel(listaFiltrada), [listaFiltrada]);
+  const recentes = useMemo(() => abastecimentos.slice(0, 5), [abastecimentos]);
 
   const totalGastoPeriodo = useMemo(
     () => listaFiltrada.reduce((sum, item) => sum + toNumber(item.valorTotal), 0),
@@ -246,20 +332,11 @@ export function Dashboard() {
     [listaFiltrada]
   );
 
-  const alertasAtivos = useMemo(
-    () => calcularAlertasOperacionais({ abastecimentos, usos, manutencoes: alertas, veiculos }),
-    [abastecimentos, usos, alertas, veiculos]
-  );
-
-  const recentes = useMemo(() => abastecimentos.slice(0, 5), [abastecimentos]);
+  const veiculosAtivos = dash?.veiculos ?? veiculos.filter(item => item.ativo !== false).length;
   const eficiencia = totalLitrosPeriodo > 0 ? totalGastoPeriodo / totalLitrosPeriodo : 0;
-  const veiculosAtivos = dash?.veiculos ?? veiculos.filter(v => v.ativo !== false).length;
-  const avisosCriticos = alertasAtivos.filter(a => a.tipo === 'danger').length;
-  const operadorScore = Math.max(72, Math.min(98, 92 - avisosCriticos * 4 + Math.min(usos.length, 5)));
-  const barrasPontuacao = useMemo(
-    () => [72, 84, operadorScore, Math.max(70, operadorScore - 6), 88, Math.min(98, operadorScore + 4)],
-    [operadorScore]
-  );
+  const manutencoesVencidas = alertas.filter(item => statusManutencao(item.status) === 'danger').length;
+  const manutencoesProximas = alertas.filter(item => statusManutencao(item.status) === 'warn').length;
+  const totalAbastecimentosPeriodo = listaFiltrada.length;
 
   const hoje = useMemo(
     () => new Date().toLocaleDateString('pt-BR', { weekday: 'long', day: '2-digit', month: 'long' }),
@@ -276,7 +353,7 @@ export function Dashboard() {
   }
 
   const headerMetrics = [
-    { label: 'Status', value: statusText(alertasAtivos.length) },
+    { label: 'Manutenção', value: manutencoesVencidas ? `${manutencoesVencidas} vencida(s)` : 'Em controle' },
     { label: 'Litros', value: litrosFmt(dash?.totalLitros ?? 0) },
     { label: 'Gasto total', value: money(dash?.totalValor ?? 0) }
   ];
@@ -320,8 +397,8 @@ export function Dashboard() {
       </div>
 
       <div className="customizer-grid">
-        <div className="customizer-group">
-          <label>Blocos do painel</label>
+        <div className="customizer-group customizer-group-wide">
+          <label>Blocos, gráficos e tabelas</label>
           <div className="section-builder-list">
             {dashboardConfig.order.map((id, index) => {
               const section = DASHBOARD_SECTIONS.find(item => item.id === id);
@@ -407,83 +484,97 @@ export function Dashboard() {
 
   const sections = {
     kpis: (
-      <section
-        className="industrial-kpi-grid"
-        style={{ '--kpi-columns': dashboardConfig.kpiColumns }}
-        key="kpis"
-      >
-        <IndustrialKpi
-          icon={<Truck size={21} />}
-          label="Veículos ativos"
-          value={number(veiculosAtivos)}
-          meta="Disponibilidade da frota"
-          accent="green"
-        >
+      <section className="industrial-kpi-grid" style={{ '--kpi-columns': dashboardConfig.kpiColumns }} key="kpis">
+        <IndustrialKpi icon={<Truck size={21} />} label="Veículos ativos" value={number(veiculosAtivos)} meta="Cadastro da frota" accent="green">
           <div className="health-track"><span style={{ width: `${Math.min(veiculosAtivos, 100)}%` }} /></div>
         </IndustrialKpi>
-
-        <IndustrialKpi
-          icon={<Fuel size={21} />}
-          label="Eficiência de combustível"
-          value={`${eficiencia.toFixed(2).replace('.', ',')} R$/L`}
-          meta="Média móvel"
-          accent="teal"
-        >
-          <Sparkline data={sparkFuel} cor="#10323a" />
+        <IndustrialKpi icon={<Fuel size={21} />} label="Custo por litro" value={`${eficiencia.toFixed(2).replace('.', ',')} R$/L`} meta="Abastecimentos do período" accent="teal">
+          <Sparkline data={sparkLitros} cor="#10323a" />
         </IndustrialKpi>
-
-        <IndustrialKpi
-          icon={<ShieldCheck size={21} />}
-          label="Pontuação do operador"
-          value={`${operadorScore}%`}
-          meta="Comportamento dos condutores"
-          accent="orange"
-        >
-          <MiniBars values={barrasPontuacao} />
+        <IndustrialKpi icon={<ListChecks size={21} />} label="Abastecimentos" value={number(totalAbastecimentosPeriodo)} meta="Registros filtrados" accent="orange">
+          <MiniBars values={sparkAbastecimentos} />
         </IndustrialKpi>
       </section>
     ),
-    charts: (
-      <section className="cockpit-chart-grid" key="charts">
-        <article className="panel panel-technical">
-          <div className="panel-head">
-            <div>
-              <p className="panel-kicker">KPIs mensais</p>
-              <h3>Consumo financeiro por mês</h3>
-            </div>
-            <div className="segmented">
-              {PERIODOS.map(p => (
-                <button
-                  key={p.id}
-                  type="button"
-                  className={`seg ${periodo === p.id ? 'active' : ''}`}
-                  onClick={() => setPeriodo(p.id)}
-                >
-                  {p.label}
-                </button>
-              ))}
-            </div>
+    monthlyCostBars: (
+      <article className="panel panel-technical" key="monthlyCostBars">
+        <div className="panel-head">
+          <div>
+            <p className="panel-kicker">Gráfico de colunas</p>
+            <h3>Gasto mensal</h3>
           </div>
-          <MonthlyColumns data={mensal} />
-        </article>
-
-        <article className="panel panel-technical">
-          <div className="panel-head">
-            <div>
-              <p className="panel-kicker">Histórico de performance</p>
-              <h3>Histórico de performance</h3>
-            </div>
-            <span className="panel-total">{money(totalGastoPeriodo)}</span>
+          <div className="segmented">
+            {PERIODOS.map(item => (
+              <button key={item.id} type="button" className={`seg ${periodo === item.id ? 'active' : ''}`} onClick={() => setPeriodo(item.id)}>
+                {item.label}
+              </button>
+            ))}
           </div>
-          <AreaChart serie={serieGasto} />
-        </article>
-      </section>
+        </div>
+        <ColumnChart data={mensal} valueKey="valor" />
+      </article>
+    ),
+    monthlyCostLine: (
+      <article className="panel panel-technical" key="monthlyCostLine">
+        <div className="panel-head">
+          <div>
+            <p className="panel-kicker">Gráfico de linha</p>
+            <h3>Histórico financeiro</h3>
+          </div>
+          <span className="panel-total">{money(totalGastoPeriodo)}</span>
+        </div>
+        <AreaChart serie={serieGasto} />
+      </article>
+    ),
+    monthlyLiters: (
+      <article className="panel panel-technical" key="monthlyLiters">
+        <div className="panel-head">
+          <div>
+            <p className="panel-kicker">Volume abastecido</p>
+            <h3>Litros por mês</h3>
+          </div>
+          <span className="panel-total">{litrosFmt(totalLitrosPeriodo)}</span>
+        </div>
+        <ColumnChart data={mensal} valueKey="litros" />
+      </article>
+    ),
+    vehicleRanking: (
+      <article className="panel panel-technical" key="vehicleRanking">
+        <div className="panel-head">
+          <div>
+            <p className="panel-kicker">Ranking</p>
+            <h3>Gasto por veículo</h3>
+          </div>
+          <BarChart3 size={20} />
+        </div>
+        <RankingBars data={porVeiculo} valueKey="valor" />
+      </article>
+    ),
+    fuelTable: (
+      <article className="panel panel-technical" key="fuelTable">
+        <div className="panel-head">
+          <div>
+            <p className="panel-kicker">Tabela</p>
+            <h3>Combustível por tipo</h3>
+          </div>
+          <Table2 size={20} />
+        </div>
+        <DataTable
+          data={porCombustivel}
+          columns={[
+            { key: 'nome', label: 'Tipo', render: item => item.nome },
+            { key: 'litros', label: 'Litros', render: item => litrosFmt(item.litros) },
+            { key: 'valor', label: 'Valor', render: item => money(item.valor) },
+            { key: 'count', label: 'Registros', render: item => number(item.count) }
+          ]}
+        />
+      </article>
     ),
     maintenance: (
       <section className="maintenance-panel" key="maintenance">
         <div className="maintenance-head">
           <div>
-            <p className="panel-kicker">Alertas de manutenção preventiva</p>
+            <p className="panel-kicker">Somente manutenções cadastradas</p>
             <h2>Alertas de manutenção preventiva</h2>
           </div>
           <button className="alert-cta" onClick={() => navigate('/manutencoes')}>
@@ -494,25 +585,26 @@ export function Dashboard() {
         <div className="maintenance-grid">
           <article className="maintenance-stat">
             <Truck size={26} />
-            <span>Veículos em urgência</span>
-            <strong>{number(avisosCriticos)}</strong>
+            <span>Manutenções vencidas</span>
+            <strong>{number(manutencoesVencidas)}</strong>
           </article>
           <article className="maintenance-stat">
             <Wrench size={26} />
-            <span>Avisos críticos</span>
-            <strong>{number(alertasAtivos.length)}</strong>
+            <span>Próximas manutenções</span>
+            <strong>{number(manutencoesProximas)}</strong>
           </article>
 
           <div className="urgent-list">
-            {(alertasAtivos.length ? alertasAtivos : [
-              { titulo: 'Sistema em condição normal', detalhe: 'Nenhuma manutenção preventiva urgente no momento.', tipo: 'success' },
-              { titulo: 'Inspeção programada', detalhe: 'Continue monitorando pneus, fluidos e revisões por quilometragem.', tipo: 'warn' }
+            {(alertas.length ? alertas : [
+              { tipo: 'Sistema', detalhe: 'Nenhuma manutenção preventiva urgente no momento.', status: 'Em dia' }
             ]).slice(0, 5).map((alerta, index) => (
-              <div className="urgent-row" key={`${alerta.titulo}-${index}`}>
+              <div className="urgent-row" key={`${alerta.manutencaoId || alerta.tipo}-${index}`}>
                 <AlertTriangle size={18} />
                 <div>
-                  <strong>{alerta.titulo}</strong>
-                  <span>{alerta.detalhe}</span>
+                  <strong>{alerta.status || 'Manutenção'}</strong>
+                  <span>
+                    {[alerta.veiculo, alerta.placa, alerta.tipo].filter(Boolean).join(' - ') || alerta.detalhe}
+                  </span>
                 </div>
               </div>
             ))}
@@ -522,19 +614,19 @@ export function Dashboard() {
     ),
     recent: (
       <div className="card card-soft table-card" key="recent">
-        <div className="card-body">
-          <h5>Últimos abastecimentos</h5>
-        </div>
+        <div className="card-body"><h5>Últimos abastecimentos</h5></div>
         <AbastecimentosTabela items={recentes} />
       </div>
     )
   };
 
+  const orderedSections = dashboardConfig.order
+    .filter(id => dashboardConfig.visible[id])
+    .map(id => sections[id])
+    .filter(Boolean);
+
   return (
-    <div
-      className={`dashboard-workspace density-${dashboardConfig.density}`}
-      style={{ '--dashboard-accent': dashboardConfig.accent }}
-    >
+    <div className={`dashboard-workspace density-${dashboardConfig.density}`} style={{ '--dashboard-accent': dashboardConfig.accent }}>
       <Header
         title="Painel"
         subtitle={`Resumo operacional de ${hoje}`}
@@ -564,127 +656,9 @@ export function Dashboard() {
 
       {editorPainel}
 
-      {dashboardConfig.order
-        .filter(id => dashboardConfig.visible[id])
-        .map(id => sections[id])}
-
-      {false && (
-      <>
-      <section className="industrial-kpi-grid">
-        <IndustrialKpi
-          icon={<Truck size={21} />}
-          label="Veículos ativos"
-          value={number(veiculosAtivos)}
-          meta="Disponibilidade da frota"
-          accent="green"
-        >
-          <div className="health-track"><span style={{ width: `${Math.min(veiculosAtivos, 100)}%` }} /></div>
-        </IndustrialKpi>
-
-        <IndustrialKpi
-          icon={<Fuel size={21} />}
-          label="Eficiência de combustível"
-          value={`${eficiencia.toFixed(2).replace('.', ',')} R$/L`}
-          meta="Média móvel"
-          accent="teal"
-        >
-          <Sparkline data={sparkFuel} cor="#10323a" />
-        </IndustrialKpi>
-
-        <IndustrialKpi
-          icon={<ShieldCheck size={21} />}
-          label="Pontuação do operador"
-          value={`${operadorScore}%`}
-          meta="Comportamento dos condutores"
-          accent="orange"
-        >
-          <MiniBars values={barrasPontuacao} />
-        </IndustrialKpi>
-      </section>
-
-      <section className="cockpit-chart-grid">
-        <article className="panel panel-technical">
-          <div className="panel-head">
-            <div>
-              <p className="panel-kicker">KPIs mensais</p>
-              <h3>Consumo financeiro por mes</h3>
-            </div>
-            <div className="segmented">
-              {PERIODOS.map(p => (
-                <button
-                  key={p.id}
-                  type="button"
-                  className={`seg ${periodo === p.id ? 'active' : ''}`}
-                  onClick={() => setPeriodo(p.id)}
-                >
-                  {p.label}
-                </button>
-              ))}
-            </div>
-          </div>
-          <MonthlyColumns data={mensal} />
-        </article>
-
-        <article className="panel panel-technical">
-          <div className="panel-head">
-            <div>
-              <p className="panel-kicker">Histórico de performance</p>
-              <h3>Histórico de performance</h3>
-            </div>
-            <span className="panel-total">{money(totalGastoPeriodo)}</span>
-          </div>
-          <AreaChart serie={serieGasto} />
-        </article>
-      </section>
-
-      <section className="maintenance-panel">
-        <div className="maintenance-head">
-          <div>
-            <p className="panel-kicker">Alertas de manutenção preventiva</p>
-            <h2>Alertas de manutenção preventiva</h2>
-          </div>
-          <button className="alert-cta" onClick={() => navigate('/manutencoes')}>
-            Abrir manutenções <ChevronRight size={15} />
-          </button>
-        </div>
-
-        <div className="maintenance-grid">
-          <article className="maintenance-stat">
-            <Truck size={26} />
-            <span>Veículos em urgência</span>
-            <strong>{number(avisosCriticos)}</strong>
-          </article>
-          <article className="maintenance-stat">
-            <Wrench size={26} />
-            <span>Avisos críticos</span>
-            <strong>{number(alertasAtivos.length)}</strong>
-          </article>
-
-          <div className="urgent-list">
-            {(alertasAtivos.length ? alertasAtivos : [
-              { titulo: 'Sistema em condição normal', detalhe: 'Nenhuma manutenção preventiva urgente no momento.', tipo: 'success' },
-              { titulo: 'Inspeção programada', detalhe: 'Continue monitorando pneus, fluidos e revisões por quilometragem.', tipo: 'warn' }
-            ]).slice(0, 5).map((alerta, index) => (
-              <div className="urgent-row" key={`${alerta.titulo}-${index}`}>
-                <AlertTriangle size={18} />
-                <div>
-                  <strong>{alerta.titulo}</strong>
-                  <span>{alerta.detalhe}</span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
-      <div className="card card-soft table-card">
-        <div className="card-body">
-          <h5>Últimos abastecimentos</h5>
-        </div>
-        <AbastecimentosTabela items={recentes} />
+      <div className="dashboard-widget-grid">
+        {orderedSections}
       </div>
-      </>
-      )}
     </div>
   );
 }

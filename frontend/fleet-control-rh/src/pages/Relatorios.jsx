@@ -31,6 +31,12 @@ function formatTempo(minutos) {
   return `${horas}h ${mins}min`;
 }
 
+function formatAutonomia(value) {
+  const n = Number(value || 0);
+  if (!Number.isFinite(n) || n <= 0) return '-';
+  return `${n.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })} km/L`;
+}
+
 function csvEscape(value) {
   if (value === null || value === undefined) return '""';
 
@@ -180,6 +186,19 @@ export function Relatorios() {
         x.litros,
         x.valorTotal,
         x.posto || ''
+      ])
+    ));
+
+    partes.push(criarCsv(
+      'ABASTECIMENTOS POR VEICULO',
+      ['Veiculo', 'Quantidade', 'Litros', 'KM rodado', 'Autonomia', 'Total'],
+      (dados.abastecimentos?.porVeiculo || []).map(x => [
+        x.veiculo,
+        x.quantidade,
+        x.totalLitros,
+        x.kmRodado || 0,
+        formatAutonomia(x.autonomiaKmPorLitro),
+        x.totalValor
       ])
     ));
 
@@ -354,11 +373,13 @@ export function Relatorios() {
       <div className="row g-3 mb-4">
         <TabelaResumo
           titulo="Abastecimentos por veículo"
-          colunas={['Veículo', 'Qtd.', 'Litros', 'Total']}
+          colunas={['Veículo', 'Qtd.', 'Litros', 'KM rodado', 'Autonomia', 'Total']}
           linhas={(dados?.abastecimentos?.porVeiculo || []).map(x => [
             x.veiculo,
             x.quantidade,
             litros(x.totalLitros),
+            number(x.kmRodado || 0),
+            formatAutonomia(x.autonomiaKmPorLitro),
             money(x.totalValor)
           ])}
         />
