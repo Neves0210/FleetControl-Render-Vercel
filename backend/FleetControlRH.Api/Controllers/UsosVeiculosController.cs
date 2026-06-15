@@ -143,7 +143,7 @@ public class UsosVeiculosController : ControllerBase
 
         await _db.SaveChangesAsync();
 
-        RegistrarAuditoria("UsoVeiculo", uso.Id, "Iniciar", $"Veiculo {uso.VeiculoId} | Motorista {uso.MotoristaId}");
+        RegistrarAuditoria("UsoVeiculo", uso.Id, "Iniciou uso do veiculo", $"Veiculo {uso.VeiculoId} | Motorista {uso.MotoristaId}");
         await _db.SaveChangesAsync();
 
         return Ok(uso);
@@ -186,7 +186,7 @@ public class UsosVeiculosController : ControllerBase
 
         await _db.SaveChangesAsync();
 
-        RegistrarAuditoria("UsoVeiculo", uso.Id, "Finalizar", $"Veiculo {uso.VeiculoId} | Motorista {uso.MotoristaId} | KM {uso.KmFinal}");
+        RegistrarAuditoria("UsoVeiculo", uso.Id, "Finalizou uso do veiculo", $"Veiculo {uso.VeiculoId} | Motorista {uso.MotoristaId} | KM final {uso.KmFinal}");
         await _db.SaveChangesAsync();
 
         return Ok(uso);
@@ -242,7 +242,7 @@ public class UsosVeiculosController : ControllerBase
 
         await _db.SaveChangesAsync();
 
-        RegistrarAuditoria("UsoVeiculo", uso.Id, "Editar", $"Veiculo {uso.VeiculoId} | Motorista {uso.MotoristaId}");
+        RegistrarAuditoria("UsoVeiculo", uso.Id, "Editou uso do veiculo", $"Veiculo {uso.VeiculoId} | Motorista {uso.MotoristaId}");
         await _db.SaveChangesAsync();
 
         return Ok(uso);
@@ -372,7 +372,7 @@ public class UsosVeiculosController : ControllerBase
             UsuarioId = int.TryParse(usuarioIdClaim, out var usuarioId) ? usuarioId : null,
             UsuarioNome = usuarioNome,
             Resumo = resumo,
-            CriadoEm = DateTime.UtcNow
+            CriadoEm = DataHoraBrasil.Agora()
         });
     }
 }

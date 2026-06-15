@@ -3,6 +3,7 @@ using FleetControlRH.Api.DTOs;
 using FleetControlRH.Api.Extensions;
 using FleetControlRH.Api.Models;
 using FleetControlRH.Api.Services;
+using FleetControlRH.Api.Utils;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -125,7 +126,7 @@ public class AbastecimentosController : ControllerBase
 
         await _db.SaveChangesAsync();
 
-        RegistrarAuditoria("Abastecimento", model.Id, "Criar", $"Veiculo {model.VeiculoId} | Motorista {model.MotoristaId} | {model.ValorTotal:C}");
+        RegistrarAuditoria("Abastecimento", model.Id, "Registrou abastecimento", $"Veiculo {model.VeiculoId} | Motorista {model.MotoristaId} | Valor {model.ValorTotal:C}");
         await _db.SaveChangesAsync();
 
         return Ok(model);
@@ -184,7 +185,7 @@ public class AbastecimentosController : ControllerBase
 
         await _db.SaveChangesAsync();
 
-        RegistrarAuditoria("Abastecimento", abastecimento.Id, "Editar", $"Veiculo {abastecimento.VeiculoId} | Motorista {abastecimento.MotoristaId} | {abastecimento.ValorTotal:C}");
+        RegistrarAuditoria("Abastecimento", abastecimento.Id, "Editou abastecimento", $"Veiculo {abastecimento.VeiculoId} | Motorista {abastecimento.MotoristaId} | Valor {abastecimento.ValorTotal:C}");
         await _db.SaveChangesAsync();
 
         return Ok(abastecimento);
@@ -587,7 +588,7 @@ public class AbastecimentosController : ControllerBase
             UsuarioId = int.TryParse(usuarioIdClaim, out var usuarioId) ? usuarioId : null,
             UsuarioNome = usuarioNome,
             Resumo = resumo,
-            CriadoEm = DateTime.UtcNow
+            CriadoEm = DataHoraBrasil.Agora()
         });
     }
 }

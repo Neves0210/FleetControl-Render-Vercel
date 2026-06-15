@@ -148,13 +148,13 @@ export function HistoricoVeiculo() {
       <div className="card card-soft table-card">
         <div className="card-body"><h5>Auditoria recente</h5></div>
         <table className="table table-hover">
-          <thead><tr><th>Data</th><th>Acao</th><th>Usuario</th><th>Resumo</th></tr></thead>
+          <thead><tr><th>Quando</th><th>Quem fez</th><th>O que fez</th><th>Detalhes</th></tr></thead>
           <tbody>
             {auditoria.map(x => (
               <tr key={x.id}>
                 <td>{dataHora(x.criadoEm)}</td>
-                <td>{x.acao}</td>
                 <td>{x.usuarioNome || '-'}</td>
+                <td>{x.acao}</td>
                 <td>{x.resumo || '-'}</td>
               </tr>
             ))}

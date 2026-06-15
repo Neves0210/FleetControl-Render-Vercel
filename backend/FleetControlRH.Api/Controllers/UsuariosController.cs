@@ -1,6 +1,7 @@
 using FleetControlRH.Api.Data;
 using FleetControlRH.Api.DTOs;
 using FleetControlRH.Api.Models;
+using FleetControlRH.Api.Utils;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -90,7 +91,7 @@ public class UsuariosController : ControllerBase
 
         await _db.SaveChangesAsync();
 
-        RegistrarAuditoria("Usuario", usuario.Id, "Criar", $"{usuario.Nome} | {usuario.Email}");
+        RegistrarAuditoria("Usuario", usuario.Id, "Criou usuario", $"{usuario.Nome} | {usuario.Email}");
         await _db.SaveChangesAsync();
 
         return Ok(new
@@ -158,7 +159,7 @@ public class UsuariosController : ControllerBase
 
         await _db.SaveChangesAsync();
 
-        RegistrarAuditoria("Usuario", usuario.Id, "Editar", $"{usuario.Nome} | {usuario.Email}");
+        RegistrarAuditoria("Usuario", usuario.Id, "Editou usuario", $"{usuario.Nome} | {usuario.Email}");
         await _db.SaveChangesAsync();
 
         return Ok(new
@@ -226,7 +227,7 @@ public class UsuariosController : ControllerBase
             UsuarioId = int.TryParse(usuarioIdClaim, out var usuarioId) ? usuarioId : null,
             UsuarioNome = usuarioNome,
             Resumo = resumo,
-            CriadoEm = DateTime.UtcNow
+            CriadoEm = DataHoraBrasil.Agora()
         });
     }
 }

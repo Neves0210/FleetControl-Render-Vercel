@@ -1,6 +1,7 @@
 using System.Security.Claims;
 using FleetControlRH.Api.Data;
 using FleetControlRH.Api.Models;
+using FleetControlRH.Api.Utils;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -201,7 +202,7 @@ public class VeiculosController : ControllerBase
         _db.Veiculos.Add(model);
         await _db.SaveChangesAsync();
 
-        RegistrarAuditoria("Veiculo", model.Id, "Criar", $"{model.Modelo} - {model.Placa} | Veiculo {model.Id}");
+        RegistrarAuditoria("Veiculo", model.Id, "Criou veiculo", $"{model.Modelo} - {model.Placa} | Veiculo {model.Id}");
         await _db.SaveChangesAsync();
 
         return Ok(model);
@@ -231,7 +232,7 @@ public class VeiculosController : ControllerBase
         item.TipoCombustivel = model.TipoCombustivel;
         item.Ativo = model.Ativo;
 
-        RegistrarAuditoria("Veiculo", item.Id, "Editar", $"{item.Modelo} - {item.Placa} | Veiculo {item.Id}");
+        RegistrarAuditoria("Veiculo", item.Id, "Editou veiculo", $"{item.Modelo} - {item.Placa} | Veiculo {item.Id}");
 
         await _db.SaveChangesAsync();
 
@@ -248,7 +249,7 @@ public class VeiculosController : ControllerBase
 
         item.Ativo = false;
 
-        RegistrarAuditoria("Veiculo", item.Id, "Remover", $"{item.Modelo} - {item.Placa} | Veiculo {item.Id}");
+        RegistrarAuditoria("Veiculo", item.Id, "Removeu veiculo", $"{item.Modelo} - {item.Placa} | Veiculo {item.Id}");
 
         await _db.SaveChangesAsync();
 
@@ -326,7 +327,7 @@ public class VeiculosController : ControllerBase
             UsuarioId = int.TryParse(usuarioIdClaim, out var usuarioId) ? usuarioId : null,
             UsuarioNome = usuarioNome,
             Resumo = resumo,
-            CriadoEm = DateTime.UtcNow
+            CriadoEm = DataHoraBrasil.Agora()
         });
     }
 

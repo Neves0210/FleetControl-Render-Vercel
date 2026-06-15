@@ -3,6 +3,7 @@ using FleetControlRH.Api.Data;
 using FleetControlRH.Api.DTOs;
 using FleetControlRH.Api.Extensions;
 using FleetControlRH.Api.Models;
+using FleetControlRH.Api.Utils;
 using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
@@ -162,7 +163,7 @@ public class ManutencoesController : ControllerBase
         _db.ManutencoesVeiculos.Add(model);
         await _db.SaveChangesAsync();
 
-        RegistrarAuditoria("ManutencaoVeiculo", model.Id, "Criar", $"{model.Tipo} | Veiculo {model.VeiculoId}");
+        RegistrarAuditoria("ManutencaoVeiculo", model.Id, "Registrou manutencao", $"{model.Tipo} | Veiculo {model.VeiculoId}");
         await _db.SaveChangesAsync();
 
         return Ok(model);
@@ -196,7 +197,7 @@ public class ManutencoesController : ControllerBase
         if (anexo is { Length: > 0 })
             await AplicarAnexoAsync(model, anexo);
 
-        RegistrarAuditoria("ManutencaoVeiculo", model.Id, "Editar", $"{model.Tipo} | Veiculo {model.VeiculoId}");
+        RegistrarAuditoria("ManutencaoVeiculo", model.Id, "Editou manutencao", $"{model.Tipo} | Veiculo {model.VeiculoId}");
 
         await _db.SaveChangesAsync();
 
@@ -235,7 +236,7 @@ public class ManutencoesController : ControllerBase
         if (model == null)
             return NotFound();
 
-        RegistrarAuditoria("ManutencaoVeiculo", model.Id, "Remover", $"{model.Tipo} | Veiculo {model.VeiculoId}");
+        RegistrarAuditoria("ManutencaoVeiculo", model.Id, "Removeu manutencao", $"{model.Tipo} | Veiculo {model.VeiculoId}");
 
         _db.ManutencoesVeiculos.Remove(model);
 
@@ -324,7 +325,7 @@ public class ManutencoesController : ControllerBase
             UsuarioId = int.TryParse(usuarioIdClaim, out var usuarioId) ? usuarioId : null,
             UsuarioNome = usuarioNome,
             Resumo = resumo,
-            CriadoEm = DateTime.UtcNow
+            CriadoEm = DataHoraBrasil.Agora()
         });
     }
 

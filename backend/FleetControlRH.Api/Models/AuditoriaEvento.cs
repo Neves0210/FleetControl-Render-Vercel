@@ -1,4 +1,5 @@
 using System.ComponentModel.DataAnnotations;
+using FleetControlRH.Api.Utils;
 
 namespace FleetControlRH.Api.Models;
 
@@ -22,5 +23,5 @@ public class AuditoriaEvento
     [MaxLength(1000)]
     public string? Resumo { get; set; }
 
-    public DateTime CriadoEm { get; set; } = DateTime.UtcNow;
+    public DateTime CriadoEm { get; set; } = DataHoraBrasil.Agora();
 }
