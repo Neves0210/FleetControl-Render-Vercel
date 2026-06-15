@@ -191,13 +191,13 @@ export function Relatorios() {
 
     partes.push(criarCsv(
       'ABASTECIMENTOS POR VEICULO',
-      ['Veiculo', 'Quantidade', 'Litros', 'KM rodado', 'Autonomia', 'Total'],
+      ['Veiculo', 'Quantidade', 'Litros', 'KM rodado', /*'Autonomia',*/ 'Total'],
       (dados.abastecimentos?.porVeiculo || []).map(x => [
         x.veiculo,
         x.quantidade,
         x.totalLitros,
         x.kmRodado || 0,
-        formatAutonomia(x.autonomiaKmPorLitro),
+        /*formatAutonomia(x.autonomiaKmPorLitro),*/
         x.totalValor
       ])
     ));
