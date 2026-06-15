@@ -8,13 +8,12 @@ import { AbastecimentosTabela } from '../components/Abastecimentos/Abastecimento
 import { relatorioService } from '../services/relatorioService';
 import { veiculoService } from '../services/veiculoService';
 import { motoristaService } from '../services/motoristaService';
-import { litros, money, number } from '../utils/formatters';
+import { dataHora, litros, money, number } from '../utils/formatters';
 
 const hoje = new Date().toISOString().slice(0, 10);
 
 function formatDate(value) {
-  if (!value) return '-';
-  return new Date(value).toLocaleString('pt-BR');
+  return dataHora(value);
 }
 
 function formatDateOnly(value) {

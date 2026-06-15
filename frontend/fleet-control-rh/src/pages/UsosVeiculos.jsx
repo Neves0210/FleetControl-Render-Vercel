@@ -9,7 +9,7 @@ import { usoVeiculoService } from '../services/usoVeiculoService';
 import { veiculoService } from '../services/veiculoService';
 import { motoristaService } from '../services/motoristaService';
 import { getUser, temPermissao } from '../utils/permissions';
-import { number } from '../utils/formatters';
+import { dataHora, number } from '../utils/formatters';
 import { exportarCsv } from '../utils/exportCsv';
 
 const initialForm = {
@@ -36,8 +36,7 @@ const initialEditForm = {
 };
 
 function formatDate(value) {
-  if (!value) return '-';
-  return new Date(value).toLocaleString('pt-BR');
+  return dataHora(value);
 }
 
 function formatTempo(minutos) {
