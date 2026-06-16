@@ -48,9 +48,8 @@ export function dataHora(value) {
 
   const text = String(value);
   const localDateTime = text.match(/^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})/);
-  const hasTimezone = /(?:Z|[+-]\d{2}:?\d{2})$/i.test(text);
 
-  if (localDateTime && !hasTimezone) {
+  if (localDateTime) {
     const [, ano, mes, dia, hora, minuto] = localDateTime;
     return `${dia}/${mes}/${ano}, ${hora}:${minuto}`;
   }
