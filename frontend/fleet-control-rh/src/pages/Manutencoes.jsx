@@ -221,7 +221,7 @@ export function Manutencoes() {
       />
 
       <div className="row g-3 mb-3">
-        <Metric title="Alertas proximos" value={totalAlertas.proximas} icon={<CalendarClock size={20} />} cor="#d97706" />
+        <Metric title="Alertas proximos" value={totalAlertas.proximas} icon={<CalendarClock size={20} />} cor="#f8e000" />
         <Metric title="Alertas vencidos" value={totalAlertas.vencidas} icon={<AlertTriangle size={20} />} cor="#dc2626" />
       </div>
 

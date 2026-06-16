@@ -73,10 +73,10 @@ export function HistoricoVeiculo() {
       />
 
       <div className="row g-3 mb-3">
-        <Metric title="Abastecimentos" value={number(resumo.abastecimentos)} icon={<Fuel size={20} />} cor="#0891b2" />
-        <Metric title="Usos" value={number(resumo.usos)} icon={<KeyRound size={20} />} cor="#2563eb" />
-        <Metric title="Manutencoes" value={number(resumo.manutencoes)} icon={<Wrench size={20} />} cor="#d97706" />
-        <Metric title="Litros" value={litros(resumo.litros)} icon={<Fuel size={20} />} cor="#16a34a" />
+        <Metric title="Abastecimentos" value={number(resumo.abastecimentos)} icon={<Fuel size={20} />} cor="#30a8d8" />
+        <Metric title="Usos" value={number(resumo.usos)} icon={<KeyRound size={20} />} cor="#300840" />
+        <Metric title="Manutencoes" value={number(resumo.manutencoes)} icon={<Wrench size={20} />} cor="#f8e000" />
+        <Metric title="Litros" value={litros(resumo.litros)} icon={<Fuel size={20} />} cor="#10c040" />
         <Metric title="Custo total" value={money(resumo.gasto)} icon={<Car size={20} />} cor="#dc2626" />
       </div>
 

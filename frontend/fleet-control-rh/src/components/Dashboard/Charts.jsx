@@ -1,7 +1,7 @@
 import { money } from '../../utils/formatters';
 
 /* ── Sparkline (mini gráfico de linha nos KPIs) ─────────────────────────── */
-export function Sparkline({ data = [], cor = '#2563eb' }) {
+export function Sparkline({ data = [], cor = '#300840' }) {
   if (!data.length) return null;
   const w = 70, h = 24;
   const max = Math.max(...data), min = Math.min(...data);

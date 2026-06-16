@@ -31,7 +31,7 @@ export function Login() {
       <form className="card p-4 login-card" onSubmit={submit}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 4 }}>
           <span style={{
-            width: 42, height: 42, borderRadius: 12, background: 'linear-gradient(135deg,#2563eb,#1e3a8a)',
+            width: 42, height: 42, borderRadius: 12, background: 'linear-gradient(135deg,#300840,#4b1260)',
             color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0
           }}>
             <Truck size={22} />

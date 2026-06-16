@@ -64,7 +64,7 @@ const DEFAULT_DASHBOARD_CONFIG = {
   },
   kpiColumns: 3,
   density: 'normal',
-  accent: '#f36b21'
+  accent: '#f8e000'
 };
 
 function podePersonalizarDashboard(user) {
@@ -464,9 +464,10 @@ export function Dashboard() {
           <label>Cor de destaque</label>
           <div className="accent-swatches">
             {[
-              { label: 'Segurança', value: '#f36b21' },
-              { label: 'Petróleo', value: '#10323a' },
-              { label: 'Operação', value: '#16a34a' },
+              { label: 'Amarelo Ágil', value: '#f8e000' },
+              { label: 'Roxo Ágil', value: '#300840' },
+              { label: 'Atendimento', value: '#10c040' },
+              { label: 'Online', value: '#30a8d8' },
               { label: 'Crítico', value: '#dc2626' }
             ].map(color => (
               <button
@@ -491,7 +492,7 @@ export function Dashboard() {
           <div className="health-track"><span style={{ width: `${Math.min(veiculosAtivos, 100)}%` }} /></div>
         </IndustrialKpi>
         <IndustrialKpi icon={<Fuel size={21} />} label="Custo por litro" value={`${eficiencia.toFixed(2).replace('.', ',')} R$/L`} meta="Abastecimentos do período" accent="teal">
-          <Sparkline data={sparkLitros} cor="#10323a" />
+          <Sparkline data={sparkLitros} cor="#300840" />
         </IndustrialKpi>
         <IndustrialKpi icon={<ListChecks size={21} />} label="Abastecimentos" value={number(totalAbastecimentosPeriodo)} meta="Registros filtrados" accent="orange">
           <MiniBars values={sparkAbastecimentos} />
