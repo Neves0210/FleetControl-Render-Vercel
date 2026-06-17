@@ -35,12 +35,6 @@ public class AppDbContext : DbContext
             .Property(x => x.ValorTotal)   
             .HasColumnType("decimal(10,2)");
 
-        modelBuilder.Entity<Abastecimento>()
-            .HasOne(x => x.LiberadoPorUsuario)
-            .WithMany()
-            .HasForeignKey(x => x.LiberadoPorUsuarioId)
-            .OnDelete(DeleteBehavior.SetNull);
-
         modelBuilder.Entity<AbastecimentoCombustivel>()
             .Property(x => x.DescricaoCombustivel)
             .HasMaxLength(80);
@@ -113,8 +107,6 @@ public class AppDbContext : DbContext
         modelBuilder.Entity<Abastecimento>()
             .HasIndex(x => new { x.MotoristaId, x.DataAbastecimento });
 
-        modelBuilder.Entity<Abastecimento>()
-            .HasIndex(x => x.Status);
 
         modelBuilder.Entity<UsoVeiculo>()
             .HasIndex(x => new { x.VeiculoId, x.DataInicio });

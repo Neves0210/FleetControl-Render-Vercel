@@ -54,7 +54,6 @@ public class AuthController : ControllerBase
                 "Abastecimentos.Visualizar",
                 "Abastecimentos.Criar",
                 "Abastecimentos.Editar",
-                "Abastecimentos.Liberar",
                 "UsosVeiculos.Visualizar",
                 "UsosVeiculos.Criar",
                 "UsosVeiculos.Editar",
@@ -75,7 +74,6 @@ public class AuthController : ControllerBase
                 "Abastecimentos.Visualizar",
                 "Abastecimentos.Criar",
                 "Abastecimentos.Editar",
-                "Abastecimentos.Liberar",
                 "UsosVeiculos.Visualizar",
                 "UsosVeiculos.Criar",
                 "UsosVeiculos.Editar",
@@ -100,7 +98,6 @@ public class AuthController : ControllerBase
                 "Dashboard.Visualizar",
                 "Veiculos.Visualizar",
                 "Abastecimentos.Visualizar",
-                "Abastecimentos.Liberar",
                 "Manutencoes.Visualizar",
                 "Manutencoes.Gerenciar"
             },

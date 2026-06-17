@@ -3,13 +3,6 @@ using FleetControlRH.Api.Utils;
 
 namespace FleetControlRH.Api.Models;
 
-public enum StatusAbastecimento
-{
-    PendenteLiberacao = 1,
-    Liberado = 2,
-    Reprovado = 3
-}
-
 public class Abastecimento
 {
     public int Id { get; set; }
@@ -47,16 +40,6 @@ public class Abastecimento
 
     public byte[]? FotoNotaFiscal { get; set; }
     public string? FotoNotaFiscalContentType { get; set; }
-
-    public StatusAbastecimento Status { get; set; } = StatusAbastecimento.PendenteLiberacao;
-
-    public int? LiberadoPorUsuarioId { get; set; }
-    public Usuario? LiberadoPorUsuario { get; set; }
-
-    public DateTime? LiberadoEm { get; set; }
-
-    [MaxLength(500)]
-    public string? ObservacaoLiberacao { get; set; }
 
     public ICollection<AbastecimentoCombustivel> Combustiveis { get; set; } = new List<AbastecimentoCombustivel>();
 }

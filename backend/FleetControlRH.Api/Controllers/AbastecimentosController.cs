@@ -28,12 +28,11 @@ public class AbastecimentosController : ControllerBase
     }
 
     [HttpGet]
-    public async Task<IActionResult> Get([FromQuery] int? veiculoId, [FromQuery] int? motoristaId, [FromQuery] StatusAbastecimento? status)
+    public async Task<IActionResult> Get([FromQuery] int? veiculoId, [FromQuery] int? motoristaId)
     {
         var query = _db.Abastecimentos
             .Include(x => x.Veiculo)
             .Include(x => x.Motorista)
-            .Include(x => x.LiberadoPorUsuario)
             .Include(x => x.Combustiveis)
             .AsNoTracking()
             .AsQueryable();
@@ -56,9 +55,6 @@ public class AbastecimentosController : ControllerBase
         if (veiculoId.HasValue)
             query = query.Where(x => x.VeiculoId == veiculoId.Value);
 
-        if (status.HasValue)
-            query = query.Where(x => x.Status == status.Value);
-
         var abastecimentos = await query
             .OrderByDescending(x => x.DataAbastecimento)
             .Select(x => new
@@ -75,11 +71,6 @@ public class AbastecimentosController : ControllerBase
                 x.Observacao,
                 x.DataAbastecimento,
                 x.CriadoEm,
-                x.Status,
-                x.LiberadoPorUsuarioId,
-                liberadoPor = x.LiberadoPorUsuario != null ? x.LiberadoPorUsuario.Nome : null,
-                x.LiberadoEm,
-                x.ObservacaoLiberacao,
                 combustiveis = x.Combustiveis
                     .OrderBy(c => c.Ordem)
                     .Select(c => new
@@ -129,16 +120,7 @@ public class AbastecimentosController : ControllerBase
         }
 
         model.CriadoEm = DataHoraBrasil.Agora();
-        model.Status = UsuarioEhTecnico()
-            ? StatusAbastecimento.PendenteLiberacao
-            : StatusAbastecimento.Liberado;
-
-        if (model.Status == StatusAbastecimento.Liberado)
-        {
-            veiculo!.KmAtual = model.KmAtual;
-            model.LiberadoPorUsuarioId = ObterUsuarioIdLogado();
-            model.LiberadoEm = DataHoraBrasil.Agora();
-        }
+        veiculo!.KmAtual = model.KmAtual;
 
         _db.Abastecimentos.Add(model);
 
@@ -147,7 +129,7 @@ public class AbastecimentosController : ControllerBase
         RegistrarAuditoria(
             "Abastecimento",
             model.Id,
-            model.Status == StatusAbastecimento.PendenteLiberacao ? "Solicitou abastecimento" : "Registrou abastecimento",
+            "Registrou abastecimento",
             $"Veiculo {model.VeiculoId} | Motorista {model.MotoristaId} | Valor {model.ValorTotal:C}");
         await _db.SaveChangesAsync();
 
@@ -208,70 +190,6 @@ public class AbastecimentosController : ControllerBase
         await _db.SaveChangesAsync();
 
         RegistrarAuditoria("Abastecimento", abastecimento.Id, "Editou abastecimento", $"Veiculo {abastecimento.VeiculoId} | Motorista {abastecimento.MotoristaId} | Valor {abastecimento.ValorTotal:C}");
-        await _db.SaveChangesAsync();
-
-        return Ok(abastecimento);
-    }
-
-    [HttpPost("{id:int}/liberar")]
-    public async Task<IActionResult> Liberar(int id, [FromBody] LiberacaoAbastecimentoDto? dto)
-    {
-        if (!UsuarioPodeLiberarAbastecimento())
-            return Forbid();
-
-        var abastecimento = await _db.Abastecimentos
-            .Include(x => x.Veiculo)
-            .FirstOrDefaultAsync(x => x.Id == id);
-
-        if (abastecimento == null)
-            return NotFound();
-
-        if (abastecimento.Status == StatusAbastecimento.Liberado)
-            return BadRequest(new { mensagem = "Este abastecimento ja esta liberado." });
-
-        if (abastecimento.Status == StatusAbastecimento.Reprovado)
-            return BadRequest(new { mensagem = "Este abastecimento foi reprovado e nao pode ser liberado." });
-
-        var erroKm = await ValidarKmLiberacaoAsync(abastecimento);
-        if (!string.IsNullOrWhiteSpace(erroKm))
-            return BadRequest(new { mensagem = erroKm });
-
-        abastecimento.Status = StatusAbastecimento.Liberado;
-        abastecimento.LiberadoPorUsuarioId = ObterUsuarioIdLogado();
-        abastecimento.LiberadoEm = DataHoraBrasil.Agora();
-        abastecimento.ObservacaoLiberacao = dto?.Observacao?.Trim();
-
-        if (abastecimento.Veiculo != null)
-            abastecimento.Veiculo.KmAtual = abastecimento.KmAtual;
-
-        RegistrarAuditoria("Abastecimento", abastecimento.Id, "Liberou abastecimento", abastecimento.ObservacaoLiberacao);
-
-        await _db.SaveChangesAsync();
-
-        return Ok(abastecimento);
-    }
-
-    [HttpPost("{id:int}/reprovar")]
-    public async Task<IActionResult> Reprovar(int id, [FromBody] LiberacaoAbastecimentoDto? dto)
-    {
-        if (!UsuarioPodeLiberarAbastecimento())
-            return Forbid();
-
-        var abastecimento = await _db.Abastecimentos.FindAsync(id);
-
-        if (abastecimento == null)
-            return NotFound();
-
-        if (abastecimento.Status == StatusAbastecimento.Liberado)
-            return BadRequest(new { mensagem = "Abastecimento liberado nao pode ser reprovado." });
-
-        abastecimento.Status = StatusAbastecimento.Reprovado;
-        abastecimento.LiberadoPorUsuarioId = ObterUsuarioIdLogado();
-        abastecimento.LiberadoEm = DataHoraBrasil.Agora();
-        abastecimento.ObservacaoLiberacao = dto?.Observacao?.Trim();
-
-        RegistrarAuditoria("Abastecimento", abastecimento.Id, "Reprovou abastecimento", abastecimento.ObservacaoLiberacao);
-
         await _db.SaveChangesAsync();
 
         return Ok(abastecimento);
@@ -502,7 +420,6 @@ public class AbastecimentosController : ControllerBase
 
         var ultimoKm = await _db.Abastecimentos
             .Where(x => x.VeiculoId == model.VeiculoId &&
-                        x.Status == StatusAbastecimento.Liberado &&
                         (!abastecimentoIdIgnorado.HasValue || x.Id != abastecimentoIdIgnorado.Value))
             .OrderByDescending(x => x.DataAbastecimento)
             .ThenByDescending(x => x.Id)
@@ -626,14 +543,6 @@ public class AbastecimentosController : ControllerBase
                User.TemPermissao("Abastecimentos.Editar");
     }
 
-    private bool UsuarioPodeLiberarAbastecimento()
-    {
-        return User.IsInRole("Master") ||
-               User.IsInRole("RH") ||
-               User.IsInRole("Almoxarifado") ||
-               User.TemPermissao("Abastecimentos.Liberar");
-    }
-
     private async Task RecalcularKmAtualVeiculoAsync(int veiculoId)
     {
         var veiculo = await _db.Veiculos.FindAsync(veiculoId);
@@ -642,7 +551,7 @@ public class AbastecimentosController : ControllerBase
             return;
 
         var maiorKmAbastecimento = await _db.Abastecimentos
-            .Where(x => x.VeiculoId == veiculoId && x.Status == StatusAbastecimento.Liberado)
+            .Where(x => x.VeiculoId == veiculoId)
             .Select(x => (int?)x.KmAtual)
             .MaxAsync();
 
@@ -662,39 +571,6 @@ public class AbastecimentosController : ControllerBase
         return int.TryParse(motoristaIdClaim, out var motoristaId)
             ? motoristaId
             : null;
-    }
-
-    private int? ObterUsuarioIdLogado()
-    {
-        var usuarioIdClaim = User.Claims.FirstOrDefault(x => x.Type == "UsuarioId" || x.Type == ClaimTypes.NameIdentifier)?.Value;
-
-        return int.TryParse(usuarioIdClaim, out var usuarioId)
-            ? usuarioId
-            : null;
-    }
-
-    private async Task<string?> ValidarKmLiberacaoAsync(Abastecimento abastecimento)
-    {
-        var veiculo = abastecimento.Veiculo ?? await _db.Veiculos.FindAsync(abastecimento.VeiculoId);
-
-        if (veiculo == null || !veiculo.Ativo)
-            return "Veiculo invalido.";
-
-        var ultimoKm = await _db.Abastecimentos
-            .Where(x => x.VeiculoId == abastecimento.VeiculoId &&
-                        x.Status == StatusAbastecimento.Liberado &&
-                        x.Id != abastecimento.Id)
-            .OrderByDescending(x => x.DataAbastecimento)
-            .ThenByDescending(x => x.Id)
-            .Select(x => (int?)x.KmAtual)
-            .FirstOrDefaultAsync();
-
-        var kmReferencia = ultimoKm ?? veiculo.KmAtual;
-
-        if (abastecimento.KmAtual <= kmReferencia)
-            return $"O KM atual informado ({abastecimento.KmAtual}) deve ser maior que o KM anterior do veiculo ({kmReferencia}).";
-
-        return null;
     }
 
     private static async Task<(byte[] bytes, string contentType)> LerFotoAsync(IFormFile arquivo)
@@ -722,5 +598,3 @@ public class AbastecimentosController : ControllerBase
         });
     }
 }
-
-public record LiberacaoAbastecimentoDto(string? Observacao);
