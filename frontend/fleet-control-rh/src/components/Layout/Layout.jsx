@@ -5,6 +5,7 @@ import {
   LayoutDashboard,
   LogOut,
   Route,
+  ShieldCheck,
   Truck,
   UserCog,
   Users,
@@ -39,6 +40,7 @@ export function Layout({ children }) {
           {podeVerTela('UsosVeiculos.Visualizar') && <NavItem to="/uso-veiculos" icon={<Route size={18} />} label="Uso de Veiculos" />}
           {podeVerTela('Manutencoes.Visualizar') && <NavItem to="/manutencoes" icon={<Wrench size={18} />} label="Manutencoes" />}
           {podeVerTela('Relatorios.Visualizar') && <NavItem to="/relatorios" icon={<BarChart3 size={18} />} label="Relatorios" />}
+          {podeVerTela('Auditoria.Visualizar') && <NavItem to="/auditoria" icon={<ShieldCheck size={18} />} label="Auditoria" />}
           {podeVerTela('Usuarios.Visualizar') && <NavItem to="/usuarios" icon={<UserCog size={18} />} label="Usuarios" />}
         </nav>
 

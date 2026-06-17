@@ -10,6 +10,7 @@ import { Manutencoes } from '../pages/Manutencoes';
 import { UsosVeiculos } from '../pages/UsosVeiculos';
 import { HistoricoVeiculo } from '../pages/HistoricoVeiculo';
 import { PerfilMotorista } from '../pages/PerfilMotorista';
+import { Auditoria } from '../pages/Auditoria';
 import { PermissionRoute } from './PermissionRoute';
 
 export function AppRoutes() {
@@ -28,6 +29,7 @@ export function AppRoutes() {
         <Route path="/manutencoes" element={<PermissionRoute permissao="Manutencoes.Visualizar"><Manutencoes /></PermissionRoute>} />
         <Route path="/usuarios" element={<PermissionRoute permissao="Usuarios.Visualizar"><Usuarios /></PermissionRoute>} />
         <Route path="/relatorios" element={<PermissionRoute permissao="Relatorios.Visualizar"><Relatorios /></PermissionRoute>} />
+        <Route path="/auditoria" element={<PermissionRoute permissao="Auditoria.Visualizar"><Auditoria /></PermissionRoute>} />
       </Routes>
     </BrowserRouter>
   );

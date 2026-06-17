@@ -16,6 +16,7 @@ export const TODAS_PERMISSOES = [
   'Manutencoes.Gerenciar',
   'Relatorios.Visualizar',
   'Relatorios.Exportar',
+  'Auditoria.Visualizar',
   'Usuarios.Visualizar',
   'Usuarios.Gerenciar'
 ];

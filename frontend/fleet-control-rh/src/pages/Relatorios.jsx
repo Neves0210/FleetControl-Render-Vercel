@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { toast } from 'react-toastify';
-import { Filter, RotateCcw, Download } from 'lucide-react';
+import { Filter, RotateCcw, Download, Printer } from 'lucide-react';
 import { Header } from '../components/Layout/Header';
 import { Select } from '../components/Forms/Select';
 import { Input } from '../components/Forms/Input';
@@ -61,6 +61,37 @@ function criarCsv(secao, cabecalho, linhas) {
     .join('\n');
 
   return csv;
+}
+
+function htmlEscape(value) {
+  if (value === null || value === undefined) return '';
+
+  return String(value)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#039;');
+}
+
+function tabelaPdf(titulo, colunas, linhas) {
+  const body = linhas.length > 0
+    ? linhas.map(linha => `
+        <tr>${linha.map(valor => `<td>${htmlEscape(valor)}</td>`).join('')}</tr>
+      `).join('')
+    : `<tr><td colspan="${colunas.length}" class="muted">Nenhum dado encontrado.</td></tr>`;
+
+  return `
+    <section>
+      <h2>${htmlEscape(titulo)}</h2>
+      <table>
+        <thead>
+          <tr>${colunas.map(coluna => `<th>${htmlEscape(coluna)}</th>`).join('')}</tr>
+        </thead>
+        <tbody>${body}</tbody>
+      </table>
+    </section>
+  `;
 }
 
 export function Relatorios() {
@@ -265,6 +296,122 @@ export function Relatorios() {
     baixarArquivo(`relatorio-fleetcontrol-${dataInputBrasil()}.csv`, partes.join('\n\n'));
   }
 
+  function exportarPdf() {
+    if (!dados) {
+      toast.warning('Nenhum dado carregado para gerar PDF.');
+      return;
+    }
+
+    const filtrosAplicados = [
+      filtro.dataInicio ? `De ${formatDateOnly(filtro.dataInicio)}` : '',
+      filtro.dataFim ? `Ate ${formatDateOnly(filtro.dataFim)}` : '',
+      filtro.veiculoId ? `Veiculo: ${veiculos.find(x => String(x.id) === String(filtro.veiculoId))?.placa || filtro.veiculoId}` : '',
+      filtro.motoristaId ? `Motorista: ${motoristas.find(x => String(x.id) === String(filtro.motoristaId))?.nome || filtro.motoristaId}` : ''
+    ].filter(Boolean).join(' | ') || 'Todos os registros';
+
+    const secoes = [
+      tabelaPdf('Resumo geral', ['Indicador', 'Valor'], [
+        ['Abastecimentos', resumo.quantidade],
+        ['Litros totais', litros(resumo.totalLitros)],
+        ['Gasto total', money(resumo.totalValor)],
+        ['Media por abastecimento', money(resumo.mediaValor)],
+        ['Quantidade de usos', resumo.quantidadeUsos],
+        ['Tempo total de uso', formatTempo(resumo.tempoTotalUsoMinutos)],
+        ['KM total rodado', number(resumo.kmTotalRodado)],
+        ['Manutencoes feitas', resumo.quantidadeManutencoes],
+        ['Manutencoes proximas', resumo.manutencoesProximas],
+        ['Manutencoes vencidas', resumo.manutencoesVencidas],
+        ['Custo total manutencoes', money(resumo.custoTotalManutencoes)]
+      ]),
+      tabelaPdf('Abastecimentos detalhados', ['Data', 'Veiculo', 'Motorista', 'Combustivel', 'KM', 'Litros', 'Valor', 'Posto'],
+        (dados.abastecimentos?.itens || []).map(x => [
+          formatDate(x.dataAbastecimento),
+          `${x.veiculo?.modelo || ''} ${x.veiculo?.placa || ''}`,
+          x.motorista?.nome || '',
+          combustivel(x.veiculo?.tipoCombustivel) || '',
+          number(x.kmAtual),
+          litros(x.litros),
+          money(x.valorTotal),
+          x.posto || ''
+        ])
+      ),
+      tabelaPdf('Uso de veiculos', ['Veiculo', 'Motorista', 'Inicio', 'Fim', 'Tempo', 'KM inicial', 'KM final', 'Status'],
+        (dados.usos?.itens || []).map(x => [
+          `${x.veiculo?.modelo || ''} ${x.veiculo?.placa || ''}`,
+          x.motorista?.nome || '',
+          formatDate(x.dataInicio),
+          formatDate(x.dataFim),
+          formatTempo(x.tempoUsoMinutos),
+          number(x.kmInicial),
+          x.kmFinal ? number(x.kmFinal) : '-',
+          x.status === 1 || x.status === 'EmUso' ? 'Em uso' : 'Finalizado'
+        ])
+      ),
+      tabelaPdf('Manutencoes feitas', ['Veiculo', 'Tipo', 'Data', 'KM', 'Custo', 'Proximo KM', 'Proxima data'],
+        (dados.manutencoes?.feitas || []).map(x => [
+          `${x.veiculo?.modelo || ''} ${x.veiculo?.placa || ''}`,
+          x.tipo,
+          formatDateOnly(x.dataManutencao),
+          number(x.kmManutencao),
+          x.custo ? money(x.custo) : '-',
+          x.proximaManutencaoKm ? number(x.proximaManutencaoKm) : '-',
+          formatDateOnly(x.proximaManutencaoData)
+        ])
+      ),
+      tabelaPdf('Manutencoes proximas e vencidas', ['Status', 'Veiculo', 'Tipo', 'Proximo KM', 'KM restante', 'Proxima data', 'Dias restantes'],
+        [
+          ...(dados.manutencoes?.proximas || []).map(x => ['Proxima', `${x.veiculo?.modelo || ''} ${x.veiculo?.placa || ''}`, x.tipo, x.proximaManutencaoKm || '-', x.kmRestante ?? '-', formatDateOnly(x.proximaManutencaoData), x.diasRestantes ?? '-']),
+          ...(dados.manutencoes?.vencidas || []).map(x => ['Vencida', `${x.veiculo?.modelo || ''} ${x.veiculo?.placa || ''}`, x.tipo, x.proximaManutencaoKm || '-', x.kmRestante ?? '-', formatDateOnly(x.proximaManutencaoData), x.diasRestantes ?? '-'])
+        ]
+      )
+    ];
+
+    const janela = window.open('', '_blank');
+    if (!janela) {
+      toast.error('Permita pop-ups para gerar o PDF.');
+      return;
+    }
+
+    janela.document.write(`
+      <!doctype html>
+      <html>
+        <head>
+          <title>Relatorio FleetControlRH</title>
+          <style>
+            * { box-sizing: border-box; }
+            body { font-family: Arial, sans-serif; color: #1f2937; margin: 32px; }
+            header { border-bottom: 2px solid #111827; margin-bottom: 22px; padding-bottom: 14px; }
+            h1 { font-size: 24px; margin: 0 0 6px; }
+            h2 { font-size: 15px; margin: 24px 0 8px; }
+            .meta { color: #4b5563; font-size: 12px; line-height: 1.5; }
+            table { border-collapse: collapse; width: 100%; margin-bottom: 14px; page-break-inside: avoid; }
+            th, td { border: 1px solid #d1d5db; padding: 7px 8px; font-size: 11px; text-align: left; vertical-align: top; }
+            th { background: #f3f4f6; font-weight: 700; }
+            .muted { color: #6b7280; }
+            @media print {
+              body { margin: 18mm; }
+              section { break-inside: avoid; }
+            }
+          </style>
+        </head>
+        <body>
+          <header>
+            <h1>Relatorio FleetControlRH</h1>
+            <div class="meta">Gerado em ${htmlEscape(formatDate(new Date().toISOString()))}</div>
+            <div class="meta">Filtros: ${htmlEscape(filtrosAplicados)}</div>
+          </header>
+          ${secoes.join('')}
+          <script>
+            window.onload = () => {
+              window.print();
+            };
+          </script>
+        </body>
+      </html>
+    `);
+    janela.document.close();
+  }
+
   const resumo = dados?.resumo || {
     quantidade: 0,
     totalLitros: 0,
@@ -332,6 +479,12 @@ export function Relatorios() {
           <div className="col-md-2 d-flex align-items-end mb-3">
             <button type="button" className="btn btn-success w-100" onClick={exportarCsv}>
               <Download size={16} /> Exportar CSV
+            </button>
+          </div>
+
+          <div className="col-md-2 d-flex align-items-end mb-3">
+            <button type="button" className="btn btn-outline-dark w-100" onClick={exportarPdf}>
+              <Printer size={16} /> PDF
             </button>
           </div>
         </div>
