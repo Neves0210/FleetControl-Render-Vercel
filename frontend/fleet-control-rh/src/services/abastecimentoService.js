@@ -4,6 +4,8 @@ export const abastecimentoService = {
   listar: params => api.get('/abastecimentos', { params }),
   criar: formData => api.post('/abastecimentos', formData),
   editar: (id, formData) => api.put(`/abastecimentos/${id}`, formData),
+  liberar: (id, payload = {}) => api.post(`/abastecimentos/${id}/liberar`, payload),
+  reprovar: (id, payload = {}) => api.post(`/abastecimentos/${id}/reprovar`, payload),
   analisarNota: formData => api.post('/abastecimentos/analisar-nota', formData),
   analisarNotaImagemRobusta: formData => api.post('/abastecimentos/analisar-nota-imagem-robusta', formData),
   lerQrCodeImagem: formData => api.post('/abastecimentos/ler-qrcode-imagem', formData),

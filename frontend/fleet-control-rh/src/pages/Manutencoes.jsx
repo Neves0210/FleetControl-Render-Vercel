@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'react-toastify';
-import { AlertTriangle, CalendarClock, ClipboardList, Download, Eye, Filter, Paperclip, RotateCcw, Search, Wrench } from 'lucide-react';
+import { AlertTriangle, CalendarClock, ClipboardList, Download, Eye, Filter, Paperclip, Plus, RotateCcw, Search, Trash2, Wrench } from 'lucide-react';
 import { Header } from '../components/Layout/Header';
 import { Input } from '../components/Forms/Input';
 import { Select } from '../components/Forms/Select';
@@ -26,6 +26,8 @@ const initialForm = {
   proximaManutencaoData: ''
 };
 
+const itemMensalInicial = { item: '', observacao: '' };
+
 function formatDate(value) {
   return dataBrasil(value);
 }
@@ -47,6 +49,7 @@ export function Manutencoes() {
   const [busca, setBusca] = useState('');
   const [periodo, setPeriodo] = useState({ de: '', ate: '' });
   const [form, setForm] = useState(initialForm);
+  const [itensMensais, setItensMensais] = useState([{ ...itemMensalInicial }]);
   const [anexo, setAnexo] = useState(null);
   const [edit, setEdit] = useState(null);
   const [filtro, setFiltro] = useState({
@@ -136,6 +139,60 @@ export function Manutencoes() {
     } catch (err) {
       toast.error(err.response?.data?.mensagem || 'Erro ao salvar manutencao.');
     }
+  }
+
+  function proximaDataMensal(dataBase) {
+    const data = new Date(`${dataBase || hoje}T12:00:00`);
+    data.setMonth(data.getMonth() + 1);
+    return data.toISOString().slice(0, 10);
+  }
+
+  async function salvarChecklistMensal() {
+    if (!podeGerenciar) {
+      toast.warning('Voce nao tem permissao para gerenciar manutencoes.');
+      return;
+    }
+
+    if (!form.veiculoId) return toast.warning('Selecione um veiculo.');
+
+    const veiculo = veiculos.find(x => String(x.id) === String(form.veiculoId));
+    const itensValidos = itensMensais.filter(x => x.item.trim());
+
+    if (itensValidos.length === 0) return toast.warning('Informe ao menos um item da revisao mensal.');
+
+    try {
+      await Promise.all(itensValidos.map(item => {
+        const payload = new FormData();
+        payload.append('veiculoId', Number(form.veiculoId));
+        payload.append('tipo', `Revisao mensal - ${item.item.trim()}`);
+        payload.append('dataManutencao', form.dataManutencao || hoje);
+        payload.append('kmManutencao', Number(form.kmManutencao || veiculo?.kmAtual || 0));
+        payload.append('descricao', item.observacao?.trim() || '');
+        payload.append('custo', '');
+        payload.append('proximaManutencaoKm', '');
+        payload.append('proximaManutencaoData', proximaDataMensal(form.dataManutencao));
+        return manutencaoService.criar(payload);
+      }));
+
+      toast.success('Itens mensais cadastrados e alerta criado.');
+      setItensMensais([{ ...itemMensalInicial }]);
+      setAba('consultar');
+      await load();
+    } catch (err) {
+      toast.error(err.response?.data?.mensagem || 'Erro ao cadastrar itens mensais.');
+    }
+  }
+
+  function atualizarItemMensal(index, campo, valor) {
+    setItensMensais(lista => lista.map((item, i) => i === index ? { ...item, [campo]: valor } : item));
+  }
+
+  function adicionarItemMensal() {
+    setItensMensais(lista => [...lista, { ...itemMensalInicial }]);
+  }
+
+  function removerItemMensal(index) {
+    setItensMensais(lista => lista.length === 1 ? lista : lista.filter((_, i) => i !== index));
   }
 
   async function remover(id) {
@@ -237,6 +294,7 @@ export function Manutencoes() {
       {aba === 'registrar' && (
         <>
           {podeGerenciar ? (
+            <>
             <form className="card card-soft p-3 mb-3" onSubmit={save}>
               <h5 style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
                 <Wrench size={17} /> {edit ? 'Editar manutencao' : 'Registrar manutencao'}
@@ -327,6 +385,78 @@ export function Manutencoes() {
                 )}
               </div>
             </form>
+            <div className="card card-soft p-3 mb-3">
+              <h5 style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
+                <ClipboardList size={17} /> Itens da revisao mensal
+              </h5>
+
+              <div className="row">
+                <Select
+                  label="Veiculo"
+                  value={form.veiculoId}
+                  onChange={v => setForm({ ...form, veiculoId: v })}
+                  items={veiculos}
+                  text={x => `${x.modelo} - ${x.placa} | KM ${number(x.kmAtual)}`}
+                />
+
+                <Input
+                  label="Data da revisao"
+                  type="date"
+                  value={form.dataManutencao}
+                  onChange={v => setForm({ ...form, dataManutencao: v })}
+                />
+
+                <Input
+                  label="KM atual"
+                  type="number"
+                  value={form.kmManutencao}
+                  onChange={v => setForm({ ...form, kmManutencao: v })}
+                />
+              </div>
+
+              {itensMensais.map((item, index) => (
+                <div key={index} className="row align-items-end">
+                  <div className="col-md-4 mb-2">
+                    <label>Item</label>
+                    <input
+                      className="form-control"
+                      placeholder="Ex: pneus, oleo, luzes, freios"
+                      value={item.item}
+                      onChange={e => atualizarItemMensal(index, 'item', e.target.value)}
+                    />
+                  </div>
+                  <div className="col-md-6 mb-2">
+                    <label>Observacao</label>
+                    <input
+                      className="form-control"
+                      placeholder="Observacao do item revisado"
+                      value={item.observacao}
+                      onChange={e => atualizarItemMensal(index, 'observacao', e.target.value)}
+                    />
+                  </div>
+                  <div className="col-md-2 mb-2">
+                    <button
+                      type="button"
+                      className="btn btn-outline-danger w-100"
+                      onClick={() => removerItemMensal(index)}
+                      disabled={itensMensais.length === 1}
+                    >
+                      <Trash2 size={14} /> Remover
+                    </button>
+                  </div>
+                </div>
+              ))}
+
+              <div className="d-flex gap-2 mt-2">
+                <button type="button" className="btn btn-outline-primary" onClick={adicionarItemMensal}>
+                  <Plus size={14} /> Adicionar item
+                </button>
+                <button type="button" className="btn btn-success" onClick={salvarChecklistMensal}>
+                  Criar alerta mensal
+                </button>
+              </div>
+            </div>
+            </>
           ) : (
             <div className="card card-soft p-3 mb-3">
               <p className="text-muted" style={{ margin: 0 }}>Voce nao tem permissao para registrar manutencoes.</p>

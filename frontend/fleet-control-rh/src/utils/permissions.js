@@ -12,6 +12,15 @@ export function getPermissoes() {
 }
 
 export function temPermissao(permissao) {
+  const user = getUser();
+  const perfil = String(user?.perfil || '').toLowerCase();
+
+  if (perfil === '1' || perfil === 'master') return true;
+
+  if (permissao === 'Abastecimentos.Liberar' && ['2', '4', 'rh', 'almoxarifado'].includes(perfil)) {
+    return true;
+  }
+
   return getPermissoes().includes(permissao);
 }
 

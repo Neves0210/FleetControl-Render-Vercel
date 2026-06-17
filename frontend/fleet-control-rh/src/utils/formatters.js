@@ -40,7 +40,7 @@ export function combustivel(value) {
 }
 
 export function perfil(value) {
-  return ({ 1: 'Master', 2: 'RH', 3: 'Tecnico' })[value] || value;
+  return ({ 1: 'Master', 2: 'RH', 3: 'Tecnico', 4: 'Almoxarifado' })[value] || value;
 }
 
 export function dataHora(value) {

@@ -906,6 +906,37 @@ body {
   font-family: 'Inter', 'IBM Plex Sans', system-ui, -apple-system, sans-serif;
 }
 
+.chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  border-radius: 999px;
+  padding: 3px 9px;
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+.chip-success {
+  background: var(--color-success-soft);
+  color: #087a2c;
+}
+
+.chip-danger {
+  background: var(--color-danger-soft);
+  color: var(--color-danger);
+}
+
+.chip-warn {
+  background: var(--color-warning-soft);
+  color: var(--color-primary-contrast);
+}
+
+.chip-info {
+  background: #e8f7ff;
+  color: #036785;
+}
+
 .sidebar {
   background: linear-gradient(180deg, var(--sidebar-bg-2) 0%, var(--sidebar-bg) 68%, #240530 100%);
   padding: 0 12px 18px;

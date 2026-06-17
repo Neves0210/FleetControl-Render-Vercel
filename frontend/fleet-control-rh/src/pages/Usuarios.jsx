@@ -90,18 +90,23 @@ export function Usuarios() {
     if (perfilNumero === 1) permissoesPadrao = TODAS_PERMISSOES;
     if (perfilNumero === 2) permissoesPadrao = [
       'Dashboard.Visualizar', 'Dashboard.Personalizar', 'Veiculos.Visualizar', 'Motoristas.Visualizar',
-      'Abastecimentos.Visualizar', 'Abastecimentos.Criar', 'Abastecimentos.Editar',
+      'Abastecimentos.Visualizar', 'Abastecimentos.Criar', 'Abastecimentos.Editar', 'Abastecimentos.Liberar',
       'Relatorios.Visualizar', 'Relatorios.Exportar'
     ];
     if (perfilNumero === 3) permissoesPadrao = [
       'Dashboard.Visualizar', 'Abastecimentos.Visualizar', 'Abastecimentos.Criar'
+    ];
+    if (perfilNumero === 4) permissoesPadrao = [
+      'Dashboard.Visualizar', 'Veiculos.Visualizar',
+      'Abastecimentos.Visualizar', 'Abastecimentos.Liberar',
+      'Manutencoes.Visualizar', 'Manutencoes.Gerenciar'
     ];
 
     setForm({ ...form, perfil: perfilNumero, permissoes: permissoesPadrao });
   }
 
   function chipPerfil(p) {
-    const cls = p === 1 ? 'chip-danger' : p === 2 ? 'chip-warn' : 'chip-success';
+    const cls = p === 1 ? 'chip-danger' : p === 2 ? 'chip-warn' : p === 4 ? 'chip-info' : 'chip-success';
     return <span className={`chip ${cls}`}>{perfil(p)}</span>;
   }
 
@@ -178,6 +183,7 @@ export function Usuarios() {
                   <option value="1">Master</option>
                   <option value="2">RH</option>
                   <option value="3">Tecnico</option>
+                  <option value="4">Almoxarifado</option>
                 </select>
               </div>
 
@@ -234,6 +240,7 @@ export function Usuarios() {
                   <option value="1">Master</option>
                   <option value="2">RH</option>
                   <option value="3">Tecnico</option>
+                  <option value="4">Almoxarifado</option>
                 </select>
               </div>
 

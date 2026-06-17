@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'react-toastify';
-import { ClipboardList, Download, Filter, History, RotateCcw, Search, Users } from 'lucide-react';
+import { ClipboardList, Download, Filter, History, RotateCcw, Search, ToggleLeft, ToggleRight, Users } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Header } from '../components/Layout/Header';
 import { Input } from '../components/Forms/Input';
@@ -71,6 +71,18 @@ export function Motoristas() {
       await load();
     } catch {
       toast.error('Erro ao remover motorista.');
+    }
+  }
+
+  async function alternarStatus(item) {
+    const proximoStatus = !item.ativo;
+
+    try {
+      await motoristaService.atualizar(item.id, { ...item, ativo: proximoStatus });
+      toast.success(proximoStatus ? 'Motorista ativado.' : 'Motorista inativado.');
+      await load();
+    } catch (err) {
+      toast.error(err.response?.data?.mensagem || 'Erro ao alterar status.');
     }
   }
 
@@ -221,6 +233,13 @@ export function Motoristas() {
                     <td>
                       <button className="btn btn-sm btn-outline-primary me-2" onClick={() => navigate(`/motoristas/${x.id}/perfil`)}>
                         <History size={14} /> Perfil
+                      </button>
+                      <button
+                        className={`btn btn-sm ${x.ativo ? 'btn-outline-danger' : 'btn-outline-success'} me-2`}
+                        onClick={() => alternarStatus(x)}
+                      >
+                        {x.ativo ? <ToggleLeft size={14} /> : <ToggleRight size={14} />}
+                        {x.ativo ? ' Inativar' : ' Ativar'}
                       </button>
                       <button className="btn btn-sm btn-warning me-2" onClick={() => editar(x)}>Editar</button>
                       <button className="btn btn-sm btn-danger" onClick={() => del(x.id)}>Remover</button>
