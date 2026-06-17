@@ -1,10 +1,14 @@
 using System;
+using FleetControlRH.Api.Data;
+using Microsoft.EntityFrameworkCore.Infrastructure;
 using Microsoft.EntityFrameworkCore.Migrations;
 
 #nullable disable
 
 namespace FleetControlRH.Api.Migrations
 {
+    [DbContext(typeof(AppDbContext))]
+    [Migration("20260617120000_AddAprovacaoAbastecimentoEAlmoxarifado")]
     public partial class AddAprovacaoAbastecimentoEAlmoxarifado : Migration
     {
         protected override void Up(MigrationBuilder migrationBuilder)

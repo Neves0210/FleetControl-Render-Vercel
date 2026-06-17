@@ -48,6 +48,12 @@ namespace FleetControlRH.Api.Migrations
                     b.Property<int>("KmAtual")
                         .HasColumnType("integer");
 
+                    b.Property<DateTime?>("LiberadoEm")
+                        .HasColumnType("timestamp without time zone");
+
+                    b.Property<int?>("LiberadoPorUsuarioId")
+                        .HasColumnType("integer");
+
                     b.Property<decimal>("Litros")
                         .HasColumnType("decimal(10,3)");
 
@@ -58,9 +64,16 @@ namespace FleetControlRH.Api.Migrations
                         .HasMaxLength(500)
                         .HasColumnType("character varying(500)");
 
+                    b.Property<string>("ObservacaoLiberacao")
+                        .HasMaxLength(500)
+                        .HasColumnType("character varying(500)");
+
                     b.Property<string>("Posto")
                         .HasMaxLength(160)
                         .HasColumnType("character varying(160)");
+
+                    b.Property<int>("Status")
+                        .HasColumnType("integer");
 
                     b.Property<decimal>("ValorTotal")
                         .HasColumnType("decimal(10,2)");
@@ -70,7 +83,11 @@ namespace FleetControlRH.Api.Migrations
 
                     b.HasKey("Id");
 
+                    b.HasIndex("LiberadoPorUsuarioId");
+
                     b.HasIndex("MotoristaId", "DataAbastecimento");
+
+                    b.HasIndex("Status");
 
                     b.HasIndex("VeiculoId", "DataAbastecimento");
 
@@ -398,6 +415,11 @@ namespace FleetControlRH.Api.Migrations
 
             modelBuilder.Entity("FleetControlRH.Api.Models.Abastecimento", b =>
                 {
+                    b.HasOne("FleetControlRH.Api.Models.Usuario", "LiberadoPorUsuario")
+                        .WithMany()
+                        .HasForeignKey("LiberadoPorUsuarioId")
+                        .OnDelete(DeleteBehavior.SetNull);
+
                     b.HasOne("FleetControlRH.Api.Models.Motorista", "Motorista")
                         .WithMany("Abastecimentos")
                         .HasForeignKey("MotoristaId")
@@ -409,6 +431,8 @@ namespace FleetControlRH.Api.Migrations
                         .HasForeignKey("VeiculoId")
                         .OnDelete(DeleteBehavior.Cascade)
                         .IsRequired();
+
+                    b.Navigation("LiberadoPorUsuario");
 
                     b.Navigation("Motorista");
 
