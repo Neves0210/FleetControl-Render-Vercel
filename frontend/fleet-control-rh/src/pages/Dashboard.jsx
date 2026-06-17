@@ -41,9 +41,7 @@ const COMBUSTIVEIS = {
 
 const DASHBOARD_SECTIONS = [
   { id: 'kpis', label: 'Indicadores principais' },
-  { id: 'monthlyCostBars', label: 'Gasto mensal em colunas' },
   { id: 'monthlyCostLine', label: 'Histórico financeiro em linha' },
-  { id: 'monthlyLiters', label: 'Litros por mês' },
   { id: 'vehicleRanking', label: 'Ranking por veículo' },
   { id: 'fuelTable', label: 'Tabela de combustível' },
   { id: 'maintenance', label: 'Manutenção preventiva' },
@@ -51,12 +49,10 @@ const DASHBOARD_SECTIONS = [
 ];
 
 const DEFAULT_DASHBOARD_CONFIG = {
-  order: ['kpis', 'monthlyCostBars', 'monthlyCostLine', 'monthlyLiters', 'vehicleRanking', 'fuelTable', 'maintenance', 'recent'],
+  order: ['kpis', 'monthlyCostLine', 'vehicleRanking', 'fuelTable', 'maintenance', 'recent'],
   visible: {
     kpis: true,
-    monthlyCostBars: true,
     monthlyCostLine: true,
-    monthlyLiters: false,
     vehicleRanking: true,
     fuelTable: false,
     maintenance: true,
@@ -187,24 +183,6 @@ function MiniBars({ values = [] }) {
   );
 }
 
-function ColumnChart({ data = [], valueKey = 'valor', empty = 'Sem dados no período.' }) {
-  if (!data.length) return <div className="chart-empty">{empty}</div>;
-  const max = Math.max(...data.map(item => item[valueKey]), 1);
-
-  return (
-    <div className="column-chart">
-      {data.map(item => (
-        <div className="column-item" key={item.key || item.nome}>
-          <div className="column-track">
-            <span style={{ height: `${Math.max((item[valueKey] / max) * 100, 8)}%` }} />
-          </div>
-          <small>{item.rotulo || item.nome}</small>
-        </div>
-      ))}
-    </div>
-  );
-}
-
 function RankingBars({ data = [], valueKey = 'valor', format = money }) {
   if (!data.length) return <div className="chart-empty">Sem dados no período.</div>;
   const max = Math.max(...data.map(item => item[valueKey]), 1);
@@ -265,7 +243,7 @@ export function Dashboard() {
   const [abastecimentos, setAbastecimentos] = useState([]);
   const [alertas, setAlertas] = useState([]);
   const [veiculos, setVeiculos] = useState([]);
-  const [periodo, setPeriodo] = useState('12m');
+  const [periodo] = useState('12m');
   const [carregando, setCarregando] = useState(true);
   const [editandoPainel, setEditandoPainel] = useState(false);
   const [dashboardConfig, setDashboardConfig] = useState(() => carregarConfigDashboard(user));
@@ -499,24 +477,6 @@ export function Dashboard() {
         </IndustrialKpi>
       </section>
     ),
-    monthlyCostBars: (
-      <article className="panel panel-technical" key="monthlyCostBars">
-        <div className="panel-head">
-          <div>
-            <p className="panel-kicker">Gráfico de colunas</p>
-            <h3>Gasto mensal</h3>
-          </div>
-          <div className="segmented">
-            {PERIODOS.map(item => (
-              <button key={item.id} type="button" className={`seg ${periodo === item.id ? 'active' : ''}`} onClick={() => setPeriodo(item.id)}>
-                {item.label}
-              </button>
-            ))}
-          </div>
-        </div>
-        <ColumnChart data={mensal} valueKey="valor" />
-      </article>
-    ),
     monthlyCostLine: (
       <article className="panel panel-technical" key="monthlyCostLine">
         <div className="panel-head">
@@ -527,18 +487,6 @@ export function Dashboard() {
           <span className="panel-total">{money(totalGastoPeriodo)}</span>
         </div>
         <AreaChart serie={serieGasto} />
-      </article>
-    ),
-    monthlyLiters: (
-      <article className="panel panel-technical" key="monthlyLiters">
-        <div className="panel-head">
-          <div>
-            <p className="panel-kicker">Volume abastecido</p>
-            <h3>Litros por mês</h3>
-          </div>
-          <span className="panel-total">{litrosFmt(totalLitrosPeriodo)}</span>
-        </div>
-        <ColumnChart data={mensal} valueKey="litros" />
       </article>
     ),
     vehicleRanking: (
