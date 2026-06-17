@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { CheckCircle2, Eye, Download, ExternalLink, X, Image as ImageIcon, Pencil, XCircle } from 'lucide-react';
+import { Eye, Download, ExternalLink, X, Image as ImageIcon, Pencil } from 'lucide-react';
 import { api } from '../../api/api';
 import { dataHora, litros, money, number } from '../../utils/formatters';
 import { temPermissao } from '../../utils/permissions';
@@ -19,20 +19,8 @@ function combustiveisTexto(item) {
     .join(' | ');
 }
 
-function statusTexto(status) {
-  return ({ 1: 'Pendente', 2: 'Liberado', 3: 'Reprovado' })[status] || status || '-';
-}
-
-function statusClasse(status) {
-  if (status === 1) return 'chip chip-warn';
-  if (status === 2) return 'chip chip-success';
-  if (status === 3) return 'chip chip-danger';
-  return 'chip';
-}
-
-export function AbastecimentosTabela({ items, onEditar, onLiberar, onReprovar }) {
+export function AbastecimentosTabela({ items, onEditar }) {
   const podeEditar = temPermissao('Abastecimentos.Editar');
-  const podeLiberar = temPermissao('Abastecimentos.Liberar');
   const [foto, setFoto] = useState(null); // { url, tipo, id }
   const [carregando, setCarregando] = useState(null);
   const [zoom, setZoom] = useState(false);
@@ -85,9 +73,8 @@ export function AbastecimentosTabela({ items, onEditar, onLiberar, onReprovar })
             <th>Combustiveis</th>
             <th>Litros</th>
             <th>Valor</th>
-            <th>Status</th>
             <th>Nota</th>
-            {(podeEditar || podeLiberar) && <th>Ações</th>}
+            {podeEditar && <th>Ações</th>}
           </tr>
         </thead>
 
@@ -102,7 +89,6 @@ export function AbastecimentosTabela({ items, onEditar, onLiberar, onReprovar })
                 <td>{combustiveisTexto(x)}</td>
                 <td>{litros(x.litros)}</td>
                 <td>{money(x.valorTotal)}</td>
-                <td><span className={statusClasse(x.status)}>{statusTexto(x.status)}</span></td>
                 <td>
                   {x.temFoto ? (
                     <button
@@ -117,30 +103,18 @@ export function AbastecimentosTabela({ items, onEditar, onLiberar, onReprovar })
                     <span className="text-muted">—</span>
                   )}
                 </td>
-                {(podeEditar || podeLiberar) && (
+                {podeEditar && (
                   <td>
-                    {podeLiberar && x.status === 1 && (
-                      <>
-                        <button type="button" className="btn btn-success btn-sm me-2" onClick={() => onLiberar?.(x)}>
-                          <CheckCircle2 size={14} /> Liberar
-                        </button>
-                        <button type="button" className="btn btn-outline-danger btn-sm me-2" onClick={() => onReprovar?.(x)}>
-                          <XCircle size={14} /> Reprovar
-                        </button>
-                      </>
-                    )}
-                    {podeEditar && (
-                      <button type="button" className="btn btn-warning btn-sm" onClick={() => onEditar?.(x)}>
-                        <Pencil size={14} /> Editar
-                      </button>
-                    )}
+                    <button type="button" className="btn btn-warning btn-sm" onClick={() => onEditar?.(x)}>
+                      <Pencil size={14} /> Editar
+                    </button>
                   </td>
                 )}
               </tr>
             ))
           ) : (
             <tr>
-              <td colSpan={(podeEditar || podeLiberar) ? 10 : 9} className="text-muted" style={{ textAlign: 'center', padding: '28px 12px' }}>
+              <td colSpan={podeEditar ? 9 : 8} className="text-muted" style={{ textAlign: 'center', padding: '28px 12px' }}>
                 Nenhum abastecimento encontrado.
               </td>
             </tr>

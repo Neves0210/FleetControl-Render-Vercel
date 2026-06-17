@@ -14,7 +14,6 @@ import { comprimirImagem } from '../utils/comprimirImagem';
 import { dataHora, litros as litrosFmt, money, number } from '../utils/formatters';
 import { exportarCsv } from '../utils/exportCsv';
 import { dataHoraInputBrasil } from '../utils/dataBrasil';
-import { getUser } from '../utils/permissions';
 
 function numeroBr(value, casas = 3) {
   const numero = Number(value);
@@ -65,7 +64,6 @@ function novoCombustivel(base = {}) {
 }
 
 export function Abastecimentos() {
-  const user = getUser();
   const [items, setItems] = useState([]);
   const [veiculos, setVeiculos] = useState([]);
   const [motoristas, setMotoristas] = useState([]);
@@ -75,7 +73,7 @@ export function Abastecimentos() {
   const [analisandoNota, setAnalisandoNota] = useState(false);
   const [resultadoLeitura, setResultadoLeitura] = useState(null);
   const [combustiveis, setCombustiveis] = useState([novoCombustivel()]);
-  const [filtro, setFiltro] = useState({ veiculoId: '', motoristaId: '', status: '' });
+  const [filtro, setFiltro] = useState({ veiculoId: '', motoristaId: '' });
   const [form, setForm] = useState(emptyAbastecimento());
   const [editandoId, setEditandoId] = useState(null);
 
@@ -87,8 +85,7 @@ export function Abastecimentos() {
   async function load(f = filtro) {
     const params = {
       veiculoId: f.veiculoId || undefined,
-      motoristaId: f.motoristaId || undefined,
-      status: f.status || undefined
+      motoristaId: f.motoristaId || undefined
     };
 
     const [abastecimentosRes, veiculosRes, motoristasRes] = await Promise.all([
@@ -286,9 +283,7 @@ export function Abastecimentos() {
       toast.success('Abastecimento atualizado.');
       } else {
         await abastecimentoService.criar(fd);
-        toast.success(String(user?.perfil) === '3' || String(user?.perfil).toLowerCase() === 'tecnico'
-          ? 'Solicitacao de abastecimento enviada para liberacao.'
-          : 'Abastecimento salvo.');
+        toast.success('Abastecimento salvo.');
       }
 
       limparFormulario();
@@ -363,7 +358,7 @@ export function Abastecimentos() {
   }
 
   function limparConsulta() {
-    const novo = { veiculoId: '', motoristaId: '', status: '' };
+    const novo = { veiculoId: '', motoristaId: '' };
     setFiltro(novo);
     setBusca('');
     setPeriodo({ de: '', ate: '' });
@@ -379,34 +374,8 @@ export function Abastecimentos() {
       { label: 'KM', value: x => number(x.kmAtual) },
       { label: 'Litros', value: x => litrosFmt(x.litros) },
       { label: 'Valor', value: x => money(x.valorTotal) },
-      { label: 'Status', value: x => ({ 1: 'Pendente', 2: 'Liberado', 3: 'Reprovado' })[x.status] || '' },
       { label: 'Nota', value: x => x.temFoto ? 'Sim' : '' }
     ], itemsFiltrados);
-  }
-
-  async function liberarAbastecimento(item) {
-    const observacao = prompt('Observacao da liberacao (opcional):') || '';
-
-    try {
-      await abastecimentoService.liberar(item.id, { observacao });
-      toast.success('Abastecimento liberado.');
-      await load();
-    } catch (err) {
-      toast.error(err.response?.data?.mensagem || 'Erro ao liberar abastecimento.');
-    }
-  }
-
-  async function reprovarAbastecimento(item) {
-    const observacao = prompt('Informe a observacao da reprovacao:');
-    if (observacao === null) return;
-
-    try {
-      await abastecimentoService.reprovar(item.id, { observacao });
-      toast.success('Abastecimento reprovado.');
-      await load();
-    } catch (err) {
-      toast.error(err.response?.data?.mensagem || 'Erro ao reprovar abastecimento.');
-    }
   }
 
   /* Refino client-side sobre o que já veio do servidor (busca + intervalo de datas). */
@@ -651,15 +620,6 @@ export function Abastecimentos() {
             <div className="row">
               <Select label="Veículo" value={filtro.veiculoId} onChange={v => setFiltro({ ...filtro, veiculoId: v })} items={veiculos} text={x => `${x.modelo} - ${x.placa}`} />
               <Select label="Motorista" value={filtro.motoristaId} onChange={v => setFiltro({ ...filtro, motoristaId: v })} items={motoristas} text={x => x.nome} />
-              <div className="col-md-3 mb-3">
-                <label>Status</label>
-                <select className="form-select" value={filtro.status} onChange={e => setFiltro({ ...filtro, status: e.target.value })}>
-                  <option value="">Todos</option>
-                  <option value="1">Pendentes</option>
-                  <option value="2">Liberados</option>
-                  <option value="3">Reprovados</option>
-                </select>
-              </div>
               <Input label="De" type="date" value={periodo.de} onChange={v => setPeriodo({ ...periodo, de: v })} />
               <Input label="Até" type="date" value={periodo.ate} onChange={v => setPeriodo({ ...periodo, ate: v })} />
 
@@ -678,7 +638,7 @@ export function Abastecimentos() {
                 value={{ busca, filtro, periodo }}
                 onApply={v => {
                   setBusca(v.busca || '');
-                  setFiltro(v.filtro || { veiculoId: '', motoristaId: '', status: '' });
+                  setFiltro(v.filtro || { veiculoId: '', motoristaId: '' });
                   setPeriodo(v.periodo || { de: '', ate: '' });
                 }}
               />
@@ -712,8 +672,6 @@ export function Abastecimentos() {
             <AbastecimentosTabela
               items={itemsFiltrados}
               onEditar={editarAbastecimento}
-              onLiberar={liberarAbastecimento}
-              onReprovar={reprovarAbastecimento}
             />
           </div>
         </>

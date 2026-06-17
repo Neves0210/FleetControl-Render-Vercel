@@ -17,10 +17,6 @@ export function temPermissao(permissao) {
 
   if (perfil === '1' || perfil === 'master') return true;
 
-  if (permissao === 'Abastecimentos.Liberar' && ['2', '4', 'rh', 'almoxarifado'].includes(perfil)) {
-    return true;
-  }
-
   return getPermissoes().includes(permissao);
 }
 

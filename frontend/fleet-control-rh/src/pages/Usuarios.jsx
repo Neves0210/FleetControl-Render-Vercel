@@ -90,7 +90,7 @@ export function Usuarios() {
     if (perfilNumero === 1) permissoesPadrao = TODAS_PERMISSOES;
     if (perfilNumero === 2) permissoesPadrao = [
       'Dashboard.Visualizar', 'Dashboard.Personalizar', 'Veiculos.Visualizar', 'Motoristas.Visualizar',
-      'Abastecimentos.Visualizar', 'Abastecimentos.Criar', 'Abastecimentos.Editar', 'Abastecimentos.Liberar',
+      'Abastecimentos.Visualizar', 'Abastecimentos.Criar', 'Abastecimentos.Editar',
       'Relatorios.Visualizar', 'Relatorios.Exportar'
     ];
     if (perfilNumero === 3) permissoesPadrao = [
@@ -98,7 +98,7 @@ export function Usuarios() {
     ];
     if (perfilNumero === 4) permissoesPadrao = [
       'Dashboard.Visualizar', 'Veiculos.Visualizar',
-      'Abastecimentos.Visualizar', 'Abastecimentos.Liberar',
+      'Abastecimentos.Visualizar',
       'Manutencoes.Visualizar', 'Manutencoes.Gerenciar'
     ];
 
