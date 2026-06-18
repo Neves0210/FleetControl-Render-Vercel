@@ -1,7 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'react-toastify';
-import { ArrowLeft, Download, Fuel, KeyRound, Users } from 'lucide-react';
+import { ArrowLeft, Download, Fuel, KeyRound, Plus, Route, Users } from 'lucide-react';
 import { Header } from '../components/Layout/Header';
 import { Metric } from '../components/Dashboard/Metric';
 import { motoristaService } from '../services/motoristaService';
@@ -72,6 +72,12 @@ export function PerfilMotorista() {
           <>
             <button className="btn btn-outline-secondary" onClick={() => navigate('/motoristas')}>
               <ArrowLeft size={16} /> Voltar
+            </button>
+            <button className="btn btn-primary" onClick={() => navigate(`/abastecimentos?aba=registrar&motoristaId=${id}`)}>
+              <Plus size={16} /> Abastecer
+            </button>
+            <button className="btn btn-outline-secondary" onClick={() => navigate(`/uso-veiculos?aba=registrar&motoristaId=${id}`)}>
+              <Route size={16} /> Iniciar uso
             </button>
             <button className="btn btn-success" onClick={exportar}>
               <Download size={16} /> Exportar

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'react-toastify';
 import { ClipboardList, Download, Edit3, Filter, KeyRound, PlayCircle, RotateCcw, Search, StopCircle } from 'lucide-react';
+import { useSearchParams } from 'react-router-dom';
 import { Header } from '../components/Layout/Header';
 import { Input } from '../components/Forms/Input';
 import { Select } from '../components/Forms/Select';
@@ -61,6 +62,7 @@ function finalizado(status) {
 }
 
 export function UsosVeiculos() {
+  const [searchParams] = useSearchParams();
   const user = getUser();
 
   const [items, setItems] = useState([]);
@@ -79,6 +81,24 @@ export function UsosVeiculos() {
     motoristaId: '',
     somenteAtivos: false
   });
+
+  useEffect(() => {
+    const veiculoId = searchParams.get('veiculoId') || '';
+    const motoristaId = searchParams.get('motoristaId') || '';
+    const abaUrl = searchParams.get('aba');
+    const somenteAtivos = searchParams.get('somenteAtivos') === 'true';
+
+    if (abaUrl === 'consultar' || abaUrl === 'registrar') setAba(abaUrl);
+    if (veiculoId || motoristaId || somenteAtivos) {
+      setFiltro(f => ({
+        ...f,
+        veiculoId: veiculoId || f.veiculoId,
+        motoristaId: motoristaId || f.motoristaId,
+        somenteAtivos: somenteAtivos || f.somenteAtivos
+      }));
+      setForm(f => ({ ...f, veiculoId: veiculoId || f.veiculoId, motoristaId: motoristaId || f.motoristaId }));
+    }
+  }, [searchParams]);
 
   const usuarioTecnico = user?.perfil === 3 || user?.perfil === 'Tecnico';
   const podeEditar = user?.perfil === 1 || user?.perfil === 2 || temPermissao('UsosVeiculos.Editar');

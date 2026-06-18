@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'react-toastify';
 import { Fuel, Camera, Link2, ScanLine, Filter, RotateCcw, Search, ClipboardList, Plus, Trash2, Download, CheckCircle2, AlertTriangle } from 'lucide-react';
+import { useSearchParams } from 'react-router-dom';
 import { Header } from '../components/Layout/Header';
 import { Input } from '../components/Forms/Input';
 import { Select } from '../components/Forms/Select';
@@ -64,6 +65,7 @@ function novoCombustivel(base = {}) {
 }
 
 export function Abastecimentos() {
+  const [searchParams] = useSearchParams();
   const [items, setItems] = useState([]);
   const [veiculos, setVeiculos] = useState([]);
   const [motoristas, setMotoristas] = useState([]);
@@ -81,6 +83,18 @@ export function Abastecimentos() {
   const [aba, setAba] = useState('registrar');     // 'registrar' | 'consultar'
   const [busca, setBusca] = useState('');
   const [periodo, setPeriodo] = useState({ de: '', ate: '' });
+
+  useEffect(() => {
+    const veiculoId = searchParams.get('veiculoId') || '';
+    const motoristaId = searchParams.get('motoristaId') || '';
+    const abaUrl = searchParams.get('aba');
+
+    if (abaUrl === 'consultar' || abaUrl === 'registrar') setAba(abaUrl);
+    if (veiculoId || motoristaId) {
+      setFiltro(f => ({ ...f, veiculoId: veiculoId || f.veiculoId, motoristaId: motoristaId || f.motoristaId }));
+      setForm(f => ({ ...f, veiculoId: veiculoId || f.veiculoId, motoristaId: motoristaId || f.motoristaId }));
+    }
+  }, [searchParams]);
 
   async function load(f = filtro) {
     const params = {

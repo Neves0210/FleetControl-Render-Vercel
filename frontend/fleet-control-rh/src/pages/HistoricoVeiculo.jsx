@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { useNavigate, useParams } from 'react-router-dom';
 import { toast } from 'react-toastify';
-import { ArrowLeft, Car, Download, Fuel, KeyRound, Wrench } from 'lucide-react';
+import { ArrowLeft, Car, Download, Fuel, KeyRound, Plus, Route, Wrench } from 'lucide-react';
 import { Header } from '../components/Layout/Header';
 import { Metric } from '../components/Dashboard/Metric';
 import { veiculoService } from '../services/veiculoService';
@@ -64,6 +64,15 @@ export function HistoricoVeiculo() {
           <>
             <button className="btn btn-outline-secondary" onClick={() => navigate('/veiculos')}>
               <ArrowLeft size={16} /> Voltar
+            </button>
+            <button className="btn btn-primary" onClick={() => navigate(`/abastecimentos?aba=registrar&veiculoId=${veiculo.id}`)}>
+              <Plus size={16} /> Abastecer
+            </button>
+            <button className="btn btn-outline-secondary" onClick={() => navigate(`/uso-veiculos?aba=registrar&veiculoId=${veiculo.id}`)}>
+              <Route size={16} /> Iniciar uso
+            </button>
+            <button className="btn btn-outline-secondary" onClick={() => navigate(`/manutencoes?aba=registrar&veiculoId=${veiculo.id}`)}>
+              <Wrench size={16} /> Manutenção
             </button>
             <button className="btn btn-success" onClick={exportar}>
               <Download size={16} /> Exportar

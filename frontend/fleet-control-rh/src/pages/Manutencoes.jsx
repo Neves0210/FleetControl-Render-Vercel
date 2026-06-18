@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'react-toastify';
 import { AlertTriangle, CalendarClock, ClipboardList, Download, Eye, Filter, Paperclip, Plus, RotateCcw, Search, Trash2, Wrench } from 'lucide-react';
+import { useSearchParams } from 'react-router-dom';
 import { Header } from '../components/Layout/Header';
 import { Input } from '../components/Forms/Input';
 import { Select } from '../components/Forms/Select';
@@ -40,6 +41,7 @@ function statusClass(status) {
 }
 
 export function Manutencoes() {
+  const [searchParams] = useSearchParams();
   const user = getUser();
   const podeGerenciar = user?.permissoes?.includes('Manutencoes.Gerenciar');
 
@@ -57,6 +59,18 @@ export function Manutencoes() {
     veiculoId: '',
     status: ''
   });
+
+  useEffect(() => {
+    const veiculoId = searchParams.get('veiculoId') || '';
+    const status = searchParams.get('status') || '';
+    const abaUrl = searchParams.get('aba');
+
+    if (abaUrl === 'consultar' || abaUrl === 'registrar') setAba(abaUrl);
+    if (veiculoId || status) {
+      setFiltro(f => ({ ...f, veiculoId: veiculoId || f.veiculoId, status: status || f.status }));
+      setForm(f => ({ ...f, veiculoId: veiculoId || f.veiculoId }));
+    }
+  }, [searchParams]);
 
   const totalAlertas = useMemo(() => ({
     proximas: alertas.filter(x => x.status === 'Próxima' || x.status === 'Proxima').length,

@@ -1,8 +1,9 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { ToastContainer, toast } from 'react-toastify';
-import { Truck, LogIn } from 'lucide-react';
+import { LogIn, Truck } from 'lucide-react';
 import { api } from '../api/api';
+import { rotaInicialPorUsuario } from '../utils/flowRoutes';
 
 export function Login() {
   const [email, setEmail] = useState('admin@fleet.local');
@@ -18,7 +19,7 @@ export function Login() {
       const { data } = await api.post('/auth/login', { email, senha });
       localStorage.setItem('token', data.token);
       localStorage.setItem('user', JSON.stringify(data));
-      navigate('/');
+      navigate(rotaInicialPorUsuario(data), { replace: true });
     } catch {
       toast.error('E-mail ou senha inválidos.');
     } finally {

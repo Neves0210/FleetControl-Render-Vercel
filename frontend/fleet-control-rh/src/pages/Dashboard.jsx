@@ -297,6 +297,33 @@ function IndustrialKpi({ icon, label, value, meta, children, accent = 'green' })
   );
 }
 
+function DailyFlow({ navigate }) {
+  const steps = [
+    { label: 'Iniciar uso', hint: 'Retirada do veículo', rota: '/uso-veiculos?aba=registrar', icon: <Route size={17} /> },
+    { label: 'Abastecer', hint: 'Nota fiscal e litros', rota: '/abastecimentos?aba=registrar', icon: <Fuel size={17} /> },
+    { label: 'Finalizar uso', hint: 'KM final e retorno', rota: '/uso-veiculos?aba=registrar&somenteAtivos=true', icon: <ListChecks size={17} /> },
+    { label: 'Pendências', hint: 'Manutenções e alertas', rota: '/manutencoes?aba=consultar', icon: <Wrench size={17} /> }
+  ];
+
+  return (
+    <section className="daily-flow">
+      <div>
+        <p className="panel-kicker">Fluxo operacional</p>
+        <h2>Jornada do dia</h2>
+      </div>
+      <div className="daily-flow-steps">
+        {steps.map(step => (
+          <button type="button" className="daily-flow-step" key={step.label} onClick={() => navigate(step.rota)}>
+            <span>{step.icon}</span>
+            <strong>{step.label}</strong>
+            <small>{step.hint}</small>
+          </button>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 export function Dashboard() {
   const navigate = useNavigate();
   const user = getUser();
@@ -402,14 +429,14 @@ export function Dashboard() {
         titulo: 'Manutencoes vencidas',
         valor: number(manutencoesVencidas),
         detalhe: manutencoesVencidas > 0 ? 'Regularizar primeiro' : 'Nenhuma pendencia vencida',
-        rota: '/manutencoes'
+        rota: '/manutencoes?aba=consultar&status=Vencida'
       },
       {
         tipo: manutencoesProximas > 0 ? 'warn' : 'success',
         titulo: 'Manutencoes proximas',
         valor: number(manutencoesProximas),
         detalhe: manutencoesProximas > 0 ? 'Agendar preventivas' : 'Sem preventivas urgentes',
-        rota: '/manutencoes'
+        rota: '/manutencoes?aba=consultar&status=Próxima'
       },
       {
         tipo: veiculosSemAbastecimento.length > 0 ? 'info' : 'success',
@@ -423,7 +450,7 @@ export function Dashboard() {
         titulo: 'Gastos acima da media',
         valor: number(abastecimentosAcimaMedia.length),
         detalhe: abastecimentosAcimaMedia[0]?.veiculo?.placa || 'Sem desvio relevante',
-        rota: '/abastecimentos'
+        rota: '/abastecimentos?aba=consultar'
       }
     ];
   }, [
@@ -804,6 +831,8 @@ export function Dashboard() {
       )}
 
       {editorPainel}
+
+      <DailyFlow navigate={navigate} />
 
       <div className="dashboard-widget-grid">
         {orderedSections}

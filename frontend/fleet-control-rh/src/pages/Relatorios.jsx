@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'react-toastify';
 import { Filter, RotateCcw, Download, Printer } from 'lucide-react';
+import { useSearchParams } from 'react-router-dom';
 import { Header } from '../components/Layout/Header';
 import { Select } from '../components/Forms/Select';
 import { Input } from '../components/Forms/Input';
@@ -116,6 +117,7 @@ function tabelaPdf(titulo, colunas, linhas) {
 }
 
 export function Relatorios() {
+  const [searchParams] = useSearchParams();
   const [dados, setDados] = useState(null);
   const [veiculos, setVeiculos] = useState([]);
   const [motoristas, setMotoristas] = useState([]);
@@ -125,6 +127,21 @@ export function Relatorios() {
     veiculoId: '',
     motoristaId: ''
   });
+
+  useEffect(() => {
+    const novoFiltro = {
+      dataInicio: searchParams.get('dataInicio') || '',
+      dataFim: searchParams.get('dataFim') || hoje,
+      veiculoId: searchParams.get('veiculoId') || '',
+      motoristaId: searchParams.get('motoristaId') || ''
+    };
+
+    if (novoFiltro.dataInicio || novoFiltro.dataFim !== hoje || novoFiltro.veiculoId || novoFiltro.motoristaId) {
+      setFiltro(novoFiltro);
+      carregarRelatorio(novoFiltro).catch(() => toast.error('Erro ao aplicar filtros da URL.'));
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
 
   async function carregarCombos() {
     const [veiculosRes, motoristasRes] = await Promise.all([
