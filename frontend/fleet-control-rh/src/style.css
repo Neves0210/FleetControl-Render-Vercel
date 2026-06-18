@@ -469,8 +469,102 @@ label {
   margin-top: 3px;
 }
 
+.quick-insights {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.quick-insight {
+  border: 1px solid var(--color-border);
+  border-left: 4px solid var(--color-info);
+  border-radius: var(--r-md);
+  background: #fff;
+  padding: 12px 14px;
+  box-shadow: var(--shadow-sm);
+}
+
+.quick-insight span {
+  display: block;
+  color: var(--color-text-muted);
+  font-size: 11px;
+  font-weight: 750;
+  letter-spacing: .45px;
+  text-transform: uppercase;
+}
+
+.quick-insight strong {
+  display: block;
+  margin-top: 4px;
+  color: var(--color-text);
+  font-size: 14px;
+}
+
+.quick-insight.danger {
+  border-left-color: var(--color-danger);
+}
+
+.quick-insight.warn {
+  border-left-color: var(--color-warning);
+}
+
+.quick-insight.success {
+  border-left-color: var(--color-success);
+}
+
+.quick-periods {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  margin: -2px 0 14px;
+}
+
+.cadastro-checklist {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border: 1px solid var(--color-border);
+  border-left: 4px solid var(--color-warning);
+  border-radius: var(--r-md);
+  background: #fff;
+  padding: 12px 14px;
+}
+
+.cadastro-checklist.ready {
+  border-left-color: var(--color-success);
+}
+
+.cadastro-checklist span {
+  display: block;
+  color: var(--color-text-muted);
+  font-size: 11px;
+  font-weight: 750;
+  letter-spacing: .45px;
+  text-transform: uppercase;
+}
+
+.cadastro-checklist strong {
+  display: block;
+  margin-top: 3px;
+  color: var(--color-text);
+  font-size: 13px;
+}
+
+.cadastro-checklist.ready svg {
+  color: var(--color-success);
+}
+
+.cadastro-checklist.attention svg {
+  color: #b77900;
+}
+
 @media (max-width: 768px) {
   .registro-resumo-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .quick-insights {
     grid-template-columns: 1fr;
   }
 }

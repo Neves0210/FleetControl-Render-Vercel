@@ -207,6 +207,97 @@
   grid-column: 1 / -1;
 }
 
+.dashboard-widget-grid > .operational-radar {
+  grid-column: 1 / -1;
+}
+
+.operational-radar {
+  background: #fff;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  padding: 18px;
+  box-shadow: var(--shadow-sm);
+}
+
+.radar-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 14px;
+  margin-bottom: 14px;
+}
+
+.radar-head h2 {
+  margin: 0;
+  color: var(--color-industrial);
+  font-size: 18px;
+  font-weight: 850;
+}
+
+.radar-grid {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 12px;
+}
+
+.radar-card {
+  min-height: 124px;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  border: 1px solid var(--color-border);
+  border-top: 3px solid var(--color-info);
+  border-radius: 8px;
+  background: #fff;
+  padding: 14px;
+  text-align: left;
+  cursor: pointer;
+  transition: transform var(--t), box-shadow var(--t), border-color var(--t);
+}
+
+.radar-card:hover {
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-md);
+}
+
+.radar-card span {
+  color: var(--color-text-2);
+  font-size: 12px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: .45px;
+}
+
+.radar-card strong {
+  color: var(--color-industrial);
+  font-size: 34px;
+  line-height: 1;
+  font-weight: 850;
+}
+
+.radar-card small {
+  color: var(--color-text-muted);
+  font-size: 12px;
+  font-weight: 700;
+}
+
+.radar-card.danger {
+  border-top-color: var(--color-danger);
+  background: linear-gradient(180deg, #fff, var(--color-danger-soft));
+}
+
+.radar-card.warn {
+  border-top-color: var(--color-warning);
+  background: linear-gradient(180deg, #fff, var(--color-warning-soft));
+}
+
+.radar-card.success {
+  border-top-color: var(--color-success);
+  background: linear-gradient(180deg, #fff, var(--color-success-soft));
+}
+
 .panel {
   background: #fff;
   border: 1px solid var(--color-border);
@@ -758,6 +849,10 @@
   .dashboard-widget-grid {
     grid-template-columns: 1fr;
   }
+
+  .radar-grid {
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+  }
 }
 
 @media (max-width: 768px) {
@@ -781,8 +876,13 @@
   }
 
   .panel-head,
-  .maintenance-head {
+  .maintenance-head,
+  .radar-head {
     flex-direction: column;
+  }
+
+  .radar-grid {
+    grid-template-columns: 1fr;
   }
 
   .segmented,

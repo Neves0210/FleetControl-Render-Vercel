@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'react-toastify';
-import { ClipboardList, Download, Filter, History, RotateCcw, Search, ToggleLeft, ToggleRight, Users } from 'lucide-react';
+import { AlertTriangle, CheckCircle2, ClipboardList, Download, Filter, History, RotateCcw, Search, ToggleLeft, ToggleRight, Users } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 import { Header } from '../components/Layout/Header';
 import { Input } from '../components/Forms/Input';
@@ -36,6 +36,21 @@ export function Motoristas() {
     });
   }, [items, busca, filtro]);
 
+  const pendenciasMotorista = useMemo(() => {
+    const pendencias = [];
+    const documento = form.documento?.trim();
+
+    if (!form.nome?.trim()) pendencias.push('nome');
+    if (!form.cargo?.trim()) pendencias.push('cargo');
+    if (documento && items.some(item => item.id !== edit && item.documento?.trim() === documento)) {
+      pendencias.push('documento duplicado');
+    }
+
+    return pendencias;
+  }, [edit, form, items]);
+
+  const motoristaPronto = pendenciasMotorista.length === 0;
+
   async function load() {
     const r = await motoristaService.listar({ incluirInativos: true });
     setItems(r.data);
@@ -47,6 +62,11 @@ export function Motoristas() {
 
   async function save(e) {
     e.preventDefault();
+
+    if (!motoristaPronto) {
+      toast.warning(`Confira: ${pendenciasMotorista.join(', ')}.`);
+      return;
+    }
 
     try {
       if (edit) await motoristaService.atualizar(edit, form);
@@ -152,7 +172,17 @@ export function Motoristas() {
                 </select>
               </div>
 
-              <div className="col-md-2 mb-3 d-flex align-items-end"><button className="btn btn-success w-100">{edit ? 'Atualizar' : 'Salvar'}</button></div>
+              <div className="col-md-12 mb-3">
+                <div className={`cadastro-checklist ${motoristaPronto ? 'ready' : 'attention'}`}>
+                  <div>
+                    <span>Conferencia do cadastro</span>
+                    <strong>{motoristaPronto ? 'Pronto para salvar' : `Pendencias: ${pendenciasMotorista.join(', ')}`}</strong>
+                  </div>
+                  {motoristaPronto ? <CheckCircle2 size={20} /> : <AlertTriangle size={20} />}
+                </div>
+              </div>
+
+              <div className="col-md-2 mb-3 d-flex align-items-end"><button className="btn btn-success w-100" disabled={!motoristaPronto}>{edit ? 'Atualizar' : 'Salvar'}</button></div>
             </div>
           </form>
         </>

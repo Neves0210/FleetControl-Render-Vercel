@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'react-toastify';
 import { Filter, RotateCcw, Download, Printer } from 'lucide-react';
 import { Header } from '../components/Layout/Header';
@@ -11,6 +11,26 @@ import { combustivel, dataHora, litros, money, number } from '../utils/formatter
 import { dataBrasil, dataInputBrasil } from '../utils/dataBrasil';
 
 const hoje = dataInputBrasil();
+const atalhosPeriodo = [
+  { id: '7d', label: '7 dias', dias: 7 },
+  { id: '30d', label: '30 dias', dias: 30 },
+  { id: 'month', label: 'Mes atual', dias: null },
+  { id: 'all', label: 'Tudo', dias: null }
+];
+
+function inputDiasAtras(dias) {
+  const data = new Date();
+  data.setDate(data.getDate() - dias);
+
+  return data.toISOString().slice(0, 10);
+}
+
+function primeiroDiaMesAtual() {
+  const data = new Date();
+  data.setDate(1);
+
+  return data.toISOString().slice(0, 10);
+}
 
 function formatDate(value) {
   return dataHora(value);
@@ -149,10 +169,36 @@ export function Relatorios() {
   async function filtrar(e) {
     e.preventDefault();
 
+    if (filtro.dataInicio && filtro.dataFim && filtro.dataInicio > filtro.dataFim) {
+      toast.warning('A data inicial nao pode ser maior que a data final.');
+      return;
+    }
+
     try {
       await carregarRelatorio();
     } catch {
       toast.error('Erro ao filtrar relatório.');
+    }
+  }
+
+  async function aplicarAtalhoPeriodo(tipo) {
+    const novoFiltro = {
+      ...filtro,
+      dataInicio: '',
+      dataFim: hoje
+    };
+
+    if (tipo === '7d') novoFiltro.dataInicio = inputDiasAtras(7);
+    if (tipo === '30d') novoFiltro.dataInicio = inputDiasAtras(30);
+    if (tipo === 'month') novoFiltro.dataInicio = primeiroDiaMesAtual();
+    if (tipo === 'all') novoFiltro.dataFim = '';
+
+    setFiltro(novoFiltro);
+
+    try {
+      await carregarRelatorio(novoFiltro);
+    } catch {
+      toast.error('Erro ao aplicar periodo.');
     }
   }
 
@@ -427,12 +473,49 @@ export function Relatorios() {
     custoTotalManutencoes: 0
   };
 
+  const alertasRelatorio = useMemo(() => ([
+    {
+      tipo: resumo.manutencoesVencidas > 0 ? 'danger' : 'success',
+      titulo: 'Manutencoes vencidas',
+      detalhe: resumo.manutencoesVencidas > 0
+        ? `${resumo.manutencoesVencidas} item(ns) exigem acao`
+        : 'Nenhuma vencida no periodo'
+    },
+    {
+      tipo: resumo.totalValor > 0 ? 'info' : 'warn',
+      titulo: 'Gasto total',
+      detalhe: resumo.totalValor > 0 ? money(resumo.totalValor) : 'Sem gasto no periodo'
+    },
+    {
+      tipo: resumo.kmTotalRodado > 0 ? 'success' : 'warn',
+      titulo: 'Uso registrado',
+      detalhe: resumo.kmTotalRodado > 0 ? `${number(resumo.kmTotalRodado)} km rodados` : 'Sem KM rodado nos filtros'
+    }
+  ]), [resumo]);
+
   return (
     <>
       <Header title="Relatórios RH" subtitle="Abastecimentos, uso de veículos e manutenções conforme os filtros aplicados" />
 
+      <div className="quick-insights mb-3">
+        {alertasRelatorio.map(item => (
+          <div className={`quick-insight ${item.tipo}`} key={item.titulo}>
+            <span>{item.titulo}</span>
+            <strong>{item.detalhe}</strong>
+          </div>
+        ))}
+      </div>
+
       <form className="card card-soft p-3 mb-3" onSubmit={filtrar}>
         <h5 style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}><Filter size={17} /> Filtros</h5>
+        <div className="quick-periods">
+          {atalhosPeriodo.map(item => (
+            <button type="button" className="btn btn-sm btn-outline-secondary" key={item.id} onClick={() => aplicarAtalhoPeriodo(item.id)}>
+              {item.label}
+            </button>
+          ))}
+        </div>
+
         <div className="row">
           <Input
             label="Data inicial"

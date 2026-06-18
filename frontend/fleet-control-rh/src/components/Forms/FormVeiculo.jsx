@@ -1,6 +1,9 @@
+import { CheckCircle2, AlertTriangle } from 'lucide-react';
 import { Input } from './Input';
 
-export function FormVeiculo({ form, setForm, save, edit }) {
+export function FormVeiculo({ form, setForm, save, edit, pendencias = [] }) {
+  const pronto = pendencias.length === 0;
+
   return (
     <form className="card card-soft p-3 mb-3" onSubmit={save}>
       <div className="row">
@@ -26,8 +29,18 @@ export function FormVeiculo({ form, setForm, save, edit }) {
           </select>
         </div>
 
+        <div className="col-md-12 mb-3">
+          <div className={`cadastro-checklist ${pronto ? 'ready' : 'attention'}`}>
+            <div>
+              <span>Conferencia do cadastro</span>
+              <strong>{pronto ? 'Pronto para salvar' : `Pendencias: ${pendencias.join(', ')}`}</strong>
+            </div>
+            {pronto ? <CheckCircle2 size={20} /> : <AlertTriangle size={20} />}
+          </div>
+        </div>
+
         <div className="col-md-2 mb-3 d-flex align-items-end">
-          <button className="btn btn-success w-100">{edit ? 'Atualizar' : 'Cadastrar'}</button>
+          <button className="btn btn-success w-100" disabled={!pronto}>{edit ? 'Atualizar' : 'Cadastrar'}</button>
         </div>
       </div>
     </form>

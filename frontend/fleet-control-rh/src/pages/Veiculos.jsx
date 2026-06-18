@@ -18,6 +18,11 @@ const combustiveis = [
   { id: 4, nome: 'Flex' }
 ];
 
+function placaValida(placa = '') {
+  const texto = placa.trim().toUpperCase();
+  return /^[A-Z]{3}-?\d[A-Z0-9]\d{2}$/.test(texto);
+}
+
 export function Veiculos() {
   const navigate = useNavigate();
   const [items, setItems] = useState([]);
@@ -38,6 +43,21 @@ export function Veiculos() {
     });
   }, [items, busca, filtro]);
 
+  const pendenciasVeiculo = useMemo(() => {
+    const pendencias = [];
+    const placa = form.placa?.trim().toUpperCase() || '';
+
+    if (!form.modelo?.trim()) pendencias.push('modelo');
+    if (!placaValida(placa)) pendencias.push('placa valida');
+    if (Number(form.kmAtual) < 0) pendencias.push('KM nao negativo');
+    if (!form.tipoCombustivel) pendencias.push('combustivel');
+    if (placa && items.some(item => item.id !== edit && item.placa?.trim().toUpperCase() === placa)) {
+      pendencias.push('placa duplicada');
+    }
+
+    return pendencias;
+  }, [edit, form, items]);
+
   async function load() {
     const r = await veiculoService.listar({ incluirInativos: true });
     setItems(r.data);
@@ -49,6 +69,11 @@ export function Veiculos() {
 
   async function save(e) {
     e.preventDefault();
+
+    if (pendenciasVeiculo.length) {
+      toast.warning(`Confira: ${pendenciasVeiculo.join(', ')}.`);
+      return;
+    }
 
     try {
       if (edit) await veiculoService.atualizar(edit, form);
@@ -133,7 +158,7 @@ export function Veiculos() {
           <h5 style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
             <Car size={17} /> {edit ? 'Editar veiculo' : 'Novo veiculo'}
           </h5>
-          <FormVeiculo form={form} setForm={setForm} save={save} edit={edit} />
+          <FormVeiculo form={form} setForm={setForm} save={save} edit={edit} pendencias={pendenciasVeiculo} />
         </>
       )}
 

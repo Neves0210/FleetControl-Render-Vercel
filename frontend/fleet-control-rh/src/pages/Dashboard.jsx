@@ -41,6 +41,7 @@ const COMBUSTIVEIS = {
 
 const DASHBOARD_SECTIONS = [
   { id: 'kpis', label: 'Indicadores principais' },
+  { id: 'operationalRadar', label: 'Radar operacional' },
   { id: 'monthlyCostLine', label: 'Histórico financeiro em linha' },
   { id: 'vehicleRanking', label: 'Ranking por veículo' },
   { id: 'fuelTable', label: 'Tabela de combustível' },
@@ -49,9 +50,10 @@ const DASHBOARD_SECTIONS = [
 ];
 
 const DEFAULT_DASHBOARD_CONFIG = {
-  order: ['kpis', 'monthlyCostLine', 'vehicleRanking', 'fuelTable', 'maintenance', 'recent'],
+  order: ['kpis', 'operationalRadar', 'monthlyCostLine', 'vehicleRanking', 'fuelTable', 'maintenance', 'recent'],
   visible: {
     kpis: true,
+    operationalRadar: true,
     monthlyCostLine: true,
     vehicleRanking: true,
     fuelTable: false,
@@ -163,6 +165,34 @@ function agruparCombustivel(lista) {
   });
 
   return [...mapa.values()].sort((a, b) => b.litros - a.litros);
+}
+
+function diasDesde(value) {
+  const data = parseData(value);
+  if (!data) return null;
+
+  const hoje = new Date();
+  hoje.setHours(0, 0, 0, 0);
+  data.setHours(0, 0, 0, 0);
+
+  return Math.floor((hoje.getTime() - data.getTime()) / 86400000);
+}
+
+function ultimoAbastecimentoPorVeiculo(lista) {
+  const mapa = new Map();
+
+  lista.forEach(item => {
+    const id = item.veiculoId || item.veiculo?.id;
+    const data = parseData(item.dataAbastecimento);
+    if (!id || !data) return;
+
+    const atual = mapa.get(id);
+    if (!atual || data > atual.data) {
+      mapa.set(id, { item, data });
+    }
+  });
+
+  return mapa;
 }
 
 function statusManutencao(status = '') {
@@ -317,6 +347,63 @@ export function Dashboard() {
   const manutencoesVencidas = alertas.filter(item => statusManutencao(item.status) === 'danger').length;
   const manutencoesProximas = alertas.filter(item => statusManutencao(item.status) === 'warn').length;
   const totalAbastecimentosPeriodo = listaFiltrada.length;
+  const ultimosPorVeiculo = useMemo(() => ultimoAbastecimentoPorVeiculo(abastecimentos), [abastecimentos]);
+  const mediaAbastecimentoPeriodo = totalAbastecimentosPeriodo > 0 ? totalGastoPeriodo / totalAbastecimentosPeriodo : 0;
+
+  const radarOperacional = useMemo(() => {
+    const veiculosSemAbastecimento = veiculos
+      .filter(item => item.ativo !== false)
+      .filter(item => {
+        const ultimo = ultimosPorVeiculo.get(item.id);
+        if (!ultimo) return true;
+        const dias = diasDesde(ultimo.item.dataAbastecimento);
+        return dias !== null && dias >= 30;
+      });
+
+    const abastecimentosAcimaMedia = listaFiltrada.filter(item => (
+      mediaAbastecimentoPeriodo > 0 && toNumber(item.valorTotal) > mediaAbastecimentoPeriodo * 1.45
+    ));
+
+    return [
+      {
+        tipo: manutencoesVencidas > 0 ? 'danger' : 'success',
+        titulo: 'Manutencoes vencidas',
+        valor: number(manutencoesVencidas),
+        detalhe: manutencoesVencidas > 0 ? 'Regularizar primeiro' : 'Nenhuma pendencia vencida',
+        rota: '/manutencoes'
+      },
+      {
+        tipo: manutencoesProximas > 0 ? 'warn' : 'success',
+        titulo: 'Manutencoes proximas',
+        valor: number(manutencoesProximas),
+        detalhe: manutencoesProximas > 0 ? 'Agendar preventivas' : 'Sem preventivas urgentes',
+        rota: '/manutencoes'
+      },
+      {
+        tipo: veiculosSemAbastecimento.length > 0 ? 'info' : 'success',
+        titulo: 'Sem abastecimento recente',
+        valor: number(veiculosSemAbastecimento.length),
+        detalhe: veiculosSemAbastecimento[0]?.placa || 'Frota com movimentacao recente',
+        rota: '/veiculos'
+      },
+      {
+        tipo: abastecimentosAcimaMedia.length > 0 ? 'warn' : 'success',
+        titulo: 'Gastos acima da media',
+        valor: number(abastecimentosAcimaMedia.length),
+        detalhe: abastecimentosAcimaMedia[0]?.veiculo?.placa || 'Sem desvio relevante',
+        rota: '/abastecimentos'
+      }
+    ];
+  }, [
+    abastecimentos,
+    alertas,
+    listaFiltrada,
+    manutencoesProximas,
+    manutencoesVencidas,
+    mediaAbastecimentoPeriodo,
+    ultimosPorVeiculo,
+    veiculos
+  ]);
 
   const hoje = useMemo(
     () => hojeExtensoBrasil(),
@@ -475,6 +562,29 @@ export function Dashboard() {
         <IndustrialKpi icon={<ListChecks size={21} />} label="Abastecimentos" value={number(totalAbastecimentosPeriodo)} meta="Registros filtrados" accent="orange">
           <MiniBars values={sparkAbastecimentos} />
         </IndustrialKpi>
+      </section>
+    ),
+    operationalRadar: (
+      <section className="operational-radar" key="operationalRadar">
+        <div className="radar-head">
+          <div>
+            <p className="panel-kicker">Prioridades do dia</p>
+            <h2>Radar operacional</h2>
+          </div>
+          <button className="alert-cta" onClick={() => navigate('/relatorios')}>
+            Ver relatorios <ChevronRight size={15} />
+          </button>
+        </div>
+
+        <div className="radar-grid">
+          {radarOperacional.map(item => (
+            <button className={`radar-card ${item.tipo}`} key={item.titulo} onClick={() => navigate(item.rota)} type="button">
+              <span>{item.titulo}</span>
+              <strong>{item.valor}</strong>
+              <small>{item.detalhe}</small>
+            </button>
+          ))}
+        </div>
       </section>
     ),
     monthlyCostLine: (
