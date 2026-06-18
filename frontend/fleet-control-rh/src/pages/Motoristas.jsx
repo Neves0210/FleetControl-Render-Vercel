@@ -5,6 +5,7 @@ import { useNavigate } from 'react-router-dom';
 import { Header } from '../components/Layout/Header';
 import { Input } from '../components/Forms/Input';
 import { FiltrosSalvos } from '../components/Forms/FiltrosSalvos';
+import { EmptyState } from '../components/UI/EmptyState';
 import { motoristaService } from '../services/motoristaService';
 import { exportarCsv } from '../utils/exportCsv';
 
@@ -136,10 +137,10 @@ export function Motoristas() {
   return (
     <>
       <Header
-        title="Motoristas/Tecnicos"
+        title="Motoristas/Técnicos"
         subtitle={aba === 'registrar' ? 'Equipe vinculada aos abastecimentos' : 'Consulte e filtre pessoas cadastradas'}
         actions={edit && aba === 'registrar'
-          ? <button type="button" className="btn btn-secondary" onClick={cancelarEdicao}>Cancelar edicao</button>
+          ? <button type="button" className="btn btn-secondary" onClick={cancelarEdicao}>Cancelar edição</button>
           : <span className="badge-soft">{items.length} cadastrados</span>}
       />
 
@@ -175,8 +176,8 @@ export function Motoristas() {
               <div className="col-md-12 mb-3">
                 <div className={`cadastro-checklist ${motoristaPronto ? 'ready' : 'attention'}`}>
                   <div>
-                    <span>Conferencia do cadastro</span>
-                    <strong>{motoristaPronto ? 'Pronto para salvar' : `Pendencias: ${pendenciasMotorista.join(', ')}`}</strong>
+                    <span>Conferência do cadastro</span>
+                    <strong>{motoristaPronto ? 'Pronto para salvar' : `Pendências: ${pendenciasMotorista.join(', ')}`}</strong>
                   </div>
                   {motoristaPronto ? <CheckCircle2 size={20} /> : <AlertTriangle size={20} />}
                 </div>
@@ -261,24 +262,33 @@ export function Motoristas() {
                     <td>{x.cargo ? <span className="chip chip-success">{x.cargo}</span> : '-'}</td>
                     <td><span className={`chip ${x.ativo ? 'chip-success' : 'chip-danger'}`}>{x.ativo ? 'Ativo' : 'Inativo'}</span></td>
                     <td>
-                      <button className="btn btn-sm btn-outline-primary me-2" onClick={() => navigate(`/motoristas/${x.id}/perfil`)}>
-                        <History size={14} /> Perfil
-                      </button>
-                      <button
-                        className={`btn btn-sm ${x.ativo ? 'btn-outline-danger' : 'btn-outline-success'} me-2`}
-                        onClick={() => alternarStatus(x)}
-                      >
-                        {x.ativo ? <ToggleLeft size={14} /> : <ToggleRight size={14} />}
-                        {x.ativo ? ' Inativar' : ' Ativar'}
-                      </button>
-                      <button className="btn btn-sm btn-warning me-2" onClick={() => editar(x)}>Editar</button>
-                      <button className="btn btn-sm btn-danger" onClick={() => del(x.id)}>Remover</button>
+                      <div className="table-actions">
+                        <button className="btn btn-sm btn-outline-primary" onClick={() => navigate(`/motoristas/${x.id}/perfil`)}>
+                          <History size={14} /> Perfil
+                        </button>
+                        <button
+                          className={`btn btn-sm ${x.ativo ? 'btn-outline-danger' : 'btn-outline-success'}`}
+                          onClick={() => alternarStatus(x)}
+                        >
+                          {x.ativo ? <ToggleLeft size={14} /> : <ToggleRight size={14} />}
+                          {x.ativo ? ' Inativar' : ' Ativar'}
+                        </button>
+                        <button className="btn btn-sm btn-warning" onClick={() => editar(x)}>Editar</button>
+                        <button className="btn btn-sm btn-danger" onClick={() => del(x.id)}>Remover</button>
+                      </div>
                     </td>
                   </tr>
                 ))}
 
                 {filtered.length === 0 && (
-                  <tr><td colSpan="6" className="text-muted" style={{ textAlign: 'center', padding: 28 }}>Nenhuma pessoa encontrada.</td></tr>
+                  <tr>
+                    <td colSpan="6">
+                      <EmptyState
+                        title="Nenhuma pessoa encontrada"
+                        description="Revise os filtros ou cadastre um novo motorista/técnico."
+                      />
+                    </td>
+                  </tr>
                 )}
               </tbody>
             </table>

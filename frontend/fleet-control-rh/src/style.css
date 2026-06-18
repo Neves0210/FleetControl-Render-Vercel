@@ -227,6 +227,49 @@ body {
   background: var(--color-surface-2);
 }
 
+.empty-state {
+  min-height: 118px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  gap: 7px;
+  padding: 18px 12px;
+  text-align: center;
+  color: var(--color-text-2);
+}
+
+.empty-state-icon {
+  width: 42px;
+  height: 42px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: var(--r-md);
+  color: var(--color-industrial);
+  background: var(--color-primary-soft);
+}
+
+.empty-state strong {
+  color: var(--color-text);
+  font-size: 14px;
+}
+
+.empty-state p {
+  max-width: 420px;
+  margin: 0;
+  color: var(--color-text-muted);
+  font-size: 13px;
+}
+
+.table-actions {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
 /* ── Buttons ────────────────────────────────────────────────────────────── */
 .btn {
   display: inline-flex;
@@ -566,6 +609,15 @@ label {
 
   .quick-insights {
     grid-template-columns: 1fr;
+  }
+
+  .table-actions {
+    justify-content: flex-start;
+  }
+
+  .empty-state {
+    min-height: 96px;
+    padding: 16px 8px;
   }
 }
 

@@ -6,6 +6,7 @@ import { Header } from '../components/Layout/Header';
 import { FormVeiculo } from '../components/Forms/FormVeiculo';
 import { Select } from '../components/Forms/Select';
 import { FiltrosSalvos } from '../components/Forms/FiltrosSalvos';
+import { EmptyState } from '../components/UI/EmptyState';
 import { veiculoService } from '../services/veiculoService';
 import { combustivel, number } from '../utils/formatters';
 import { exportarCsv } from '../utils/exportCsv';
@@ -48,9 +49,9 @@ export function Veiculos() {
     const placa = form.placa?.trim().toUpperCase() || '';
 
     if (!form.modelo?.trim()) pendencias.push('modelo');
-    if (!placaValida(placa)) pendencias.push('placa valida');
-    if (Number(form.kmAtual) < 0) pendencias.push('KM nao negativo');
-    if (!form.tipoCombustivel) pendencias.push('combustivel');
+    if (!placaValida(placa)) pendencias.push('placa válida');
+    if (Number(form.kmAtual) < 0) pendencias.push('KM não negativo');
+    if (!form.tipoCombustivel) pendencias.push('combustível');
     if (placa && items.some(item => item.id !== edit && item.placa?.trim().toUpperCase() === placa)) {
       pendencias.push('placa duplicada');
     }
@@ -64,7 +65,7 @@ export function Veiculos() {
   }
 
   useEffect(() => {
-    load().catch(() => toast.error('Erro ao carregar veiculos.'));
+    load().catch(() => toast.error('Erro ao carregar veículos.'));
   }, []);
 
   async function save(e) {
@@ -79,7 +80,7 @@ export function Veiculos() {
       if (edit) await veiculoService.atualizar(edit, form);
       else await veiculoService.criar(form);
 
-      toast.success('Veiculo salvo.');
+      toast.success('Veículo salvo.');
       setForm(initialForm);
       setEdit(null);
       setAba('consultar');
@@ -90,14 +91,14 @@ export function Veiculos() {
   }
 
   async function del(id) {
-    if (!confirm('Remover veiculo?')) return;
+    if (!confirm('Remover veículo?')) return;
 
     try {
       await veiculoService.remover(id);
-      toast.success('Veiculo removido.');
+      toast.success('Veículo removido.');
       await load();
     } catch {
-      toast.error('Erro ao remover veiculo.');
+      toast.error('Erro ao remover veículo.');
     }
   }
 
@@ -129,7 +130,7 @@ export function Veiculos() {
       { label: 'Modelo', value: 'modelo' },
       { label: 'Placa', value: 'placa' },
       { label: 'KM atual', value: x => number(x.kmAtual) },
-      { label: 'Combustivel', value: x => combustivel(x.tipoCombustivel) },
+      { label: 'Combustível', value: x => combustivel(x.tipoCombustivel) },
       { label: 'Status', value: x => x.statusOperacional || (x.ativo ? 'Ativo' : 'Inativo') }
     ], filtered);
   }
@@ -137,10 +138,10 @@ export function Veiculos() {
   return (
     <>
       <Header
-        title="Veiculos"
-        subtitle={aba === 'registrar' ? 'Cadastro e manutencao da frota' : 'Consulte e filtre a frota cadastrada'}
+        title="Veículos"
+        subtitle={aba === 'registrar' ? 'Cadastro e manutenção da frota' : 'Consulte e filtre a frota cadastrada'}
         actions={edit && aba === 'registrar'
-          ? <button type="button" className="btn btn-secondary" onClick={cancelarEdicao}>Cancelar edicao</button>
+          ? <button type="button" className="btn btn-secondary" onClick={cancelarEdicao}>Cancelar edição</button>
           : <span className="badge-soft">{items.length} cadastrados</span>}
       />
 
@@ -156,7 +157,7 @@ export function Veiculos() {
       {aba === 'registrar' && (
         <>
           <h5 style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-            <Car size={17} /> {edit ? 'Editar veiculo' : 'Novo veiculo'}
+            <Car size={17} /> {edit ? 'Editar veículo' : 'Novo veículo'}
           </h5>
           <FormVeiculo form={form} setForm={setForm} save={save} edit={edit} pendencias={pendenciasVeiculo} />
         </>
@@ -170,7 +171,7 @@ export function Veiculos() {
             </h5>
 
             <div className="row">
-              <Select label="Combustivel" value={filtro.tipoCombustivel} onChange={v => setFiltro({ ...filtro, tipoCombustivel: v })} items={combustiveis} text={x => x.nome} />
+              <Select label="Combustível" value={filtro.tipoCombustivel} onChange={v => setFiltro({ ...filtro, tipoCombustivel: v })} items={combustiveis} text={x => x.nome} />
 
               <div className="col-md-3 mb-3">
                 <label>Status</label>
@@ -215,14 +216,14 @@ export function Veiculos() {
             </div>
 
             <small className="text-muted" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <ClipboardList size={14} /> Exibindo {filtered.length} de {items.length} veiculo(s).
+              <ClipboardList size={14} /> Exibindo {filtered.length} de {items.length} veículo(s).
             </small>
           </div>
 
           <div className="card card-soft table-card">
             <table className="table table-hover">
               <thead>
-                <tr><th>Modelo</th><th>Placa</th><th>KM atual</th><th>Combustivel</th><th>Status</th><th width="260"></th></tr>
+                <tr><th>Modelo</th><th>Placa</th><th>KM atual</th><th>Combustível</th><th>Status</th><th width="260"></th></tr>
               </thead>
               <tbody>
                 {filtered.map(x => (
@@ -233,17 +234,26 @@ export function Veiculos() {
                     <td><span className="chip chip-success">{combustivel(x.tipoCombustivel)}</span></td>
                     <td><span className={classeStatus(x.statusOperacional)}>{x.statusOperacional || (x.ativo ? 'Ativo' : 'Inativo')}</span></td>
                     <td>
-                      <button className="btn btn-sm btn-outline-primary me-2" onClick={() => navigate(`/veiculos/${x.id}/historico`)}>
-                        <History size={14} /> Historico
-                      </button>
-                      <button className="btn btn-sm btn-warning me-2" onClick={() => editar(x)}>Editar</button>
-                      <button className="btn btn-sm btn-danger" onClick={() => del(x.id)}>Remover</button>
+                      <div className="table-actions">
+                        <button className="btn btn-sm btn-outline-primary" onClick={() => navigate(`/veiculos/${x.id}/historico`)}>
+                          <History size={14} /> Histórico
+                        </button>
+                        <button className="btn btn-sm btn-warning" onClick={() => editar(x)}>Editar</button>
+                        <button className="btn btn-sm btn-danger" onClick={() => del(x.id)}>Remover</button>
+                      </div>
                     </td>
                   </tr>
                 ))}
 
                 {filtered.length === 0 && (
-                  <tr><td colSpan="6" className="text-muted" style={{ textAlign: 'center', padding: 28 }}>Nenhum veiculo encontrado.</td></tr>
+                  <tr>
+                    <td colSpan="6">
+                      <EmptyState
+                        title="Nenhum veículo encontrado"
+                        description="Revise os filtros ou cadastre um novo veículo para continuar."
+                      />
+                    </td>
+                  </tr>
                 )}
               </tbody>
             </table>

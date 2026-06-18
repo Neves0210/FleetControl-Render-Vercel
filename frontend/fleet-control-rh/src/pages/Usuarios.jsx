@@ -5,6 +5,7 @@ import { Header } from '../components/Layout/Header';
 import { Input } from '../components/Forms/Input';
 import { Select } from '../components/Forms/Select';
 import { FiltrosSalvos } from '../components/Forms/FiltrosSalvos';
+import { EmptyState } from '../components/UI/EmptyState';
 import { usuarioService } from '../services/usuarioService';
 import { motoristaService } from '../services/motoristaService';
 import { TODAS_PERMISSOES } from '../utils/constants';
@@ -56,7 +57,7 @@ export function Usuarios() {
   }
 
   useEffect(() => {
-    load().catch(() => toast.error('Voce nao tem permissao para acessar usuarios.'));
+    load().catch(() => toast.error('Você não tem permissão para acessar usuários.'));
   }, []);
 
   async function save(e) {
@@ -73,13 +74,13 @@ export function Usuarios() {
       if (edit) await usuarioService.atualizar(edit, payload);
       else await usuarioService.criar(payload);
 
-      toast.success('Usuario salvo.');
+      toast.success('Usuário salvo.');
       setForm(initialForm);
       setEdit(null);
       setAba('consultar');
       await load();
     } catch (err) {
-      toast.error(err.response?.data?.mensagem || 'Erro ao salvar usuario.');
+      toast.error(err.response?.data?.mensagem || 'Erro ao salvar usuário.');
     }
   }
 
@@ -142,18 +143,18 @@ export function Usuarios() {
       { label: 'Perfil', value: x => perfil(x.perfil) },
       { label: 'Motorista', value: x => x.motorista || x.motoristaId || '' },
       { label: 'Status', value: x => x.ativo ? 'Ativo' : 'Inativo' },
-      { label: 'Permissoes', value: x => x.permissoes?.length || 0 }
+      { label: 'Permissões', value: x => x.permissoes?.length || 0 }
     ], filtered);
   }
 
   return (
     <>
       <Header
-        title="Usuarios"
-        subtitle={aba === 'registrar' ? 'Controle de acesso, perfis e permissoes' : 'Consulte e filtre usuarios cadastrados'}
+        title="Usuários"
+        subtitle={aba === 'registrar' ? 'Controle de acesso, perfis e permissões' : 'Consulte e filtre usuários cadastrados'}
         actions={edit && aba === 'registrar'
-          ? <button type="button" className="btn btn-secondary" onClick={cancelarEdicao}>Cancelar edicao</button>
-          : <span className="badge-soft">{items.length} usuarios</span>}
+          ? <button type="button" className="btn btn-secondary" onClick={cancelarEdicao}>Cancelar edição</button>
+          : <span className="badge-soft">{items.length} usuários</span>}
       />
 
       <div className="segmented" style={{ marginBottom: 18 }}>
@@ -168,7 +169,7 @@ export function Usuarios() {
       {aba === 'registrar' && (
         <>
           <h5 style={{ display: 'flex', alignItems: 'center', gap: 8, marginBottom: 12 }}>
-            <UserCog size={17} /> {edit ? 'Editar usuario' : 'Novo usuario'}
+            <UserCog size={17} /> {edit ? 'Editar usuário' : 'Novo usuário'}
           </h5>
 
           <form className="card card-soft p-3 mb-3" onSubmit={save}>
@@ -182,13 +183,13 @@ export function Usuarios() {
                 <select className="form-select" required value={form.perfil} onChange={e => aplicarPermissoesPadrao(e.target.value)}>
                   <option value="1">Master</option>
                   <option value="2">RH</option>
-                  <option value="3">Tecnico</option>
+                  <option value="3">Técnico</option>
                   <option value="4">Almoxarifado</option>
                 </select>
               </div>
 
               <Select
-                label="Motorista/Tecnico"
+                label="Motorista/Técnico"
                 value={form.motoristaId}
                 onChange={v => setForm({ ...form, motoristaId: v })}
                 items={motoristas}
@@ -206,7 +207,7 @@ export function Usuarios() {
               <div className="col-md-12 mb-3">
                 <div className="nfce-section">
                   <div className="section-label" style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-                    <ShieldCheck size={15} /> Permissoes de acesso
+                    <ShieldCheck size={15} /> Permissões de acesso
                     <span className="badge-soft" style={{ marginLeft: 'auto' }}>{form.permissoes.length} ativas</span>
                   </div>
                   <div className="mt-2">
@@ -255,7 +256,7 @@ export function Usuarios() {
 
               <div className="col-md-12 mb-3">
                 <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}><Search size={14} /> Buscar</label>
-                <input className="form-control" placeholder="Nome, e-mail, MotoristaId ou permissao" value={busca} onChange={e => setBusca(e.target.value)} />
+                <input className="form-control" placeholder="Nome, e-mail, motorista ou permissão" value={busca} onChange={e => setBusca(e.target.value)} />
               </div>
 
               <FiltrosSalvos
@@ -287,13 +288,13 @@ export function Usuarios() {
             </div>
 
             <small className="text-muted" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
-              <ClipboardList size={14} /> Exibindo {filtered.length} de {items.length} usuario(s).
+              <ClipboardList size={14} /> Exibindo {filtered.length} de {items.length} usuário(s).
             </small>
           </div>
 
           <div className="card card-soft table-card">
             <table className="table table-hover">
-              <thead><tr><th>Nome</th><th>E-mail</th><th>Perfil</th><th>Motorista</th><th>Status</th><th>Permissoes</th><th></th></tr></thead>
+              <thead><tr><th>Nome</th><th>E-mail</th><th>Perfil</th><th>Motorista</th><th>Status</th><th>Permissões</th><th></th></tr></thead>
               <tbody>
                 {filtered.map(x => (
                   <tr key={x.id}>
@@ -304,13 +305,22 @@ export function Usuarios() {
                     <td><span className={`chip ${x.ativo ? 'chip-success' : 'chip-danger'}`}>{x.ativo ? 'Ativo' : 'Inativo'}</span></td>
                     <td><span className="badge-soft">{x.permissoes?.length || 0}</span></td>
                     <td>
-                      <button className="btn btn-sm btn-warning" onClick={() => editar(x)}>Editar</button>
+                      <div className="table-actions">
+                        <button className="btn btn-sm btn-warning" onClick={() => editar(x)}>Editar</button>
+                      </div>
                     </td>
                   </tr>
                 ))}
 
                 {filtered.length === 0 && (
-                  <tr><td colSpan="7" className="text-muted" style={{ textAlign: 'center', padding: 28 }}>Nenhum usuario encontrado.</td></tr>
+                  <tr>
+                    <td colSpan="7">
+                      <EmptyState
+                        title="Nenhum usuário encontrado"
+                        description="Revise os filtros ou cadastre um novo usuário."
+                      />
+                    </td>
+                  </tr>
                 )}
               </tbody>
             </table>

@@ -4,6 +4,7 @@ import { Filter, RotateCcw, Download, Printer } from 'lucide-react';
 import { Header } from '../components/Layout/Header';
 import { Select } from '../components/Forms/Select';
 import { Input } from '../components/Forms/Input';
+import { EmptyState } from '../components/UI/EmptyState';
 import { relatorioService } from '../services/relatorioService';
 import { veiculoService } from '../services/veiculoService';
 import { motoristaService } from '../services/motoristaService';
@@ -697,8 +698,11 @@ function TabelaResumo({ titulo, colunas, linhas }) {
 
             {linhas.length === 0 && (
               <tr>
-                <td colSpan={colunas.length} className="text-muted">
-                  Nenhum dado encontrado.
+                <td colSpan={colunas.length}>
+                  <EmptyState
+                    title="Nenhum dado encontrado"
+                    description="Os filtros atuais não retornaram informações para este resumo."
+                  />
                 </td>
               </tr>
             )}
@@ -741,7 +745,12 @@ function TabelaAbastecimentosDetalhados({ items }) {
 
         {items.length === 0 && (
           <tr>
-            <td colSpan="8" className="text-muted">Nenhum abastecimento encontrado.</td>
+            <td colSpan="8">
+              <EmptyState
+                title="Nenhum abastecimento encontrado"
+                description="Não há abastecimentos para os filtros selecionados."
+              />
+            </td>
           </tr>
         )}
       </tbody>
@@ -792,7 +801,12 @@ function TabelaUsos({ items }) {
 
           {items.length === 0 && (
             <tr>
-              <td colSpan="9" className="text-muted">Nenhum uso encontrado.</td>
+              <td colSpan="9">
+                <EmptyState
+                  title="Nenhum uso encontrado"
+                  description="Não há registros de uso para os filtros selecionados."
+                />
+              </td>
             </tr>
           )}
         </tbody>
@@ -840,8 +854,11 @@ function TabelaManutencoes({ titulo, items, detalhada = false }) {
 
           {items.length === 0 && (
             <tr>
-              <td colSpan={detalhada ? 9 : 6} className="text-muted">
-                Nenhuma manutenção encontrada.
+              <td colSpan={detalhada ? 9 : 6}>
+                <EmptyState
+                  title="Nenhuma manutenção encontrada"
+                  description="Não há manutenções para os filtros selecionados."
+                />
               </td>
             </tr>
           )}

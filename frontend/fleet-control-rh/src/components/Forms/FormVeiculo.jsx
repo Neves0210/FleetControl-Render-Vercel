@@ -32,8 +32,8 @@ export function FormVeiculo({ form, setForm, save, edit, pendencias = [] }) {
         <div className="col-md-12 mb-3">
           <div className={`cadastro-checklist ${pronto ? 'ready' : 'attention'}`}>
             <div>
-              <span>Conferencia do cadastro</span>
-              <strong>{pronto ? 'Pronto para salvar' : `Pendencias: ${pendencias.join(', ')}`}</strong>
+              <span>Conferência do cadastro</span>
+              <strong>{pronto ? 'Pronto para salvar' : `Pendências: ${pendencias.join(', ')}`}</strong>
             </div>
             {pronto ? <CheckCircle2 size={20} /> : <AlertTriangle size={20} />}
           </div>

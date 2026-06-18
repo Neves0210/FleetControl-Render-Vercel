@@ -6,6 +6,7 @@ import { Input } from '../components/Forms/Input';
 import { Select } from '../components/Forms/Select';
 import { FiltrosSalvos } from '../components/Forms/FiltrosSalvos';
 import { Metric } from '../components/Dashboard/Metric';
+import { EmptyState } from '../components/UI/EmptyState';
 import { manutencaoService } from '../services/manutencaoService';
 import { veiculoService } from '../services/veiculoService';
 import { getUser } from '../utils/permissions';
@@ -107,7 +108,7 @@ export function Manutencoes() {
     e.preventDefault();
 
     if (!podeGerenciar) {
-      toast.warning('Voce nao tem permissao para gerenciar manutencoes.');
+      toast.warning('Você não tem permissão para gerenciar manutenções.');
       return;
     }
 
@@ -125,10 +126,10 @@ export function Manutencoes() {
     try {
       if (edit) {
         await manutencaoService.atualizar(edit, payload);
-        toast.success('Manutencao atualizada.');
+        toast.success('Manutenção atualizada.');
       } else {
         await manutencaoService.criar(payload);
-        toast.success('Manutencao cadastrada.');
+        toast.success('Manutenção cadastrada.');
       }
 
       setForm(initialForm);
@@ -149,7 +150,7 @@ export function Manutencoes() {
 
   async function salvarChecklistMensal() {
     if (!podeGerenciar) {
-      toast.warning('Voce nao tem permissao para gerenciar manutencoes.');
+      toast.warning('Você não tem permissão para gerenciar manutenções.');
       return;
     }
 
@@ -196,11 +197,11 @@ export function Manutencoes() {
   }
 
   async function remover(id) {
-    if (!confirm('Remover manutencao?')) return;
+    if (!confirm('Remover manutenção?')) return;
 
     try {
       await manutencaoService.remover(id);
-      toast.success('Manutencao removida.');
+      toast.success('Manutenção removida.');
       await load();
     } catch {
       toast.error('Erro ao remover manutencao.');
@@ -245,13 +246,13 @@ export function Manutencoes() {
 
   function exportar() {
     exportarCsv('manutencoes', [
-      { label: 'Veiculo', value: x => `${x.veiculo?.modelo || ''} - ${x.veiculo?.placa || ''}` },
+      { label: 'Veículo', value: x => `${x.veiculo?.modelo || ''} - ${x.veiculo?.placa || ''}` },
       { label: 'Tipo', value: 'tipo' },
       { label: 'Data', value: x => formatDate(x.dataManutencao) },
       { label: 'KM', value: x => number(x.kmManutencao) },
       { label: 'Custo', value: x => x.custo ? money(x.custo) : '' },
-      { label: 'Proximo KM', value: x => x.proximaManutencaoKm ? number(x.proximaManutencaoKm) : '' },
-      { label: 'Proxima data', value: x => formatDate(x.proximaManutencaoData) },
+      { label: 'Próximo KM', value: x => x.proximaManutencaoKm ? number(x.proximaManutencaoKm) : '' },
+      { label: 'Próxima data', value: x => formatDate(x.proximaManutencaoData) },
       { label: 'Anexo', value: x => x.temAnexo ? (x.anexoNome || 'Sim') : '' }
     ], itemsFiltrados);
   }
@@ -270,15 +271,15 @@ export function Manutencoes() {
   return (
     <>
       <Header
-        title="Manutencoes"
-        subtitle={aba === 'registrar' ? 'Registre manutencoes e proximos vencimentos' : 'Consulte manutencoes, filtros e alertas'}
+        title="Manutenções"
+        subtitle={aba === 'registrar' ? 'Registre manutenções e próximos vencimentos' : 'Consulte manutenções, filtros e alertas'}
         actions={edit && aba === 'registrar' && (
-          <button type="button" className="btn btn-secondary" onClick={cancelarEdicao}>Cancelar edicao</button>
+          <button type="button" className="btn btn-secondary" onClick={cancelarEdicao}>Cancelar edição</button>
         )}
       />
 
       <div className="row g-3 mb-3">
-        <Metric title="Alertas proximos" value={totalAlertas.proximas} icon={<CalendarClock size={20} />} cor="#f8e000" />
+        <Metric title="Alertas próximos" value={totalAlertas.proximas} icon={<CalendarClock size={20} />} cor="#f8e000" />
         <Metric title="Alertas vencidos" value={totalAlertas.vencidas} icon={<AlertTriangle size={20} />} cor="#dc2626" />
       </div>
 
@@ -297,12 +298,12 @@ export function Manutencoes() {
             <>
             <form className="card card-soft p-3 mb-3" onSubmit={save}>
               <h5 style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <Wrench size={17} /> {edit ? 'Editar manutencao' : 'Registrar manutencao'}
+                <Wrench size={17} /> {edit ? 'Editar manutenção' : 'Registrar manutenção'}
               </h5>
 
               <div className="row">
                 <Select
-                  label="Veiculo"
+                  label="Veículo"
                   value={form.veiculoId}
                   onChange={v => setForm({ ...form, veiculoId: v })}
                   items={veiculos}
@@ -323,7 +324,7 @@ export function Manutencoes() {
                 />
 
                 <Input
-                  label="KM manutencao"
+                  label="KM manutenção"
                   type="number"
                   value={form.kmManutencao}
                   onChange={v => setForm({ ...form, kmManutencao: v })}
@@ -336,21 +337,21 @@ export function Manutencoes() {
                 />
 
                 <Input
-                  label="Proxima em KM"
+                  label="Próxima em KM"
                   type="number"
                   value={form.proximaManutencaoKm}
                   onChange={v => setForm({ ...form, proximaManutencaoKm: v })}
                 />
 
                 <Input
-                  label="Proxima data"
+                  label="Próxima data"
                   type="date"
                   value={form.proximaManutencaoData}
                   onChange={v => setForm({ ...form, proximaManutencaoData: v })}
                 />
 
                 <div className="col-md-12 mb-3">
-                  <label>Descricao</label>
+                  <label>Descrição</label>
                   <textarea
                     className="form-control"
                     rows="2"
@@ -375,24 +376,24 @@ export function Manutencoes() {
 
               <div>
                 <button className="btn btn-success me-2">
-                  {edit ? 'Atualizar manutencao' : 'Salvar manutencao'}
+                  {edit ? 'Atualizar manutenção' : 'Salvar manutenção'}
                 </button>
 
                 {edit && (
                   <button type="button" className="btn btn-secondary" onClick={cancelarEdicao}>
-                    Cancelar edicao
+                    Cancelar edição
                   </button>
                 )}
               </div>
             </form>
             <div className="card card-soft p-3 mb-3">
               <h5 style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-                <ClipboardList size={17} /> Itens da revisao mensal
+                <ClipboardList size={17} /> Itens da revisão mensal
               </h5>
 
               <div className="row">
                 <Select
-                  label="Veiculo"
+                  label="Veículo"
                   value={form.veiculoId}
                   onChange={v => setForm({ ...form, veiculoId: v })}
                   items={veiculos}
@@ -400,7 +401,7 @@ export function Manutencoes() {
                 />
 
                 <Input
-                  label="Data da revisao"
+                  label="Data da revisão"
                   type="date"
                   value={form.dataManutencao}
                   onChange={v => setForm({ ...form, dataManutencao: v })}
@@ -426,10 +427,10 @@ export function Manutencoes() {
                     />
                   </div>
                   <div className="col-md-6 mb-2">
-                    <label>Observacao</label>
+                    <label>Observação</label>
                     <input
                       className="form-control"
-                      placeholder="Observacao do item revisado"
+                      placeholder="Observação do item revisado"
                       value={item.observacao}
                       onChange={e => atualizarItemMensal(index, 'observacao', e.target.value)}
                     />
@@ -459,7 +460,7 @@ export function Manutencoes() {
             </>
           ) : (
             <div className="card card-soft p-3 mb-3">
-              <p className="text-muted" style={{ margin: 0 }}>Voce nao tem permissao para registrar manutencoes.</p>
+              <p className="text-muted" style={{ margin: 0 }}>Você não tem permissão para registrar manutenções.</p>
             </div>
           )}
         </>
@@ -470,19 +471,19 @@ export function Manutencoes() {
           {alertas.length > 0 && (
             <div className="card card-soft table-card mb-3">
               <div className="card-body">
-                <h5>Alertas de manutencao</h5>
+                <h5>Alertas de manutenção</h5>
               </div>
 
               <table className="table table-hover">
                 <thead>
                   <tr>
                     <th>Status</th>
-                    <th>Veiculo</th>
+                    <th>Veículo</th>
                     <th>Tipo</th>
                     <th>KM atual</th>
-                    <th>Proximo KM</th>
+                    <th>Próximo KM</th>
                     <th>KM restante</th>
-                    <th>Proxima data</th>
+                    <th>Próxima data</th>
                     <th>Dias restantes</th>
                   </tr>
                 </thead>
@@ -512,7 +513,7 @@ export function Manutencoes() {
 
             <div className="row">
               <Select
-                label="Veiculo"
+                label="Veículo"
                 value={filtro.veiculoId}
                 onChange={v => setFiltro({ ...filtro, veiculoId: v })}
                 items={veiculos}
@@ -528,7 +529,7 @@ export function Manutencoes() {
                 >
                   <option value="">Todos</option>
                   <option value="Em dia">Em dia</option>
-                  <option value="PrÃ³xima">Proxima</option>
+                  <option value="Próxima">Próxima</option>
                   <option value="Vencida">Vencida</option>
                 </select>
               </div>
@@ -540,7 +541,7 @@ export function Manutencoes() {
                 <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}><Search size={14} /> Buscar</label>
                 <input
                   className="form-control"
-                  placeholder="Veiculo, placa, tipo ou descricao"
+                  placeholder="Veículo, placa, tipo ou descrição"
                   value={busca}
                   onChange={e => setBusca(e.target.value)}
                 />
@@ -577,7 +578,7 @@ export function Manutencoes() {
 
             <small className="text-muted" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               <ClipboardList size={14} /> Exibindo {itemsFiltrados.length} de {items.length} manutencao(oes).
-              Veiculo e status filtram no servidor; busca e datas refinam a lista carregada.
+              Veículo e status filtram no servidor; busca e datas refinam a lista carregada.
             </small>
           </div>
 
@@ -585,13 +586,13 @@ export function Manutencoes() {
             <table className="table table-hover">
               <thead>
                 <tr>
-                  <th>Veiculo</th>
+                  <th>Veículo</th>
                   <th>Tipo</th>
                   <th>Data</th>
                   <th>KM</th>
                   <th>Custo</th>
-                  <th>Proximo KM</th>
-                  <th>Proxima data</th>
+                  <th>Próximo KM</th>
+                  <th>Próxima data</th>
                   <th>Anexo</th>
                   <th width="180"></th>
                 </tr>
@@ -615,9 +616,10 @@ export function Manutencoes() {
                       ) : '-'}
                     </td>
                     <td>
+                      <div className="table-actions">
                       {podeGerenciar && (
                         <>
-                          <button className="btn btn-sm btn-warning me-2" onClick={() => editar(x)}>
+                          <button className="btn btn-sm btn-warning" onClick={() => editar(x)}>
                             Editar
                           </button>
 
@@ -626,12 +628,20 @@ export function Manutencoes() {
                           </button>
                         </>
                       )}
+                      </div>
                     </td>
                   </tr>
                 ))}
 
                 {itemsFiltrados.length === 0 && (
-                  <tr><td colSpan="9" className="text-muted" style={{ textAlign: 'center', padding: 28 }}>Nenhuma manutencao encontrada.</td></tr>
+                  <tr>
+                    <td colSpan="9">
+                      <EmptyState
+                        title="Nenhuma manutenção encontrada"
+                        description="Revise os filtros ou registre uma nova manutenção."
+                      />
+                    </td>
+                  </tr>
                 )}
               </tbody>
             </table>

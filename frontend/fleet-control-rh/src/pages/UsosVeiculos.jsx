@@ -5,6 +5,7 @@ import { Header } from '../components/Layout/Header';
 import { Input } from '../components/Forms/Input';
 import { Select } from '../components/Forms/Select';
 import { FiltrosSalvos } from '../components/Forms/FiltrosSalvos';
+import { EmptyState } from '../components/UI/EmptyState';
 import { usoVeiculoService } from '../services/usoVeiculoService';
 import { veiculoService } from '../services/veiculoService';
 import { motoristaService } from '../services/motoristaService';
@@ -246,8 +247,8 @@ export function UsosVeiculos() {
   function exportar() {
     exportarCsv('uso-veiculos', [
       { label: 'Status', value: x => emUso(x.status) ? 'Em uso' : 'Finalizado' },
-      { label: 'Veiculo', value: x => `${x.veiculo?.modelo || ''} - ${x.veiculo?.placa || ''}` },
-      { label: 'Tecnico', value: x => x.motorista?.nome || '' },
+      { label: 'Veículo', value: x => `${x.veiculo?.modelo || ''} - ${x.veiculo?.placa || ''}` },
+      { label: 'Técnico', value: x => x.motorista?.nome || '' },
       { label: 'Inicio', value: x => formatDate(x.dataInicio) },
       { label: 'Fim', value: x => formatDate(x.dataFim) },
       { label: 'Tempo', value: x => formatTempo(x.tempoUsoMinutos) },
@@ -260,10 +261,10 @@ export function UsosVeiculos() {
   return (
     <>
       <Header
-        title="Uso de Veiculos"
+        title="Uso de Veículos"
         subtitle={aba === 'registrar' ? 'Inicie, finalize ou edite o uso da frota' : 'Consulte disponibilidade, bloqueio e tempo de uso'}
         actions={editandoId && aba === 'registrar'
-          ? <button type="button" className="btn btn-secondary" onClick={cancelarEdicao}>Cancelar edicao</button>
+          ? <button type="button" className="btn btn-secondary" onClick={cancelarEdicao}>Cancelar edição</button>
           : <span className="badge-soft">{usosAtivos.length} em uso</span>}
       />
 
@@ -285,7 +286,7 @@ export function UsosVeiculos() {
 
                 <div className="row">
                   <Select
-                    label="Veiculo disponivel"
+                    label="Veículo disponível"
                     value={form.veiculoId}
                     onChange={v => setForm({ ...form, veiculoId: v })}
                     items={veiculosDisponiveis}
@@ -294,7 +295,7 @@ export function UsosVeiculos() {
 
                   {!usuarioTecnico && (
                     <Select
-                      label="Motorista/Tecnico"
+                      label="Motorista/Técnico"
                       value={form.motoristaId}
                       onChange={v => setForm({ ...form, motoristaId: v })}
                       items={motoristas}
@@ -310,7 +311,7 @@ export function UsosVeiculos() {
                   />
 
                   <div className="col-md-12 mb-3">
-                    <label>Observacao de inicio</label>
+                    <label>Observação de início</label>
                     <textarea
                       className="form-control"
                       rows="2"
@@ -320,7 +321,7 @@ export function UsosVeiculos() {
                   </div>
                 </div>
 
-                <button className="btn btn-success">Iniciar uso do veiculo</button>
+                <button className="btn btn-success">Iniciar uso do veículo</button>
               </form>
             </div>
 
@@ -345,7 +346,7 @@ export function UsosVeiculos() {
                   />
 
                   <div className="col-md-12 mb-3">
-                    <label>Observacao de fim</label>
+                    <label>Observação de fim</label>
                     <textarea
                       className="form-control"
                       rows="2"
@@ -368,7 +369,7 @@ export function UsosVeiculos() {
 
               <div className="row">
                 <Select
-                  label="Veiculo"
+                  label="Veículo"
                   value={editForm.veiculoId}
                   onChange={v => setEditForm({ ...editForm, veiculoId: v })}
                   items={veiculos}
@@ -377,7 +378,7 @@ export function UsosVeiculos() {
 
                 {!usuarioTecnico && (
                   <Select
-                    label="Motorista/Tecnico"
+                    label="Motorista/Técnico"
                     value={editForm.motoristaId}
                     onChange={v => setEditForm({ ...editForm, motoristaId: v })}
                     items={motoristas}
@@ -402,7 +403,7 @@ export function UsosVeiculos() {
                 )}
 
                 <div className="col-md-6 mb-3">
-                  <label>Observacao de inicio</label>
+                  <label>Observação de início</label>
                   <textarea
                     className="form-control"
                     rows="2"
@@ -412,7 +413,7 @@ export function UsosVeiculos() {
                 </div>
 
                 <div className="col-md-6 mb-3">
-                  <label>Observacao de fim</label>
+                  <label>Observação de fim</label>
                   <textarea
                     className="form-control"
                     rows="2"
@@ -441,7 +442,7 @@ export function UsosVeiculos() {
 
             <div className="row">
               <Select
-                label="Veiculo"
+                label="Veículo"
                 value={filtro.veiculoId}
                 onChange={v => setFiltro({ ...filtro, veiculoId: v })}
                 items={veiculos}
@@ -480,7 +481,7 @@ export function UsosVeiculos() {
                 <label style={{ display: 'flex', alignItems: 'center', gap: 6 }}><Search size={14} /> Buscar</label>
                 <input
                   className="form-control"
-                  placeholder="Placa, modelo, tecnico ou observacao"
+                  placeholder="Placa, modelo, técnico ou observação"
                   value={busca}
                   onChange={e => setBusca(e.target.value)}
                 />
@@ -517,7 +518,7 @@ export function UsosVeiculos() {
 
             <small className="text-muted" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
               <ClipboardList size={14} /> Exibindo {itemsFiltrados.length} de {items.length} uso(s).
-              Veiculo, motorista e ativos filtram no servidor; busca e datas refinam a lista carregada.
+              Veículo, motorista e ativos filtram no servidor; busca e datas refinam a lista carregada.
             </small>
           </div>
 
@@ -526,8 +527,8 @@ export function UsosVeiculos() {
               <thead>
                 <tr>
                   <th>Status</th>
-                  <th>Veiculo</th>
-                  <th>Tecnico</th>
+                  <th>Veículo</th>
+                  <th>Técnico</th>
                   <th>Inicio</th>
                   <th>Fim</th>
                   <th>Tempo</th>
@@ -556,14 +557,23 @@ export function UsosVeiculos() {
                     <td>{x.kmFinal ? number(x.kmFinal - x.kmInicial) : '-'}</td>
                     {podeEditar && (
                       <td>
-                        <button className="btn btn-sm btn-warning" onClick={() => abrirEdicao(x)}>Editar</button>
+                        <div className="table-actions">
+                          <button className="btn btn-sm btn-warning" onClick={() => abrirEdicao(x)}>Editar</button>
+                        </div>
                       </td>
                     )}
                   </tr>
                 ))}
 
                 {itemsFiltrados.length === 0 && (
-                  <tr><td colSpan={podeEditar ? 10 : 9} className="text-muted" style={{ textAlign: 'center', padding: 28 }}>Nenhum uso encontrado.</td></tr>
+                  <tr>
+                    <td colSpan={podeEditar ? 10 : 9}>
+                      <EmptyState
+                        title="Nenhum uso encontrado"
+                        description="Ajuste os filtros ou registre uma nova utilização da frota."
+                      />
+                    </td>
+                  </tr>
                 )}
               </tbody>
             </table>

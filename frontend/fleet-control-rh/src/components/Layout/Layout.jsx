@@ -32,16 +32,16 @@ export function Layout({ children }) {
           <span>FleetControlRH</span>
         </div>
 
-        <nav className="sidebar-nav" aria-label="Navegacao principal">
+        <nav className="sidebar-nav" aria-label="Navegação principal">
           {podeVerTela('Dashboard.Visualizar') && <NavItem to="/" icon={<LayoutDashboard size={18} />} label="Dashboard" />}
-          {podeVerTela('Veiculos.Visualizar') && <NavItem to="/veiculos" icon={<Truck size={18} />} label="Veiculos" />}
+          {podeVerTela('Veiculos.Visualizar') && <NavItem to="/veiculos" icon={<Truck size={18} />} label="Veículos" />}
           {podeVerTela('Motoristas.Visualizar') && <NavItem to="/motoristas" icon={<Users size={18} />} label="Motoristas" />}
           {podeVerTela('Abastecimentos.Visualizar') && <NavItem to="/abastecimentos" icon={<Fuel size={18} />} label="Abastecimentos" />}
-          {podeVerTela('UsosVeiculos.Visualizar') && <NavItem to="/uso-veiculos" icon={<Route size={18} />} label="Uso de Veiculos" />}
-          {podeVerTela('Manutencoes.Visualizar') && <NavItem to="/manutencoes" icon={<Wrench size={18} />} label="Manutencoes" />}
-          {podeVerTela('Relatorios.Visualizar') && <NavItem to="/relatorios" icon={<BarChart3 size={18} />} label="Relatorios" />}
+          {podeVerTela('UsosVeiculos.Visualizar') && <NavItem to="/uso-veiculos" icon={<Route size={18} />} label="Uso de Veículos" />}
+          {podeVerTela('Manutencoes.Visualizar') && <NavItem to="/manutencoes" icon={<Wrench size={18} />} label="Manutenções" />}
+          {podeVerTela('Relatorios.Visualizar') && <NavItem to="/relatorios" icon={<BarChart3 size={18} />} label="Relatórios" />}
           {podeVerTela('Auditoria.Visualizar') && <NavItem to="/auditoria" icon={<ShieldCheck size={18} />} label="Auditoria" />}
-          {podeVerTela('Usuarios.Visualizar') && <NavItem to="/usuarios" icon={<UserCog size={18} />} label="Usuarios" />}
+          {podeVerTela('Usuarios.Visualizar') && <NavItem to="/usuarios" icon={<UserCog size={18} />} label="Usuários" />}
         </nav>
 
         <div className="sidebar-status">

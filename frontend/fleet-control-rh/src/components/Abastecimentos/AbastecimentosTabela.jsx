@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { Eye, Download, ExternalLink, X, Image as ImageIcon, Pencil } from 'lucide-react';
+import { Download, ExternalLink, Eye, Image as ImageIcon, Pencil, X } from 'lucide-react';
 import { api } from '../../api/api';
+import { EmptyState } from '../UI/EmptyState';
 import { dataHora, litros, money, number } from '../../utils/formatters';
 import { temPermissao } from '../../utils/permissions';
 
@@ -21,9 +22,10 @@ function combustiveisTexto(item) {
 
 export function AbastecimentosTabela({ items, onEditar }) {
   const podeEditar = temPermissao('Abastecimentos.Editar');
-  const [foto, setFoto] = useState(null); // { url, tipo, id }
+  const [foto, setFoto] = useState(null);
   const [carregando, setCarregando] = useState(null);
   const [zoom, setZoom] = useState(false);
+  const temItens = Array.isArray(items) && items.length > 0;
 
   async function verFoto(id) {
     setCarregando(id);
@@ -59,8 +61,6 @@ export function AbastecimentosTabela({ items, onEditar }) {
     if (foto?.url) window.open(foto.url, '_blank', 'noopener');
   }
 
-  const temItens = Array.isArray(items) && items.length > 0;
-
   return (
     <>
       <table className="table table-hover">
@@ -70,7 +70,7 @@ export function AbastecimentosTabela({ items, onEditar }) {
             <th>Veículo</th>
             <th>Motorista</th>
             <th>KM</th>
-            <th>Combustiveis</th>
+            <th>Combustíveis</th>
             <th>Litros</th>
             <th>Valor</th>
             <th>Nota</th>
@@ -83,8 +83,8 @@ export function AbastecimentosTabela({ items, onEditar }) {
             items.map(x => (
               <tr key={x.id}>
                 <td>{dataHora(x.dataAbastecimento)}</td>
-                <td>{x.veiculo?.placa}</td>
-                <td>{x.motorista?.nome}</td>
+                <td>{x.veiculo?.placa || '-'}</td>
+                <td>{x.motorista?.nome || '-'}</td>
                 <td>{number(x.kmAtual)}</td>
                 <td>{combustiveisTexto(x)}</td>
                 <td>{litros(x.litros)}</td>
@@ -100,22 +100,27 @@ export function AbastecimentosTabela({ items, onEditar }) {
                       {carregando === x.id ? '...' : (<><Eye size={14} /> Ver</>)}
                     </button>
                   ) : (
-                    <span className="text-muted">—</span>
+                    <span className="text-muted">-</span>
                   )}
                 </td>
                 {podeEditar && (
                   <td>
-                    <button type="button" className="btn btn-warning btn-sm" onClick={() => onEditar?.(x)}>
-                      <Pencil size={14} /> Editar
-                    </button>
+                    <div className="table-actions">
+                      <button type="button" className="btn btn-warning btn-sm" onClick={() => onEditar?.(x)}>
+                        <Pencil size={14} /> Editar
+                      </button>
+                    </div>
                   </td>
                 )}
               </tr>
             ))
           ) : (
             <tr>
-              <td colSpan={podeEditar ? 9 : 8} className="text-muted" style={{ textAlign: 'center', padding: '28px 12px' }}>
-                Nenhum abastecimento encontrado.
+              <td colSpan={podeEditar ? 9 : 8}>
+                <EmptyState
+                  title="Nenhum abastecimento encontrado"
+                  description="Quando houver lançamentos para os filtros escolhidos, eles aparecerão aqui."
+                />
               </td>
             </tr>
           )}
