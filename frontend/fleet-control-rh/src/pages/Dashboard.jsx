@@ -11,9 +11,13 @@ import {
   ListChecks,
   Plus,
   RotateCcw,
+  Route,
   Settings2,
+  Trash2,
   Table2,
   Truck,
+  UserCog,
+  Users,
   Wrench
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
@@ -39,6 +43,16 @@ const COMBUSTIVEIS = {
   4: 'Flex'
 };
 
+const DASHBOARD_SHORTCUTS = [
+  { id: 'novoAbastecimento', label: 'Novo abastecimento', rota: '/abastecimentos', icon: 'plus', variant: 'btn-primary' },
+  { id: 'relatorios', label: 'Relatórios', rota: '/relatorios', icon: 'relatorio', variant: 'btn-outline-secondary' },
+  { id: 'veiculos', label: 'Veículos', rota: '/veiculos', icon: 'veiculo', variant: 'btn-outline-secondary' },
+  { id: 'motoristas', label: 'Motoristas', rota: '/motoristas', icon: 'motorista', variant: 'btn-outline-secondary' },
+  { id: 'usoVeiculos', label: 'Uso de veículos', rota: '/uso-veiculos', icon: 'rota', variant: 'btn-outline-secondary' },
+  { id: 'manutencoes', label: 'Manutenções', rota: '/manutencoes', icon: 'manutencao', variant: 'btn-outline-secondary' },
+  { id: 'usuarios', label: 'Usuários', rota: '/usuarios', icon: 'usuario', variant: 'btn-outline-secondary' }
+];
+
 const DASHBOARD_SECTIONS = [
   { id: 'kpis', label: 'Indicadores principais' },
   { id: 'operationalRadar', label: 'Radar operacional' },
@@ -62,7 +76,8 @@ const DEFAULT_DASHBOARD_CONFIG = {
   },
   kpiColumns: 3,
   density: 'normal',
-  accent: '#f8e000'
+  accent: '#f8e000',
+  shortcuts: ['novoAbastecimento', 'relatorios']
 };
 
 function podePersonalizarDashboard(user) {
@@ -78,16 +93,21 @@ function dashboardConfigKey(user) {
 function normalizarConfig(config) {
   const visible = { ...DEFAULT_DASHBOARD_CONFIG.visible, ...(config?.visible || {}) };
   const savedOrder = Array.isArray(config?.order) ? config.order : DEFAULT_DASHBOARD_CONFIG.order;
+  const savedShortcuts = Array.isArray(config?.shortcuts) ? config.shortcuts : DEFAULT_DASHBOARD_CONFIG.shortcuts;
   const order = [
     ...savedOrder.filter(id => DASHBOARD_SECTIONS.some(section => section.id === id)),
     ...DEFAULT_DASHBOARD_CONFIG.order.filter(id => !savedOrder.includes(id))
   ];
+  const shortcuts = [...new Set(savedShortcuts)]
+    .filter(id => DASHBOARD_SHORTCUTS.some(item => item.id === id))
+    .slice(0, 2);
 
   return {
     ...DEFAULT_DASHBOARD_CONFIG,
     ...config,
     visible,
     order,
+    shortcuts,
     kpiColumns: Number(config?.kpiColumns) || DEFAULT_DASHBOARD_CONFIG.kpiColumns
   };
 }
@@ -200,6 +220,18 @@ function statusManutencao(status = '') {
   if (s.includes('vencida')) return 'danger';
   if (s.includes('pr') || s.includes('proxima')) return 'warn';
   return 'info';
+}
+
+function shortcutIcon(icon) {
+  const props = { size: 16 };
+  if (icon === 'plus') return <Plus {...props} />;
+  if (icon === 'relatorio') return <FileBarChart {...props} />;
+  if (icon === 'veiculo') return <Truck {...props} />;
+  if (icon === 'motorista') return <Users {...props} />;
+  if (icon === 'rota') return <Route {...props} />;
+  if (icon === 'manutencao') return <Wrench {...props} />;
+  if (icon === 'usuario') return <UserCog {...props} />;
+  return <ChevronRight {...props} />;
 }
 
 function MiniBars({ values = [] }) {
@@ -425,6 +457,11 @@ export function Dashboard() {
     { label: 'Gasto total', value: money(dash?.totalValor ?? 0) }
   ];
 
+  const atalhosSelecionados = dashboardConfig.shortcuts
+    .map(id => DASHBOARD_SHORTCUTS.find(item => item.id === id))
+    .filter(Boolean);
+  const atalhosDisponiveis = DASHBOARD_SHORTCUTS.filter(item => !dashboardConfig.shortcuts.includes(item.id));
+
   function atualizarConfig(parcial) {
     setDashboardConfig(config => normalizarConfig({ ...config, ...parcial }));
   }
@@ -445,6 +482,21 @@ export function Dashboard() {
       [order[index], order[nextIndex]] = [order[nextIndex], order[index]];
       return normalizarConfig({ ...config, order });
     });
+  }
+
+  function adicionarAtalho(id) {
+    setDashboardConfig(config => {
+      const shortcuts = Array.isArray(config.shortcuts) ? config.shortcuts : [];
+      if (shortcuts.includes(id) || shortcuts.length >= 2) return config;
+      return normalizarConfig({ ...config, shortcuts: [...shortcuts, id] });
+    });
+  }
+
+  function removerAtalho(id) {
+    setDashboardConfig(config => normalizarConfig({
+      ...config,
+      shortcuts: (config.shortcuts || []).filter(item => item !== id)
+    }));
   }
 
   function resetarPainel() {
@@ -489,6 +541,43 @@ export function Dashboard() {
                 </div>
               );
             })}
+          </div>
+        </div>
+
+        <div className="customizer-group customizer-group-wide">
+          <label>Atalhos da tela inicial</label>
+          <div className="shortcut-limit-note">
+            {atalhosSelecionados.length}/2 atalhos ativos
+          </div>
+
+          <div className="shortcut-builder-list">
+            {atalhosSelecionados.map(item => (
+              <div className="shortcut-builder-item" key={item.id}>
+                <span>{shortcutIcon(item.icon)}</span>
+                <strong>{item.label}</strong>
+                <button type="button" className="icon-toggle" onClick={() => removerAtalho(item.id)} title="Remover atalho">
+                  <Trash2 size={14} />
+                </button>
+              </div>
+            ))}
+
+            {atalhosSelecionados.length === 0 && (
+              <div className="shortcut-empty">Nenhum atalho selecionado.</div>
+            )}
+          </div>
+
+          <div className="shortcut-picker">
+            {atalhosDisponiveis.map(item => (
+              <button
+                className="btn btn-sm btn-outline-secondary"
+                disabled={atalhosSelecionados.length >= 2}
+                key={item.id}
+                onClick={() => adicionarAtalho(item.id)}
+                type="button"
+              >
+                {shortcutIcon(item.icon)} {item.label}
+              </button>
+            ))}
           </div>
         </div>
 
@@ -694,12 +783,11 @@ export function Dashboard() {
         metrics={headerMetrics}
         actions={
           <>
-            <button className="btn btn-primary" onClick={() => navigate('/abastecimentos')}>
-              <Plus size={16} /> Novo abastecimento
-            </button>
-            <button className="btn btn-outline-secondary" onClick={() => navigate('/relatorios')}>
-              <FileBarChart size={16} /> Relatórios
-            </button>
+            {atalhosSelecionados.map(item => (
+              <button className={`btn ${item.variant}`} key={item.id} onClick={() => navigate(item.rota)}>
+                {shortcutIcon(item.icon)} {item.label}
+              </button>
+            ))}
           </>
         }
       />

@@ -714,6 +714,10 @@
   padding: 12px;
 }
 
+.customizer-group-wide {
+  grid-column: span 2;
+}
+
 .customizer-group label {
   margin: 0;
   color: var(--color-industrial);
@@ -744,6 +748,59 @@
   color: var(--color-text);
   font-size: 13px;
   font-weight: 750;
+}
+
+.shortcut-limit-note {
+  color: var(--color-text-muted);
+  font-size: 12px;
+  font-weight: 750;
+}
+
+.shortcut-builder-list,
+.shortcut-picker {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
+
+.shortcut-builder-item {
+  min-height: 40px;
+  display: inline-grid;
+  grid-template-columns: 30px minmax(120px, 1fr) 30px;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid var(--color-border);
+  border-radius: 8px;
+  background: #fff;
+  padding: 6px;
+}
+
+.shortcut-builder-item > span {
+  width: 30px;
+  height: 30px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 7px;
+  color: var(--color-industrial);
+  background: var(--color-primary-soft);
+}
+
+.shortcut-builder-item strong {
+  color: var(--color-text);
+  font-size: 13px;
+  font-weight: 800;
+}
+
+.shortcut-empty {
+  width: 100%;
+  border: 1px dashed var(--color-border-strong);
+  border-radius: 8px;
+  color: var(--color-text-muted);
+  background: #fff;
+  padding: 12px;
+  font-size: 13px;
+  font-weight: 700;
 }
 
 .icon-toggle {
