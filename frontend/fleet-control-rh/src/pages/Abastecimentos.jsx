@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react';
 import { toast } from 'react-toastify';
-import { Fuel, Camera, Link2, ScanLine, Filter, RotateCcw, Search, ClipboardList, Plus, Trash2, Download } from 'lucide-react';
+import { Fuel, Camera, Link2, ScanLine, Filter, RotateCcw, Search, ClipboardList, Plus, Trash2, Download, CheckCircle2, AlertTriangle } from 'lucide-react';
 import { Header } from '../components/Layout/Header';
 import { Input } from '../components/Forms/Input';
 import { Select } from '../components/Forms/Select';
@@ -164,6 +164,39 @@ export function Abastecimentos() {
       valorTotal: valorTotal.toFixed(2)
     };
   }, [combustiveis]);
+
+  const veiculoSelecionado = useMemo(
+    () => veiculos.find(x => String(x.id) === String(form.veiculoId)),
+    [veiculos, form.veiculoId]
+  );
+
+  const motoristaSelecionado = useMemo(
+    () => motoristas.find(x => String(x.id) === String(form.motoristaId)),
+    [motoristas, form.motoristaId]
+  );
+
+  const custoPorLitro = useMemo(() => {
+    const litros = valorNumerico(totaisCombustiveis.litros);
+    const valorTotal = valorNumerico(totaisCombustiveis.valorTotal);
+    return litros > 0 ? valorTotal / litros : 0;
+  }, [totaisCombustiveis]);
+
+  const pendenciasRegistro = useMemo(() => {
+    const pendencias = [];
+
+    if (!editandoId && !foto) pendencias.push('foto da nota');
+    if (!form.veiculoId) pendencias.push('veiculo');
+    if (!form.motoristaId) pendencias.push('motorista');
+    if (Number(form.kmAtual) <= 0) pendencias.push('KM atual');
+    if (combustiveis.some(item => !item.descricaoCombustivel?.trim())) pendencias.push('tipo de combustivel');
+    if (combustiveis.some(item => valorNumerico(item.litros) <= 0)) pendencias.push('litros');
+    if (combustiveis.some(item => valorNumerico(item.valorTotal) <= 0)) pendencias.push('valor');
+    if (form.dataAbastecimento > dataHoraInputBrasil()) pendencias.push('data valida');
+
+    return pendencias;
+  }, [combustiveis, editandoId, form, foto]);
+
+  const registroPronto = pendenciasRegistro.length === 0;
 
   function atualizarCombustivel(index, campo, valor) {
     setCombustiveis(lista => lista.map((item, i) => {
@@ -592,11 +625,48 @@ export function Abastecimentos() {
             <Input label="Posto" value={form.posto} onChange={v => setForm({ ...form, posto: v })} />
           </div>
 
+          <div className={`registro-resumo ${registroPronto ? 'ready' : 'attention'}`}>
+            <div className="registro-resumo-head">
+              <div>
+                <span>Conferencia rapida</span>
+                <strong>{registroPronto ? 'Pronto para salvar' : 'Confira os dados antes de salvar'}</strong>
+              </div>
+              {registroPronto ? <CheckCircle2 size={22} /> : <AlertTriangle size={22} />}
+            </div>
+
+            <div className="registro-resumo-grid">
+              <div>
+                <span>Veiculo</span>
+                <strong>{veiculoSelecionado ? `${veiculoSelecionado.modelo} - ${veiculoSelecionado.placa}` : 'Pendente'}</strong>
+              </div>
+              <div>
+                <span>Motorista</span>
+                <strong>{motoristaSelecionado?.nome || 'Pendente'}</strong>
+              </div>
+              <div>
+                <span>Litros</span>
+                <strong>{litrosFmt(totaisCombustiveis.litros)}</strong>
+              </div>
+              <div>
+                <span>Valor total</span>
+                <strong>{money(totaisCombustiveis.valorTotal)}</strong>
+              </div>
+              <div>
+                <span>Custo por litro</span>
+                <strong>{custoPorLitro ? `${money(custoPorLitro)}/L` : 'Pendente'}</strong>
+              </div>
+              <div>
+                <span>Pendencias</span>
+                <strong>{registroPronto ? 'Nenhuma' : pendenciasRegistro.join(', ')}</strong>
+              </div>
+            </div>
+          </div>
+
           <label>Observação</label>
           <textarea className="form-control mb-3" rows="3" value={form.observacao} onChange={e => setForm({ ...form, observacao: e.target.value })} />
 
           <div className="d-flex gap-2">
-            <button className="btn btn-success">
+            <button className="btn btn-success" disabled={!registroPronto}>
               {editandoId ? 'Atualizar Abastecimento' : 'Salvar Abastecimento'}
             </button>
 
