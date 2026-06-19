@@ -764,6 +764,33 @@
   margin-bottom: 14px;
 }
 
+.profile-target-select {
+  min-width: 180px;
+  display: flex;
+  flex-direction: column;
+  gap: 5px;
+  margin-left: auto;
+}
+
+.profile-target-select span {
+  color: var(--color-text-muted);
+  font-size: 10px;
+  font-weight: 850;
+  letter-spacing: .45px;
+  text-transform: uppercase;
+}
+
+.profile-target-select select {
+  border: 1px solid var(--color-border-strong);
+  border-radius: 8px;
+  background: #fff;
+  color: var(--color-text);
+  font: inherit;
+  font-size: 12px;
+  font-weight: 750;
+  padding: 6px 10px;
+}
+
 .customizer-head h3 {
   margin: 0;
   color: var(--color-industrial);
@@ -1014,6 +1041,15 @@
   .maintenance-head,
   .radar-head {
     flex-direction: column;
+  }
+
+  .customizer-head {
+    flex-direction: column;
+  }
+
+  .profile-target-select {
+    width: 100%;
+    margin-left: 0;
   }
 
   .radar-grid {

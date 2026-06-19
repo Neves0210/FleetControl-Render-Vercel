@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useEffect, useMemo, useRef, useState } from 'react';
 import { toast } from 'react-toastify';
 import {
   AlertTriangle,
@@ -26,7 +26,7 @@ import { Header } from '../components/Layout/Header';
 import { AbastecimentosTabela } from '../components/Abastecimentos/AbastecimentosTabela';
 import { AreaChart, Sparkline } from '../components/Dashboard/Charts';
 import { money, number, litros as litrosFmt, toNumber } from '../utils/formatters';
-import { getUser } from '../utils/permissions';
+import { getUser, temPermissao } from '../utils/permissions';
 import { dataBrasilParaDate, hojeExtensoBrasil, subtrairMesesBrasil } from '../utils/dataBrasil';
 import '../components/Dashboard/dashboard.css';
 
@@ -43,6 +43,13 @@ const COMBUSTIVEIS = {
   4: 'Flex'
 };
 
+const PERFIS_DASHBOARD = [
+  { id: 'self', label: 'Meu painel' },
+  { id: '2', label: 'RH', nivel: 2 },
+  { id: '3', label: 'Técnico', nivel: 3 },
+  { id: '4', label: 'Almoxarifado', nivel: 4 }
+];
+
 const DASHBOARD_SHORTCUTS = [
   { id: 'novoAbastecimento', label: 'Novo abastecimento', rota: '/abastecimentos', icon: 'plus', variant: 'btn-primary' },
   { id: 'relatorios', label: 'Relatórios', rota: '/relatorios', icon: 'relatorio', variant: 'btn-outline-secondary' },
@@ -52,6 +59,22 @@ const DASHBOARD_SHORTCUTS = [
   { id: 'manutencoes', label: 'Manutenções', rota: '/manutencoes', icon: 'manutencao', variant: 'btn-outline-secondary' },
   { id: 'usuarios', label: 'Usuários', rota: '/usuarios', icon: 'usuario', variant: 'btn-outline-secondary' }
 ];
+
+const SHORTCUT_PERMISSIONS = {
+  novoAbastecimento: 'Abastecimentos.Visualizar',
+  relatorios: 'Relatorios.Visualizar',
+  veiculos: 'Veiculos.Visualizar',
+  motoristas: 'Motoristas.Visualizar',
+  usoVeiculos: 'UsosVeiculos.Visualizar',
+  manutencoes: 'Manutencoes.Visualizar',
+  usuarios: 'Usuarios.Visualizar'
+};
+
+const PROFILE_SHORTCUT_PERMISSIONS = {
+  2: ['Dashboard.Visualizar', 'Veiculos.Visualizar', 'Motoristas.Visualizar', 'Abastecimentos.Visualizar', 'Relatorios.Visualizar'],
+  3: ['Dashboard.Visualizar', 'Abastecimentos.Visualizar', 'UsosVeiculos.Visualizar'],
+  4: ['Dashboard.Visualizar', 'Veiculos.Visualizar', 'Abastecimentos.Visualizar', 'Manutencoes.Visualizar']
+};
 
 const DASHBOARD_SECTIONS = [
   { id: 'kpis', label: 'Indicadores principais' },
@@ -82,12 +105,42 @@ const DEFAULT_DASHBOARD_CONFIG = {
 
 function podePersonalizarDashboard(user) {
   return user?.perfil === 1 ||
+    user?.perfil === 2 ||
     user?.perfil === 'Master' ||
+    user?.perfil === 'RH' ||
     user?.permissoes?.includes('Dashboard.Personalizar');
 }
 
-function dashboardConfigKey(user) {
+function perfilNumero(user) {
+  const perfil = String(user?.perfil || '').toLowerCase();
+  if (perfil === 'master') return 1;
+  if (perfil === 'rh') return 2;
+  if (perfil === 'tecnico') return 3;
+  if (perfil === 'almoxarifado') return 4;
+  return Number(user?.perfil) || 0;
+}
+
+function dashboardProfileConfigKey(perfilId) {
+  return `fleet-dashboard-profile-config-${perfilId}`;
+}
+
+function dashboardConfigKey(user, perfilAlvo = 'self') {
+  if (perfilAlvo !== 'self') return dashboardProfileConfigKey(perfilAlvo);
   return `fleet-dashboard-config-${user?.id || user?.email || 'local'}`;
+}
+
+function perfisConfiguraveis(user) {
+  const perfil = perfilNumero(user);
+  if (perfil === 1) return PERFIS_DASHBOARD;
+  if (perfil === 2) return PERFIS_DASHBOARD.filter(item => item.id === 'self' || item.nivel > 2);
+  return PERFIS_DASHBOARD.filter(item => item.id === 'self');
+}
+
+function atalhoPermitido(item, perfilAlvo = 'self') {
+  const permissao = SHORTCUT_PERMISSIONS[item.id];
+  if (!permissao) return true;
+  if (perfilAlvo === 'self') return temPermissao(permissao);
+  return (PROFILE_SHORTCUT_PERMISSIONS[perfilAlvo] || []).includes(permissao);
 }
 
 function normalizarConfig(config) {
@@ -112,9 +165,13 @@ function normalizarConfig(config) {
   };
 }
 
-function carregarConfigDashboard(user) {
+function carregarConfigDashboard(user, perfilAlvo = 'self') {
   try {
-    const salvo = localStorage.getItem(dashboardConfigKey(user));
+    const chavePrincipal = dashboardConfigKey(user, perfilAlvo);
+    const chavePerfil = dashboardProfileConfigKey(perfilNumero(user));
+    const salvo = !podePersonalizarDashboard(user)
+      ? localStorage.getItem(chavePerfil) || localStorage.getItem(chavePrincipal)
+      : localStorage.getItem(chavePrincipal);
     return normalizarConfig(salvo ? JSON.parse(salvo) : DEFAULT_DASHBOARD_CONFIG);
   } catch {
     return DEFAULT_DASHBOARD_CONFIG;
@@ -324,10 +381,40 @@ function DailyFlow({ navigate }) {
   );
 }
 
+function PermittedDailyFlow({ navigate }) {
+  const steps = [
+    { label: 'Iniciar uso', hint: 'Retirada do veículo', rota: '/uso-veiculos?aba=registrar', icon: <Route size={17} />, permissao: 'UsosVeiculos.Visualizar' },
+    { label: 'Abastecer', hint: 'Nota fiscal e litros', rota: '/abastecimentos?aba=registrar', icon: <Fuel size={17} />, permissao: 'Abastecimentos.Visualizar' },
+    { label: 'Finalizar uso', hint: 'KM final e retorno', rota: '/uso-veiculos?aba=registrar&somenteAtivos=true', icon: <ListChecks size={17} />, permissao: 'UsosVeiculos.Visualizar' },
+    { label: 'Pendências', hint: 'Manutenções e alertas', rota: '/manutencoes?aba=consultar', icon: <Wrench size={17} />, permissao: 'Manutencoes.Visualizar' }
+  ].filter(step => temPermissao(step.permissao));
+
+  if (!steps.length) return null;
+
+  return (
+    <section className="daily-flow">
+      <div>
+        <p className="panel-kicker">Fluxo operacional</p>
+        <h2>Jornada do dia</h2>
+      </div>
+      <div className="daily-flow-steps">
+        {steps.map(step => (
+          <button type="button" className="daily-flow-step" key={step.label} onClick={() => navigate(step.rota)}>
+            <span>{step.icon}</span>
+            <strong>{step.label}</strong>
+            <small>{step.hint}</small>
+          </button>
+        ))}
+      </div>
+    </section>
+  );
+}
+
 export function Dashboard() {
   const navigate = useNavigate();
-  const user = getUser();
+  const user = useMemo(() => getUser(), []);
   const podeCustomizar = podePersonalizarDashboard(user);
+  const perfisParaConfigurar = useMemo(() => perfisConfiguraveis(user), [user]);
   const [dash, setDash] = useState(null);
   const [abastecimentos, setAbastecimentos] = useState([]);
   const [alertas, setAlertas] = useState([]);
@@ -335,12 +422,24 @@ export function Dashboard() {
   const [periodo] = useState('12m');
   const [carregando, setCarregando] = useState(true);
   const [editandoPainel, setEditandoPainel] = useState(false);
-  const [dashboardConfig, setDashboardConfig] = useState(() => carregarConfigDashboard(user));
+  const [perfilAlvoConfig, setPerfilAlvoConfig] = useState('self');
+  const [dashboardConfig, setDashboardConfig] = useState(() => carregarConfigDashboard(user, 'self'));
+  const trocandoPerfilConfig = useRef(false);
 
   useEffect(() => {
     if (!podeCustomizar) return;
-    localStorage.setItem(dashboardConfigKey(user), JSON.stringify(dashboardConfig));
-  }, [dashboardConfig, podeCustomizar, user]);
+    trocandoPerfilConfig.current = true;
+    setDashboardConfig(carregarConfigDashboard(user, perfilAlvoConfig));
+  }, [perfilAlvoConfig, podeCustomizar, user]);
+
+  useEffect(() => {
+    if (!podeCustomizar) return;
+    if (trocandoPerfilConfig.current) {
+      trocandoPerfilConfig.current = false;
+      return;
+    }
+    localStorage.setItem(dashboardConfigKey(user, perfilAlvoConfig), JSON.stringify(dashboardConfig));
+  }, [dashboardConfig, perfilAlvoConfig, podeCustomizar, user]);
 
   useEffect(() => {
     let cancelled = false;
@@ -484,10 +583,11 @@ export function Dashboard() {
     { label: 'Gasto total', value: money(dash?.totalValor ?? 0) }
   ];
 
+  const atalhosPermitidos = DASHBOARD_SHORTCUTS.filter(item => atalhoPermitido(item, perfilAlvoConfig));
   const atalhosSelecionados = dashboardConfig.shortcuts
     .map(id => DASHBOARD_SHORTCUTS.find(item => item.id === id))
-    .filter(Boolean);
-  const atalhosDisponiveis = DASHBOARD_SHORTCUTS.filter(item => !dashboardConfig.shortcuts.includes(item.id));
+    .filter(item => item && atalhoPermitido(item, perfilAlvoConfig));
+  const atalhosDisponiveis = atalhosPermitidos.filter(item => !dashboardConfig.shortcuts.includes(item.id));
 
   function atualizarConfig(parcial) {
     setDashboardConfig(config => normalizarConfig({ ...config, ...parcial }));
@@ -514,8 +614,13 @@ export function Dashboard() {
   function adicionarAtalho(id) {
     setDashboardConfig(config => {
       const shortcuts = Array.isArray(config.shortcuts) ? config.shortcuts : [];
-      if (shortcuts.includes(id) || shortcuts.length >= 2) return config;
-      return normalizarConfig({ ...config, shortcuts: [...shortcuts, id] });
+      const visiveis = shortcuts.filter(shortcutId => {
+        const item = DASHBOARD_SHORTCUTS.find(x => x.id === shortcutId);
+        return item && atalhoPermitido(item, perfilAlvoConfig);
+      });
+
+      if (visiveis.includes(id) || visiveis.length >= 2) return config;
+      return normalizarConfig({ ...config, shortcuts: [...visiveis, id] });
     });
   }
 
@@ -537,6 +642,16 @@ export function Dashboard() {
           <p className="panel-kicker">Modo de montagem</p>
           <h3>Personalizar painel</h3>
         </div>
+        {perfisParaConfigurar.length > 1 && (
+          <label className="profile-target-select">
+            <span>Perfil editado</span>
+            <select value={perfilAlvoConfig} onChange={e => setPerfilAlvoConfig(e.target.value)}>
+              {perfisParaConfigurar.map(item => (
+                <option key={item.id} value={item.id}>{item.label}</option>
+              ))}
+            </select>
+          </label>
+        )}
         <button className="btn btn-outline-secondary btn-sm" onClick={resetarPainel}>
           <RotateCcw size={14} /> Restaurar padrão
         </button>
@@ -832,7 +947,7 @@ export function Dashboard() {
 
       {editorPainel}
 
-      <DailyFlow navigate={navigate} />
+      <PermittedDailyFlow navigate={navigate} />
 
       <div className="dashboard-widget-grid">
         {orderedSections}
