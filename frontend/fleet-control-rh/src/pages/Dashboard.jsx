@@ -3,7 +3,11 @@ import { toast } from 'react-toastify';
 import {
   AlertTriangle,
   BarChart3,
+  BadgeCheck,
+  Calculator,
   ChevronRight,
+  CircleDollarSign,
+  ClipboardList,
   Eye,
   EyeOff,
   FileBarChart,
@@ -15,6 +19,7 @@ import {
   Settings2,
   Trash2,
   Table2,
+  TrendingUp,
   Truck,
   UserCog,
   Users,
@@ -120,23 +125,23 @@ const DASHBOARD_VIEW_CONFIG = {
   },
   finance: {
     title: 'Painel financeiro',
-    subtitle: 'Custos, litros, medias e ranking de gastos',
+    subtitle: 'Valores, medias, consumo e ranking de gastos',
     accent: '#10c040',
-    sections: ['kpis', 'monthlyCostLine', 'vehicleRanking', 'fuelTable', 'recent'],
+    sections: ['financeOverview', 'monthlyCostLine', 'financeBreakdown', 'vehicleRanking', 'fuelTable', 'recent'],
     shortcuts: ['relatorios', 'veiculos']
   },
   operational: {
     title: 'Painel operacional',
-    subtitle: 'Rotina da frota, alertas e manutencoes',
+    subtitle: 'Somente dados vinculados ao usuario logado',
     accent: '#30a8d8',
-    sections: ['kpis', 'operationalRadar', 'maintenance', 'recent'],
-    shortcuts: ['novoAbastecimento', 'manutencoes']
+    sections: ['userOperational', 'monthlyCostLine', 'fuelTable', 'recent'],
+    shortcuts: ['novoAbastecimento', 'usoVeiculos']
   },
   hr: {
     title: 'Painel RH',
-    subtitle: 'Motoristas, uso da frota e acompanhamentos',
+    subtitle: 'Funcionarios, veiculos e uso da frota',
     accent: '#4b1260',
-    sections: ['kpis', 'operationalRadar', 'vehicleRanking', 'recent'],
+    sections: ['hrOverview', 'hrPeopleVehicles', 'operationalRadar', 'vehicleRanking', 'recent'],
     shortcuts: ['motoristas', 'relatorios']
   },
   user: {
@@ -390,6 +395,19 @@ function IndustrialKpi({ icon, label, value, meta, children, accent = 'green' })
   );
 }
 
+function VisualMetricCard({ icon, label, value, meta, tone = 'default' }) {
+  return (
+    <article className={`visual-metric-card ${tone}`}>
+      <span>{icon}</span>
+      <div>
+        <small>{label}</small>
+        <strong>{value}</strong>
+        <p>{meta}</p>
+      </div>
+    </article>
+  );
+}
+
 function DailyFlow({ navigate }) {
   const steps = [
     { label: 'Iniciar uso', hint: 'Retirada do veículo', rota: '/uso-veiculos?aba=registrar', icon: <Route size={17} /> },
@@ -456,6 +474,7 @@ export function Dashboard() {
   const [abastecimentos, setAbastecimentos] = useState([]);
   const [alertas, setAlertas] = useState([]);
   const [veiculos, setVeiculos] = useState([]);
+  const [motoristas, setMotoristas] = useState([]);
   const [periodo] = useState('12m');
   const [carregando, setCarregando] = useState(true);
   const [editandoPainel, setEditandoPainel] = useState(false);
@@ -493,13 +512,15 @@ export function Dashboard() {
     async function carregar() {
       try {
         setCarregando(true);
-        const motoristaId = dashboardView === 'user' ? user?.motoristaId : null;
+        const painelPessoal = dashboardView === 'user' || dashboardView === 'operational';
+        const motoristaId = painelPessoal ? user?.motoristaId : null;
 
-        if (dashboardView === 'user' && !motoristaId) {
+        if (painelPessoal && !motoristaId) {
           if (cancelled) return;
           setDash({ veiculos: 0, motoristas: 0, abastecimentos: 0, totalLitros: 0, totalValor: 0, ultimos: [] });
           setAbastecimentos([]);
           setVeiculos([]);
+          setMotoristas([]);
           setAlertas([]);
           return;
         }
@@ -515,6 +536,13 @@ export function Dashboard() {
         setDash(dashRes.data);
         setAbastecimentos(Array.isArray(abastRes.data) ? abastRes.data : []);
         setVeiculos(Array.isArray(veiculosRes.data) ? veiculosRes.data : []);
+
+        if (dashboardView === 'hr' && temPermissao('Motoristas.Visualizar')) {
+          const motoristasRes = await api.get('/motoristas');
+          if (!cancelled) setMotoristas(Array.isArray(motoristasRes.data) ? motoristasRes.data : []);
+        } else {
+          setMotoristas([]);
+        }
       } catch {
         if (!cancelled) toast.error('Erro ao carregar o dashboard.');
       } finally {
@@ -566,9 +594,52 @@ export function Dashboard() {
   const totalAbastecimentosPeriodo = listaFiltrada.length;
   const ultimosPorVeiculo = useMemo(() => ultimoAbastecimentoPorVeiculo(abastecimentos), [abastecimentos]);
   const mediaAbastecimentoPeriodo = totalAbastecimentosPeriodo > 0 ? totalGastoPeriodo / totalAbastecimentosPeriodo : 0;
+  const painelPessoal = dashboardView === 'user' || dashboardView === 'operational';
+  const veiculosDoPainel = useMemo(() => {
+    if (!painelPessoal) return veiculos;
+    const ids = new Set(abastecimentos.map(item => item.veiculoId || item.veiculo?.id).filter(Boolean));
+    return veiculos.filter(item => ids.has(item.id));
+  }, [abastecimentos, painelPessoal, veiculos]);
+  const maiorAbastecimento = useMemo(
+    () => listaFiltrada.reduce((maior, item) => (toNumber(item.valorTotal) > toNumber(maior?.valorTotal) ? item : maior), null),
+    [listaFiltrada]
+  );
+  const ticketMedioPorLitro = totalLitrosPeriodo > 0 ? totalGastoPeriodo / totalLitrosPeriodo : 0;
+  const funcionariosAtivos = motoristas.filter(item => item.ativo !== false).length;
+  const funcionariosComUso = useMemo(
+    () => new Set(listaFiltrada.map(item => item.motoristaId || item.motorista?.id).filter(Boolean)).size,
+    [listaFiltrada]
+  );
+  const veiculosUsados = useMemo(
+    () => new Set(listaFiltrada.map(item => item.veiculoId || item.veiculo?.id).filter(Boolean)).size,
+    [listaFiltrada]
+  );
+  const custoPorFuncionario = funcionariosComUso > 0 ? totalGastoPeriodo / funcionariosComUso : 0;
+  const funcionariosResumo = useMemo(() => {
+    const base = motoristas.length
+      ? motoristas.map(item => ({ id: item.id, nome: item.nome, ativo: item.ativo }))
+      : [...new Map(listaFiltrada
+        .filter(item => item.motoristaId || item.motorista?.id)
+        .map(item => [item.motoristaId || item.motorista?.id, {
+          id: item.motoristaId || item.motorista?.id,
+          nome: item.motorista?.nome || 'Funcionario',
+          ativo: true
+        }])).values()];
+
+    return base.map(funcionario => {
+      const registros = listaFiltrada.filter(item => (item.motoristaId || item.motorista?.id) === funcionario.id);
+      const veiculosFuncionario = new Set(registros.map(item => item.veiculoId || item.veiculo?.id).filter(Boolean)).size;
+      return {
+        ...funcionario,
+        registros: registros.length,
+        veiculos: veiculosFuncionario,
+        valor: registros.reduce((sum, item) => sum + toNumber(item.valorTotal), 0)
+      };
+    }).sort((a, b) => b.valor - a.valor).slice(0, 6);
+  }, [listaFiltrada, motoristas]);
 
   const radarOperacional = useMemo(() => {
-    const veiculosSemAbastecimento = veiculos
+    const veiculosSemAbastecimento = veiculosDoPainel
       .filter(item => item.ativo !== false)
       .filter(item => {
         const ultimo = ultimosPorVeiculo.get(item.id);
@@ -619,7 +690,7 @@ export function Dashboard() {
     manutencoesVencidas,
     mediaAbastecimentoPeriodo,
     ultimosPorVeiculo,
-    veiculos
+    veiculosDoPainel
   ]);
 
   const hoje = useMemo(
@@ -647,17 +718,17 @@ export function Dashboard() {
     finance: [
       { label: 'Gasto no periodo', value: money(totalGastoPeriodo) },
       { label: 'Custo por litro', value: `${eficiencia.toFixed(2).replace('.', ',')} R$/L` },
-      { label: 'Media por abastecimento', value: money(mediaAbastecimentoPeriodo) }
+      { label: 'Maior lancamento', value: money(toNumber(maiorAbastecimento?.valorTotal)) }
     ],
     operational: [
-      { label: 'Manutencao', value: manutencoesVencidas ? `${manutencoesVencidas} vencida(s)` : 'Em controle' },
-      { label: 'Frota ativa', value: number(veiculosAtivos) },
-      { label: 'Registros', value: number(totalAbastecimentosPeriodo) }
+      { label: 'Meus registros', value: number(totalAbastecimentosPeriodo) },
+      { label: 'Meus veiculos', value: number(veiculosUsados) },
+      { label: 'Meu custo', value: money(totalGastoPeriodo) }
     ],
     hr: [
-      { label: 'Motoristas', value: number(dash?.motoristas ?? 0) },
-      { label: 'Veiculos usados', value: number(dash?.veiculos ?? 0) },
-      { label: 'Abastecimentos', value: number(totalAbastecimentosPeriodo) }
+      { label: 'Funcionarios ativos', value: number(funcionariosAtivos || dash?.motoristas || 0) },
+      { label: 'Veiculos usados', value: number(veiculosUsados) },
+      { label: 'Custo por funcionario', value: money(custoPorFuncionario) }
     ],
     user: [
       { label: 'Meus abastecimentos', value: number(totalAbastecimentosPeriodo) },
@@ -869,6 +940,147 @@ export function Dashboard() {
   );
 
   const sections = {
+    financeOverview: (
+      <section className="dashboard-visual-band finance-band" key="financeOverview">
+        <VisualMetricCard
+          icon={<CircleDollarSign size={24} />}
+          label="Gasto no periodo"
+          value={money(totalGastoPeriodo)}
+          meta={`${number(totalAbastecimentosPeriodo)} abastecimento(s) analisado(s)`}
+          tone="money"
+        />
+        <VisualMetricCard
+          icon={<Calculator size={24} />}
+          label="Media por abastecimento"
+          value={money(mediaAbastecimentoPeriodo)}
+          meta={`Maior lancamento: ${money(toNumber(maiorAbastecimento?.valorTotal))}`}
+          tone="average"
+        />
+        <VisualMetricCard
+          icon={<Fuel size={24} />}
+          label="Custo por litro"
+          value={`${ticketMedioPorLitro.toFixed(2).replace('.', ',')} R$/L`}
+          meta={`${litrosFmt(totalLitrosPeriodo)} consumidos`}
+          tone="fuel"
+        />
+        <VisualMetricCard
+          icon={<TrendingUp size={24} />}
+          label="Veiculo com maior gasto"
+          value={porVeiculo[0]?.nome || 'Sem dados'}
+          meta={porVeiculo[0] ? money(porVeiculo[0].valor) : 'Nenhum valor registrado'}
+          tone="rank"
+        />
+      </section>
+    ),
+    financeBreakdown: (
+      <article className="panel dashboard-visual-panel" key="financeBreakdown">
+        <div className="panel-head">
+          <div>
+            <p className="panel-kicker">Detalhamento financeiro</p>
+            <h3>Valores por combustivel</h3>
+          </div>
+          <span className="panel-total">{money(totalGastoPeriodo)}</span>
+        </div>
+        <div className="finance-split-list">
+          {porCombustivel.length ? porCombustivel.map(item => (
+            <div className="finance-split-row" key={item.nome}>
+              <div>
+                <strong>{item.nome}</strong>
+                <span>{litrosFmt(item.litros)} em {number(item.count)} registro(s)</span>
+              </div>
+              <b>{money(item.valor)}</b>
+              <i style={{ width: `${Math.max((item.valor / Math.max(totalGastoPeriodo, 1)) * 100, 5)}%` }} />
+            </div>
+          )) : <div className="chart-empty">Sem valores no periodo.</div>}
+        </div>
+      </article>
+    ),
+    hrOverview: (
+      <section className="dashboard-visual-band hr-band" key="hrOverview">
+        <VisualMetricCard
+          icon={<Users size={24} />}
+          label="Funcionarios ativos"
+          value={number(funcionariosAtivos || dash?.motoristas || 0)}
+          meta={`${number(funcionariosComUso)} com abastecimento no periodo`}
+          tone="people"
+        />
+        <VisualMetricCard
+          icon={<Truck size={24} />}
+          label="Veiculos usados"
+          value={number(veiculosUsados)}
+          meta={`${number(veiculosAtivos)} veiculo(s) ativos no painel`}
+          tone="fleet"
+        />
+        <VisualMetricCard
+          icon={<BadgeCheck size={24} />}
+          label="Media por funcionario"
+          value={money(custoPorFuncionario)}
+          meta="Baseada nos funcionarios com uso"
+          tone="average"
+        />
+        <VisualMetricCard
+          icon={<ClipboardList size={24} />}
+          label="Registros RH"
+          value={number(totalAbastecimentosPeriodo)}
+          meta={`${litrosFmt(totalLitrosPeriodo)} acompanhados`}
+          tone="rank"
+        />
+      </section>
+    ),
+    hrPeopleVehicles: (
+      <article className="panel dashboard-visual-panel dashboard-wide-panel" key="hrPeopleVehicles">
+        <div className="panel-head">
+          <div>
+            <p className="panel-kicker">Funcionarios e veiculos</p>
+            <h3>Uso por funcionario</h3>
+          </div>
+          <Users size={20} />
+        </div>
+        <DataTable
+          data={funcionariosResumo}
+          empty="Sem funcionarios com dados no periodo."
+          columns={[
+            { key: 'nome', label: 'Funcionario', render: item => item.nome },
+            { key: 'status', label: 'Status', render: item => item.ativo === false ? 'Inativo' : 'Ativo' },
+            { key: 'veiculos', label: 'Veiculos', render: item => number(item.veiculos) },
+            { key: 'registros', label: 'Registros', render: item => number(item.registros) },
+            { key: 'valor', label: 'Gasto', render: item => money(item.valor) }
+          ]}
+        />
+      </article>
+    ),
+    userOperational: (
+      <section className="dashboard-visual-band operational-user-band" key="userOperational">
+        <VisualMetricCard
+          icon={<UserCog size={24} />}
+          label="Usuario"
+          value={user?.motorista || user?.nome || 'Meu painel'}
+          meta="Dados vinculados ao login"
+          tone="people"
+        />
+        <VisualMetricCard
+          icon={<Truck size={24} />}
+          label="Veiculos usados"
+          value={number(veiculosUsados)}
+          meta={porVeiculo[0]?.nome || 'Nenhum veiculo no periodo'}
+          tone="fleet"
+        />
+        <VisualMetricCard
+          icon={<Fuel size={24} />}
+          label="Meus litros"
+          value={litrosFmt(totalLitrosPeriodo)}
+          meta={`${number(totalAbastecimentosPeriodo)} abastecimento(s)`}
+          tone="fuel"
+        />
+        <VisualMetricCard
+          icon={<CircleDollarSign size={24} />}
+          label="Meu custo"
+          value={money(totalGastoPeriodo)}
+          meta={`Media: ${money(mediaAbastecimentoPeriodo)}`}
+          tone="money"
+        />
+      </section>
+    ),
     kpis: (
       <section className="industrial-kpi-grid" style={{ '--kpi-columns': dashboardConfig.kpiColumns }} key="kpis">
         <IndustrialKpi icon={<Truck size={21} />} label="Veículos ativos" value={number(veiculosAtivos)} meta="Cadastro da frota" accent="green">
