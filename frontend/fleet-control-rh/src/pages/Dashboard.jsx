@@ -28,6 +28,13 @@ import { AreaChart, Sparkline } from '../components/Dashboard/Charts';
 import { money, number, litros as litrosFmt, toNumber } from '../utils/formatters';
 import { getUser, temPermissao } from '../utils/permissions';
 import { dataBrasilParaDate, hojeExtensoBrasil, subtrairMesesBrasil } from '../utils/dataBrasil';
+import {
+  DASHBOARD_VIEW_CHANGE_EVENT,
+  dashboardViewPorId,
+  lerDashboardView,
+  normalizarDashboardView,
+  perfilNumero
+} from '../utils/dashboardViews';
 import '../components/Dashboard/dashboard.css';
 
 const PERIODOS = [
@@ -103,21 +110,50 @@ const DEFAULT_DASHBOARD_CONFIG = {
   shortcuts: ['novoAbastecimento', 'relatorios']
 };
 
+const DASHBOARD_VIEW_CONFIG = {
+  general: {
+    title: 'Painel geral',
+    subtitle: 'Visao ampla da frota, custos e pendencias',
+    accent: '#f8e000',
+    sections: ['kpis', 'operationalRadar', 'monthlyCostLine', 'vehicleRanking', 'fuelTable', 'maintenance', 'recent'],
+    shortcuts: ['novoAbastecimento', 'relatorios']
+  },
+  finance: {
+    title: 'Painel financeiro',
+    subtitle: 'Custos, litros, medias e ranking de gastos',
+    accent: '#10c040',
+    sections: ['kpis', 'monthlyCostLine', 'vehicleRanking', 'fuelTable', 'recent'],
+    shortcuts: ['relatorios', 'veiculos']
+  },
+  operational: {
+    title: 'Painel operacional',
+    subtitle: 'Rotina da frota, alertas e manutencoes',
+    accent: '#30a8d8',
+    sections: ['kpis', 'operationalRadar', 'maintenance', 'recent'],
+    shortcuts: ['novoAbastecimento', 'manutencoes']
+  },
+  hr: {
+    title: 'Painel RH',
+    subtitle: 'Motoristas, uso da frota e acompanhamentos',
+    accent: '#4b1260',
+    sections: ['kpis', 'operationalRadar', 'vehicleRanking', 'recent'],
+    shortcuts: ['motoristas', 'relatorios']
+  },
+  user: {
+    title: 'Meu painel',
+    subtitle: 'Somente informacoes vinculadas ao seu usuario',
+    accent: '#f8e000',
+    sections: ['kpis', 'monthlyCostLine', 'fuelTable', 'recent'],
+    shortcuts: ['novoAbastecimento', 'usoVeiculos']
+  }
+};
+
 function podePersonalizarDashboard(user) {
   return user?.perfil === 1 ||
     user?.perfil === 2 ||
     user?.perfil === 'Master' ||
     user?.perfil === 'RH' ||
     user?.permissoes?.includes('Dashboard.Personalizar');
-}
-
-function perfilNumero(user) {
-  const perfil = String(user?.perfil || '').toLowerCase();
-  if (perfil === 'master') return 1;
-  if (perfil === 'rh') return 2;
-  if (perfil === 'tecnico') return 3;
-  if (perfil === 'almoxarifado') return 4;
-  return Number(user?.perfil) || 0;
 }
 
 function dashboardProfileConfigKey(perfilId) {
@@ -413,6 +449,7 @@ function PermittedDailyFlow({ navigate }) {
 export function Dashboard() {
   const navigate = useNavigate();
   const user = useMemo(() => getUser(), []);
+  const [dashboardView, setDashboardView] = useState(() => lerDashboardView(user));
   const podeCustomizar = podePersonalizarDashboard(user);
   const perfisParaConfigurar = useMemo(() => perfisConfiguraveis(user), [user]);
   const [dash, setDash] = useState(null);
@@ -425,6 +462,15 @@ export function Dashboard() {
   const [perfilAlvoConfig, setPerfilAlvoConfig] = useState('self');
   const [dashboardConfig, setDashboardConfig] = useState(() => carregarConfigDashboard(user, 'self'));
   const trocandoPerfilConfig = useRef(false);
+
+  useEffect(() => {
+    function atualizarView(event) {
+      setDashboardView(normalizarDashboardView(user, event.detail));
+    }
+
+    window.addEventListener(DASHBOARD_VIEW_CHANGE_EVENT, atualizarView);
+    return () => window.removeEventListener(DASHBOARD_VIEW_CHANGE_EVENT, atualizarView);
+  }, [user]);
 
   useEffect(() => {
     if (!podeCustomizar) return;
@@ -446,9 +492,22 @@ export function Dashboard() {
 
     async function carregar() {
       try {
+        setCarregando(true);
+        const motoristaId = dashboardView === 'user' ? user?.motoristaId : null;
+
+        if (dashboardView === 'user' && !motoristaId) {
+          if (cancelled) return;
+          setDash({ veiculos: 0, motoristas: 0, abastecimentos: 0, totalLitros: 0, totalValor: 0, ultimos: [] });
+          setAbastecimentos([]);
+          setVeiculos([]);
+          setAlertas([]);
+          return;
+        }
+
+        const params = motoristaId ? { motoristaId } : undefined;
         const [dashRes, abastRes, veiculosRes] = await Promise.all([
-          api.get('/dashboard'),
-          api.get('/abastecimentos'),
+          api.get('/dashboard', { params }),
+          api.get('/abastecimentos', { params }),
           api.get('/veiculos', { params: { incluirInativos: true } })
         ]);
 
@@ -472,7 +531,7 @@ export function Dashboard() {
 
     carregar();
     return () => { cancelled = true; };
-  }, []);
+  }, [dashboardView, user]);
 
   const meses = PERIODOS.find(item => item.id === periodo)?.meses ?? null;
 
@@ -567,24 +626,52 @@ export function Dashboard() {
     () => hojeExtensoBrasil(),
     []
   );
+  const viewConfig = DASHBOARD_VIEW_CONFIG[dashboardView] || DASHBOARD_VIEW_CONFIG.user;
+  const viewMeta = dashboardViewPorId(dashboardView);
 
   if (carregando && !dash) {
     return (
       <>
-        <Header title="Painel" subtitle="Carregando indicadores..." />
+        <Header title={viewConfig.title || viewMeta.label} subtitle="Carregando indicadores..." />
         <div className="panel"><p className="text-muted m-0">Carregando...</p></div>
       </>
     );
   }
 
-  const headerMetrics = [
-    { label: 'Manutenção', value: manutencoesVencidas ? `${manutencoesVencidas} vencida(s)` : 'Em controle' },
-    { label: 'Litros', value: litrosFmt(dash?.totalLitros ?? 0) },
-    { label: 'Gasto total', value: money(dash?.totalValor ?? 0) }
-  ];
+  const headerMetricsByView = {
+    general: [
+      { label: 'Manutencao', value: manutencoesVencidas ? `${manutencoesVencidas} vencida(s)` : 'Em controle' },
+      { label: 'Litros', value: litrosFmt(dash?.totalLitros ?? 0) },
+      { label: 'Gasto total', value: money(dash?.totalValor ?? 0) }
+    ],
+    finance: [
+      { label: 'Gasto no periodo', value: money(totalGastoPeriodo) },
+      { label: 'Custo por litro', value: `${eficiencia.toFixed(2).replace('.', ',')} R$/L` },
+      { label: 'Media por abastecimento', value: money(mediaAbastecimentoPeriodo) }
+    ],
+    operational: [
+      { label: 'Manutencao', value: manutencoesVencidas ? `${manutencoesVencidas} vencida(s)` : 'Em controle' },
+      { label: 'Frota ativa', value: number(veiculosAtivos) },
+      { label: 'Registros', value: number(totalAbastecimentosPeriodo) }
+    ],
+    hr: [
+      { label: 'Motoristas', value: number(dash?.motoristas ?? 0) },
+      { label: 'Veiculos usados', value: number(dash?.veiculos ?? 0) },
+      { label: 'Abastecimentos', value: number(totalAbastecimentosPeriodo) }
+    ],
+    user: [
+      { label: 'Meus abastecimentos', value: number(totalAbastecimentosPeriodo) },
+      { label: 'Meus litros', value: litrosFmt(totalLitrosPeriodo) },
+      { label: 'Meu gasto total', value: money(totalGastoPeriodo) }
+    ]
+  };
+  const headerMetrics = headerMetricsByView[dashboardView] || headerMetricsByView.user;
 
   const atalhosPermitidos = DASHBOARD_SHORTCUTS.filter(item => atalhoPermitido(item, perfilAlvoConfig));
-  const atalhosSelecionados = dashboardConfig.shortcuts
+  const atalhosBase = dashboardView === 'general'
+    ? (dashboardConfig.shortcuts?.length ? dashboardConfig.shortcuts : viewConfig.shortcuts)
+    : viewConfig.shortcuts;
+  const atalhosSelecionados = atalhosBase
     .map(id => DASHBOARD_SHORTCUTS.find(item => item.id === id))
     .filter(item => item && atalhoPermitido(item, perfilAlvoConfig));
   const atalhosDisponiveis = atalhosPermitidos.filter(item => !dashboardConfig.shortcuts.includes(item.id));
@@ -912,16 +999,19 @@ export function Dashboard() {
     )
   };
 
-  const orderedSections = dashboardConfig.order
-    .filter(id => dashboardConfig.visible[id])
+  const orderedIds = dashboardView === 'general'
+    ? dashboardConfig.order.filter(id => dashboardConfig.visible[id])
+    : viewConfig.sections;
+
+  const orderedSections = orderedIds
     .map(id => sections[id])
     .filter(Boolean);
 
   return (
-    <div className={`dashboard-workspace density-${dashboardConfig.density}`} style={{ '--dashboard-accent': dashboardConfig.accent }}>
+    <div className={`dashboard-workspace density-${dashboardConfig.density}`} style={{ '--dashboard-accent': viewConfig.accent || dashboardConfig.accent }}>
       <Header
-        title="Painel"
-        subtitle={`Resumo operacional de ${hoje}`}
+        title={viewConfig.title || viewMeta.label}
+        subtitle={`${viewConfig.subtitle} - ${hoje}`}
         metrics={headerMetrics}
         actions={
           <>

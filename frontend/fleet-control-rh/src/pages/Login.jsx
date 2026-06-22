@@ -6,8 +6,8 @@ import { api } from '../api/api';
 import { rotaInicialPorUsuario } from '../utils/flowRoutes';
 
 export function Login() {
-  const [email, setEmail] = useState('admin@fleet.local');
-  const [senha, setSenha] = useState('123456');
+  const [email, setEmail] = useState('');
+  const [senha, setSenha] = useState('');
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
 
@@ -53,7 +53,6 @@ export function Login() {
           <LogIn size={16} /> {loading ? 'Entrando...' : 'Entrar'}
         </button>
 
-        <small className="text-muted mt-3">Admin padrão: admin@fleet.local / 123456</small>
         <ToastContainer position="top-right" autoClose={2500} />
       </form>
     </div>

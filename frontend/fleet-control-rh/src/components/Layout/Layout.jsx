@@ -1,7 +1,6 @@
 import {
   BarChart3,
   Fuel,
-  Gauge,
   LayoutDashboard,
   LogOut,
   Route,
@@ -11,17 +10,27 @@ import {
   Users,
   Wrench
 } from 'lucide-react';
+import { useMemo, useState } from 'react';
 import { ToastContainer } from 'react-toastify';
 import { useNavigate } from 'react-router-dom';
-import { podeVerTela } from '../../utils/permissions';
+import { getUser, podeVerTela } from '../../utils/permissions';
+import { dashboardViewsPermitidas, lerDashboardView, salvarDashboardView } from '../../utils/dashboardViews';
 import { NavItem } from './NavItem';
 
 export function Layout({ children }) {
   const navigate = useNavigate();
+  const user = useMemo(() => getUser(), []);
+  const dashboardViews = useMemo(() => dashboardViewsPermitidas(user), [user]);
+  const [dashboardView, setDashboardView] = useState(() => lerDashboardView(user));
 
   function logout() {
     localStorage.clear();
     navigate('/login');
+  }
+
+  function alterarDashboardView(value) {
+    setDashboardView(salvarDashboardView(user, value));
+    navigate('/');
   }
 
   return (
@@ -44,10 +53,16 @@ export function Layout({ children }) {
           {podeVerTela('Usuarios.Visualizar') && <NavItem to="/usuarios" icon={<UserCog size={18} />} label="Usuários" />}
         </nav>
 
-        <div className="sidebar-status">
-          <Gauge size={15} />
-          <span>Industrial Cockpit</span>
-        </div>
+        {podeVerTela('Dashboard.Visualizar') && (
+          <label className="sidebar-dashboard-select">
+            <span>Dashboard</span>
+            <select value={dashboardView} onChange={e => alterarDashboardView(e.target.value)}>
+              {dashboardViews.map(item => (
+                <option key={item.id} value={item.id}>{item.label}</option>
+              ))}
+            </select>
+          </label>
+        )}
 
         <button className="sidebar-logout" onClick={logout}>
           <LogOut size={16} />
